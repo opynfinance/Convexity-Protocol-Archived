@@ -106,7 +106,6 @@ contract OptionsContract is ERC20 {
     }
 
 
-
     // provide address to oracle
     // oracle_ - address of the oracle contract
     function setOracle(address oracle_) external {
