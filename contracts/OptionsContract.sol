@@ -1,14 +1,16 @@
 pragma solidity 0.5.10;
 
 import "./CompoundOracleInterface.sol";
+import "./OptionsExchange.sol";
 import "./OptionsFactory.sol";
+import "./OptionsUtils.sol";
 import "./UniswapFactoryInterface.sol";
 import "./UniswapExchangeInterface.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 
-contract OptionsContract is ERC20 {
+contract OptionsContract is OptionsUtils, ERC20 {
     using SafeMath for uint256;
     struct Repo {
         uint256 collateral;
@@ -21,8 +23,11 @@ contract OptionsContract is ERC20 {
     );
 
     CompoundOracleInterface constant COMPOUND_ORACLE = CompoundOracleInterface(
-        0x02557a5e05defeffd4cae6d83ea3d173b272c904
+        0x02557a5E05DeFeFFD4cAe6D83eA3d173B272c904
     );
+
+    // TODO: PROPERLY INITIALIZE
+    OptionsExchange constant OPTIONS_EXCHANGE = OptionsExchange(0);
 
     Repo[] repos;
 
@@ -59,14 +64,7 @@ contract OptionsContract is ERC20 {
         collateral = _collateral;
         if (!isETH(collateral)) {
             // go to Uniswap for the appropriate exchange
-            collateralExchange = UniswapExchangeInterface(
-                UNISWAP_FACTORY.getExchange(address(collateral))
-            );
-
-            // if address(0), uniswap doesn't have an exchange
-            if (address(collateralExchange) == address(0)) {
-                revert("No collateral exchange");
-            }
+            collateralExchange = getUniswapExchange(address(collateral));
         }
 
         underlying = _underlying;
@@ -75,13 +73,7 @@ contract OptionsContract is ERC20 {
         payout = _payout;
         if (!isETH(payout)) {
             // same as above for collateral
-            payoutExchange = UniswapExchangeInterface(
-                UNISWAP_FACTORY.getExchange(address(payout))
-            );
-
-            if (address(payoutExchange) == address(0)) {
-                revert("No payout exchange");
-            }
+            payoutExchange = getUniswapExchange(address(payout));
         }
 
         expiry = _expiry;
@@ -92,11 +84,15 @@ contract OptionsContract is ERC20 {
     }
 
     function addERC20Collateral(uint256 _repoNum, uint256 _amt) public returns (uint256) {
-        require(collateral.transferFrom(msg.sender, address(this), _amt));
+        require(
+            collateral.transferFrom(msg.sender, address(this), _amt),
+            "Could not transfer in collateral tokens"
+        );
 
         return _addCollateral(_repoNum, _amt);
     }
-/// TODO: look up pToken to underlying ratio. rn 1:1.
+
+    /// TODO: look up pToken to underlying ratio. rn 1:1.
     function exercise(uint256 _pTokens) public payable {
         // 1. before exercise window: revert
         require(now >= expiry - windowSize, "Too early to exercise");
@@ -139,22 +135,22 @@ contract OptionsContract is ERC20 {
         uniswap transfer input. This transfers in strikePrice * pTokens collateral for how many ever payoutTokens you can get. */
         else if(collateral == strikeAsset && strikeAsset != payout) {
             uint256 amtToSend = strikePrice.mul(_pTokens);
-            exchangeAndTransferInput(collateral, payout, amtToSend, msg.sender);
+            OPTIONS_EXCHANGE.exchangeAndTransferInput(collateral, payout, amtToSend, msg.sender);
         }
         /* 2.4.3 if collateral != strike = payout. uniswap transfer output. This transfers in as much
         collateral as will get you strikePrice * payout payoutTokens. */
         else if (collateral != strikeAsset && strikeAsset == payout) {
             uint256 amtToPayout = strikePrice.mul(_pTokens);
-            exchangeAndTransferOutput(collateral, payout, amtToPayout, msg.sender);
+            OPTIONS_EXCHANGE.exchangeAndTransferOutput(collateral, payout, amtToPayout, msg.sender);
         }
 
         /* 2.4.4 if collateral = payout != strike. strikeToCollateralPrice = amt of collateral 1 strikeToken can give you.
          Payout strikeToCollateralPrice * strikePrice * pTokens worth of payoutTokens. */
          else if (collateral == payout && payout != strikeAsset) {
             //TODO: first check if either are ETH so we don't have to call oracle
-            uint256 ethToCollateralPrice = getPrice(collateral);
-            uint256 ethToStrikePrice = getPrice(strikeAsset);
-            uint256 strikeToCollateralPrice = getPrice(strikeAsset) / getPrice(collateral);
+            uint256 ethToCollateralPrice = getPrice(address(collateral));
+            uint256 ethToStrikePrice = getPrice(address(strikeAsset));
+            uint256 strikeToCollateralPrice = ethToStrikePrice / ethToCollateralPrice;
             uint256 amtToPayout = strikePrice.mul(_pTokens).mul(strikeToCollateralPrice);
             if (isETH(collateral)){
                 msg.sender.transfer(amtToPayout);
@@ -166,88 +162,20 @@ contract OptionsContract is ERC20 {
          enough collateral to get strikePrice * pTokens * strikeToPayoutPrice payoutTokens. */
          else {
             //TODO: first check if either are ETH so we don't have to call oracle
-            uint256 ethToPayoutPrice = getPrice(payout);
-            uint256 ethToStrikePrice = getPrice(strikeAsset);
-            uint256 strikeToPayoutPrice = getPrice(strikeAsset) / getPrice(payout);
+            uint256 ethToPayoutPrice = getPrice(address(payout));
+            uint256 ethToStrikePrice = getPrice(address(strikeAsset));
+            uint256 strikeToPayoutPrice = ethToStrikePrice / ethToPayoutPrice;
             uint256 amtToPayout = strikePrice.mul(_pTokens).mul(strikeToPayoutPrice);
-            exchangeAndTransferOutput(collateral, payout, amtToPayout, msg.sender);
+            OPTIONS_EXCHANGE.exchangeAndTransferOutput(collateral, payout, amtToPayout, msg.sender);
          }
         // 3. after: TBD (but don't allow exercise)
-    }
-
-    /// TODO: move ths to the Options Exchange contract later.
-    function exchangeAndTransferInput(IERC20 _inputToken, IERC20 _outputToken, uint256 _amt, address _transferTo) internal returns (uint256) {
-        if (!isETH(_inputToken)) {
-            UniswapExchangeInterface exchange = UniswapExchangeInterface(
-                UNISWAP_FACTORY.getExchange(address(_inputToken))
-            );
-
-            if (address(exchange) == address(0)) {
-                revert("No payout exchange");
-            }
-
-            /// Token to ETH
-            if(isETH(_outputToken)) {
-                _inputToken.approve(address(exchange), _amt);
-                return exchange.tokenToEthTransferInput(_amt, 1, 1651753129000, _transferTo);
-            } else {
-            /// Token to Token
-                 _inputToken.approve(address(exchange), _amt);
-                return exchange.tokenToTokenTransferInput(_amt, 1, 1, 1651753129000,_transferTo, address(_outputToken));
-            }
-        } else {
-            // ETH to Token
-            if(!isETH(_outputToken)) {
-                UniswapExchangeInterface exchange = UniswapExchangeInterface(
-                    UNISWAP_FACTORY.getExchange(address(_outputToken))
-                );
-
-                return exchange.ethToTokenTransferInput.value(_amt)(1, 1651753129000, _transferTo);
-            }
-
-            return 0;
-        }
-    }
-
-    function exchangeAndTransferOutput(IERC20 _inputToken, IERC20 _outputToken, uint256 _amt, address _transferTo) public returns (uint256) {
-        if (!isETH(_inputToken)) {
-            UniswapExchangeInterface exchange = UniswapExchangeInterface(
-                UNISWAP_FACTORY.getExchange(address(_inputToken))
-            );
-
-            if (address(exchange) == address(0)) {
-                revert("No payout exchange");
-            }
-
-            /// Token to ETH
-            if(isETH(_outputToken)) {
-                 _inputToken.approve(address(exchange), (10 ** 30));
-                return exchange.tokenToEthTransferOutput(_amt, (10 ** 30), 1651753129000, _transferTo);
-            } else {
-            /// Token to Token
-                 _inputToken.approve(address(exchange), (10 ** 30));
-                return exchange.tokenToTokenTransferOutput(_amt, (10 ** 30), (10 ** 30), 1651753129000,_transferTo, address(_outputToken));
-            }
-        } else {
-            // ETH to Token
-            if(!isETH(_outputToken)) {
-                UniswapExchangeInterface exchange = UniswapExchangeInterface(
-                    UNISWAP_FACTORY.getExchange(address(_outputToken))
-                );
-
-                uint256 ethToTransfer = exchange.getEthToTokenOutputPrice(_amt);
-                return exchange.ethToTokenTransferOutput.value(ethToTransfer)(_amt, 1651753129000, _transferTo);
-            }
-
-            return 0;
-        }
     }
 
     // function liquidate(uint256 _repoNum, )
     function getReposByOwner(address payable owner) public view returns (uint[] memory) {
         uint[] memory repoNumbersOwned;
         uint index = 0;
-       for (uint256 i=0; i<repos.length; i++){
+       for (uint256 i = 0; i < repos.length; i++){
            if(repos[i].owner == owner){
                repoNumbersOwned[index] = i;
                index += 1;
@@ -256,11 +184,6 @@ contract OptionsContract is ERC20 {
 
        return repoNumbersOwned;
     }
-
-    // function getRepos() public view returns (uint[] memory) {
-    //     //how to write this in a gas efficient way lol
-    //     return repos;
-    // }
 
     function getReposByIndex(uint256 repoIndex) public view returns (uint256, uint256, address) {
         Repo storage repo = repos[repoIndex];
@@ -271,7 +194,6 @@ contract OptionsContract is ERC20 {
             repo.owner
         );
     }
-
 
     function isETH(IERC20 _ierc20) public pure returns (bool) {
         return _ierc20 == IERC20(0);
@@ -328,7 +250,7 @@ contract OptionsContract is ERC20 {
         //TODO: check that we are well collateralized enough to remove this amount of collateral
     }
 
-    function getPrice(address asset) internal returns (uint256){
+    function getPrice(address asset) internal view returns (uint256) {
         return COMPOUND_ORACLE.getPrice(asset);
     }
 }
