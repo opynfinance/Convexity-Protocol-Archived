@@ -1,5 +1,6 @@
 pragma solidity 0.5.10;
 
+import "./CompoundOracleInterface.sol";
 import "./OptionsFactory.sol";
 import "./OptionsUtils.sol";
 import "./UniswapFactoryInterface.sol";
@@ -18,6 +19,10 @@ contract OptionsContract is ERC20 {
 
     UniswapFactoryInterface constant public UNISWAP_FACTORY = UniswapFactoryInterface(
         0xc0a47dFe034B400B47bDaD5FecDa2621de6c4d95
+    );
+
+    CompoundOracleInterface constant COMPOUND_ORACLE = CompoundOracleInterface(
+        0x02557a5e05defeffd4cae6d83ea3d173b272c904
     );
 
     Repo[] repos;
@@ -41,8 +46,6 @@ contract OptionsContract is ERC20 {
     IERC20 public payout;
     UniswapExchangeInterface public payoutExchange;
     uint256 public expiry;
-
-
 
     constructor(
         IERC20 _collateral,
@@ -173,9 +176,18 @@ contract OptionsContract is ERC20 {
     }
 
     // function liquidate(uint256 _repoNum, )
-    // function getReposByOwner(address owner) public view returns (uint[] memory) {
-    //     //how to write this in a gas efficient way lol
-    // }
+    function getReposByOwner(address payable owner) public view returns (uint[] memory) {
+        uint[] memory repoNumbersOwned;
+        uint index = 0;
+       for (uint256 i=0; i<repos.length; i++){
+           if(repos[i].owner == owner){
+               repoNumbersOwned[index] = i;
+               index += 1;
+           }
+       }
+
+       return repoNumbersOwned;
+    }
 
     // function getRepos() public view returns (uint[] memory) {
     //     //how to write this in a gas efficient way lol
@@ -234,7 +246,7 @@ contract OptionsContract is ERC20 {
         //check that we are well collateralized enough to remove this amount of collateral
     }
 
-
-
-
+    function getPrice(asset) internal {
+        COMPOUND_ORACLE.getPrice(asset);
+    }
 }
