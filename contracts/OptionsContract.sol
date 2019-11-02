@@ -141,19 +141,35 @@ contract OptionsContract is ERC20 {
         /* 2.4.3 if collateral != strike = payout. uniswap transfer output. This transfers in as much 
         collateral as will get you strikePrice * payout payoutTokens. */ 
         else if (collateral != strikeAsset && strikeAsset == payout) {
-
+            uint256 amtToPayout = strikePrice * _pTokens/ (10 ** 18);
+            exchangeAndTransferOutput(collateral, payout, amtToPayout, msg.sender);
         }
 
         /* 2.4.4 if collateral = payout != strike. strikeToCollateralPrice = amt of collateral 1 strikeToken can give you.
          Payout strikeToCollateralPrice * strikePrice * pTokens worth of payoutTokens. */
-
+         else if (collateral == payout && payout != strikeAsset) {
+             // TODO: get price from oracle
+             uint256 strikeToCollateralPrice = 1;
+             uint256 amtToPayout = strikePrice * _pTokens * strikeToCollateralPrice / (10 ** 18);
+            if (isETH(collateral)){
+                (msg.sender).send(amtToPayout);
+            } else {
+                collateral.approve(msg.sender, amtToPayout);
+                collateral.transfer(msg.sender, amtToPayout);
+            }
+         }
          /* 2.4.5, collateral != strike != payout. Uniswap transfer output. This sells 
          enough collateral to get strikePrice * pTokens * strikeToPayoutPrice payoutTokens. */
-
+         else {
+            // TODO: get price from oracle
+             uint256 strikeToPayoutPrice = 1;
+             uint256 amtToPayout = strikePrice * _pTokens * strikeToPayoutPrice / (10 ** 18);
+             exchangeAndTransferOutput(collateral, payout, amtToPayout, msg.sender);
+         }
         // 3. after: TBD (but don't allow exercise)
     }
 
-    /// TODO: move ths to the Options Exchange contract. 
+    /// TODO: move ths to the Options Exchange contract later. 
     function exchangeAndTransferInput(IERC20 _inputToken, IERC20 _outputToken, uint256 _amt, address _transferTo) internal returns (uint256) {
         if (!isETH(_inputToken)) {
             UniswapExchangeInterface exchange = UniswapExchangeInterface(
