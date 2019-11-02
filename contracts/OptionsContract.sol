@@ -7,7 +7,7 @@ import "./OptionsFactory.sol";
 contract OptionsContract is ERC20 {
     struct Repo {
         uint256 collateral;
-        uint256 debt;
+        uint256 putsOutstanding;
         address payable owner;
     }
 
@@ -49,11 +49,37 @@ contract OptionsContract is ERC20 {
         expiry = _expiry;
     }
 
-    function getRepos(address owner) public view returns (uint[] memory);
+    function getRepos(address owner) public view returns (uint[] memory) {
+        return repos;
+    }
 
     function isEthCollateral() public view returns (bool) {
         return collateral == IERC20(0);
     }
+
+    function openRepo() public returns (uint) {
+        uint repoIndex = repos.push(Repo(0, 0, msg.sender)) - 1 ; //the length
+        return repoIndex;
+    }
+
+    function addERC20Collateral (amtCollateral, repoNum) {
+        return;
+    }
+
+
+    function addETHCollateral(repoNum) payable {
+        return;
+    }
+
+    function mint(msg.sender, numtokens) public  {
+        return;
+    }
+
+    function issueOptionTokens (repoNum, numTokens) {
+
+    }
+
+
 
 
 
