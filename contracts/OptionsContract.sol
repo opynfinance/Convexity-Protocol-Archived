@@ -19,7 +19,7 @@ contract OptionsContract is ERC20 {
         0xc0a47dFe034B400B47bDaD5FecDa2621de6c4d95
     );
 
-    Repo[] repos;
+    Repo[] public repos;
 
     uint256 totalCollateral; // denominated in collateralType, depending on underlying type need to be able to handle decimal places
     uint256 totalUnderlying; // denominated in underlyingType, depending on underlying type need to be able to handle decimal places
@@ -83,6 +83,11 @@ contract OptionsContract is ERC20 {
 
         expiry = _expiry;
     }
+    function openRepo() public returns (uint) {
+        require(now < expiry, "Options contract expired");
+        repos.push(Repo(0, 0, msg.sender));
+        return repos.length - 1;
+    }
 
     function addETHCollateral(uint256 _repoNum) public payable returns (uint256) {
         return _addCollateral(_repoNum, msg.value);
@@ -94,6 +99,7 @@ contract OptionsContract is ERC20 {
         return _addCollateral(_repoNum, _amt);
     }
 /// TODO: look up pToken to underlying ratio. rn 1:1.
+/// TODO: add fees
     function exercise(uint256 _pTokens) public payable {
         // 1. before exercise window: revert
         require(now >= expiry - windowSize, "Too early to exercise");
@@ -235,8 +241,6 @@ contract OptionsContract is ERC20 {
             return 0;
         }
     }
-
-    // function liquidate(uint256 _repoNum, )
     function getReposByOwner(address payable owner) public view returns (uint[] memory) {
         uint[] memory repoNumbersOwned;
         uint index = 0;
@@ -249,11 +253,6 @@ contract OptionsContract is ERC20 {
 
        return repoNumbersOwned;
     }
-
-    // function getRepos() public view returns (uint[] memory) {
-    //     //how to write this in a gas efficient way lol
-    //     return repos;
-    // }
 
     function getReposByIndex(uint256 repoIndex) public view returns (uint256, uint256, address) {
         Repo storage repo = repos[repoIndex];
@@ -281,13 +280,15 @@ contract OptionsContract is ERC20 {
 
         return repo.collateral;
     }
-    function openRepo() public returns (uint) {
-        uint repoIndex = repos.push(Repo(0, 0, msg.sender)) - 1; //the length
-        return repoIndex;
-    }
 
     function issueOptionTokens (uint256 repoIndex, uint256 numTokens) public {
         //check that we're properly collateralized to mint this number, then call _mint(address account, uint256 amount)
+        require(now < expiry, "Options contract expired");
+        // TODO: get the price from Oracle
+        uint256 collateralToStrikePrice = 1;
+        Repo storage repo = repos[repoIndex];
+        require(numTokens.mul(collateralizationRatio).mul(strikePrice) <= repo.collateral.mul(collateralToStrikePrice), "unsafe to mint");
+        _mint(msg.sender, numTokens);
         return;
     }
 
@@ -306,6 +307,8 @@ contract OptionsContract is ERC20 {
     function removeCollateral(uint256 repoIndex, uint256 amtToRemove) public {
         //check that we are well collateralized enough to remove this amount of collateral
     }
+
+    // function liquidate(uint256 repo, )
 
 
 
