@@ -4,8 +4,8 @@
   "description": "Options on any EVM compatible chain",
   "main": "index.js",
   "dependencies": {
-    "solc": "0.5.10",
-    "openzeppelin-solidity": "2.4.0"
+    "@openzeppelin/contracts": "2.4.0",
+    "solc": "0.5.10"
   },
   "devDependencies": {},
   "scripts": {
