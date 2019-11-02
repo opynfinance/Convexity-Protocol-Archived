@@ -25,7 +25,6 @@ contract OptionsContract is ERC20 {
     uint256 totalUnderlying; // denominated in underlyingType, depending on underlying type need to be able to handle decimal places
     uint32 penaltyFee; //(need 4 decimal places → egs. 45.55% needs to be storable)
     uint128 numRepos;
-    mapping (address => uint256) amtExercised;
     bool optionType; // 1 is American / 0 is European
     uint256 windowSize; // amt of seconds before expiry tht a person has to exercise
     uint256 totalExercised; // total collateral withdrawn from contract balance
@@ -92,33 +91,58 @@ contract OptionsContract is ERC20 {
         return _addCollateral(_repoNum, _amt);
     }
 
-    function exercise(uint256 _pTokens) public {
+    function exercise(uint256 _pTokens) public payable {
         // 1. before exercise window: revert
         require(now >= expiry - windowSize, "Too early to exercise");
         require(now < expiry, "Beyond exercise time");
 
         // 2. during exercise window: exercise
         /// 2.1 ensure person calling has enough pTokens
-        /// 2.2 check they have corresponding number of underlying
-        /// 2.3 transfer in underlying and pTokens
+        require(balanceOf(msg.sender) >= _pTokens, "Not enough pTokens");
+
+        /// 2.2 check they have corresponding number of underlying (and transfer in)
+        if (isETH(collateral)) {
+            require(msg.value == _pTokens, "Incorrect msg.value");
+        } else {
+            require(
+                collateral.transferFrom(msg.sender, address(this), _pTokens),
+                "Could not transfer in tokens"
+            );
+        }
+
+        /// 2.3 transfer in pTokens
+        _burnFrom(msg.sender, _pTokens);
+
+        totalExercised = totalExercised.add(_pTokens);
+
         /// 2.4 sell enough collateral to get strikePrice * pTokens number of payoutTokens
+        if (isETH(collateral)) {
+
+        }
+
         //// 2.4.1 func on uniswap which performs sell and transfer to given user
 
 
         // 3. after: TBD (but don't allow exercise)
     }
 
-    function getReposByOwner(address owner) public view returns (uint[] memory) {
-        //how to write this in a gas efficient way lol
-    }
+    // function getReposByOwner(address owner) public view returns (uint[] memory) {
+    //     //how to write this in a gas efficient way lol
+    // }
 
-    function getRepos() public view returns (uint[] memory) {
-        //how to write this in a gas efficient way lol
-        return repos;
-    }
+    // function getRepos() public view returns (uint[] memory) {
+    //     //how to write this in a gas efficient way lol
+    //     return repos;
+    // }
 
-    function getReposByIndex(uint256 repoIndex) public view returns (Repo) {
-        return repos[repoIndex];
+    function getReposByIndex(uint256 repoIndex) public view returns (uint256, uint256, address) {
+        Repo storage repo = repos[repoIndex];
+
+        return (
+            repo.collateral,
+            repo.putsOutstanding,
+            repo.owner
+        );
     }
 
 
@@ -138,7 +162,7 @@ contract OptionsContract is ERC20 {
         return repo.collateral;
     }
     function openRepo() public returns (uint) {
-        uint repoIndex = repos.push(Repo(0, 0, msg.sender)) - 1 ; //the length
+        uint repoIndex = repos.push(Repo(0, 0, msg.sender)) - 1; //the length
         return repoIndex;
     }
 
@@ -148,11 +172,13 @@ contract OptionsContract is ERC20 {
     }
 
     function burnPutTokens(uint256 repoIndex, uint256 amtToBurn) public {
-        _burn(amtToBurn);
-        repos[repoIndex].putsOutstanding -= amtToBurn;
+        Repo storage repo = repos[repoIndex];
+        require(repo.owner == msg.sender, "Not the owner of this repo");
+        repo.putsOutstanding = repo.putsOutstanding.sub(amtToBurn);
+        _burn(msg.sender, amtToBurn);
     }
 
-    function transferRepoOwnership(uint256 repoIndex, address newOwner) public {
+    function transferRepoOwnership(uint256 repoIndex, address payable newOwner) public {
         require(repos[repoIndex].owner == msg.sender, "Cannot transferRepoOwnership as non owner");
         repos[repoIndex].owner = newOwner;
     }
