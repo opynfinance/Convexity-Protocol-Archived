@@ -1,6 +1,7 @@
 pragma solidity 0.5.10;
 
 import "./OptionsFactory.sol";
+import "./OptionsUtils.sol";
 import "./UniswapFactoryInterface.sol";
 import "./UniswapExchangeInterface.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -15,7 +16,7 @@ contract OptionsContract is ERC20 {
         address payable owner;
     }
 
-    UniswapFactoryInterface constant UNISWAP_FACTORY = UniswapFactoryInterface(
+    UniswapFactoryInterface constant public UNISWAP_FACTORY = UniswapFactoryInterface(
         0xc0a47dFe034B400B47bDaD5FecDa2621de6c4d95
     );
 
@@ -89,7 +90,10 @@ contract OptionsContract is ERC20 {
     }
 
     function addERC20Collateral(uint256 _repoNum, uint256 _amt) public returns (uint256) {
-        require(collateral.transferFrom(msg.sender, address(this), _amt));
+        require(
+            collateral.transferFrom(msg.sender, address(this), _amt),
+            "Could not transfer in ERC20 collateral"
+        );
 
         return _addCollateral(_repoNum, _amt);
     }
@@ -123,7 +127,7 @@ contract OptionsContract is ERC20 {
         /// TODO: decimal places of different assets.
         /// 2.4.1 if collateral = strike = payout, send strikePrice * pTokens number of collateral.
         if (collateral == strikeAsset && strikeAsset == payout) {
-            uint256 amtToSend = strikePrice.mul(_pTokens);;
+            uint256 amtToSend = strikePrice.mul(_pTokens);
             if (isETH(collateral)){
                 msg.sender.transfer(amtToSend);
             } else {
@@ -166,74 +170,6 @@ contract OptionsContract is ERC20 {
              exchangeAndTransferOutput(collateral, payout, amtToPayout, msg.sender);
          }
         // 3. after: TBD (but don't allow exercise)
-    }
-
-    /// TODO: move ths to the Options Exchange contract later.
-    function exchangeAndTransferInput(IERC20 _inputToken, IERC20 _outputToken, uint256 _amt, address _transferTo) internal returns (uint256) {
-        if (!isETH(_inputToken)) {
-            UniswapExchangeInterface exchange = UniswapExchangeInterface(
-                UNISWAP_FACTORY.getExchange(address(_inputToken))
-            );
-
-            if (address(exchange) == address(0)) {
-                revert("No payout exchange");
-            }
-
-            /// Token to ETH
-            if(isETH(_outputToken)) {
-                _inputToken.approve(address(exchange), _amt);
-                return exchange.tokenToEthTransferInput(_amt, 1, 1651753129000, _transferTo);
-            } else {
-            /// Token to Token
-                 _inputToken.approve(address(exchange), _amt);
-                return exchange.tokenToTokenTransferInput(_amt, 1, 1, 1651753129000,_transferTo, address(_outputToken));
-            }
-        } else {
-            // ETH to Token
-            if(!isETH(_outputToken)) {
-                UniswapExchangeInterface exchange = UniswapExchangeInterface(
-                    UNISWAP_FACTORY.getExchange(address(_outputToken))
-                );
-
-                return exchange.ethToTokenTransferInput.value(_amt)(1, 1651753129000, _transferTo);
-            }
-
-            return 0;
-        }
-    }
-
-    function exchangeAndTransferOutput(IERC20 _inputToken, IERC20 _outputToken, uint256 _amt, address _transferTo) public returns (uint256) {
-        if (!isETH(_inputToken)) {
-            UniswapExchangeInterface exchange = UniswapExchangeInterface(
-                UNISWAP_FACTORY.getExchange(address(_inputToken))
-            );
-
-            if (address(exchange) == address(0)) {
-                revert("No payout exchange");
-            }
-
-            /// Token to ETH
-            if(isETH(_outputToken)) {
-                 _inputToken.approve(address(exchange), (10 ** 30));
-                return exchange.tokenToEthTransferOutput(_amt, (10 ** 30), 1651753129000, _transferTo);
-            } else {
-            /// Token to Token
-                 _inputToken.approve(address(exchange), (10 ** 30));
-                return exchange.tokenToTokenTransferOutput(_amt, (10 ** 30), (10 ** 30), 1651753129000,_transferTo, address(_outputToken));
-            }
-        } else {
-            // ETH to Token
-            if(!isETH(_outputToken)) {
-                UniswapExchangeInterface exchange = UniswapExchangeInterface(
-                    UNISWAP_FACTORY.getExchange(address(_outputToken))
-                );
-
-                uint256 ethToTransfer = exchange.getEthToTokenOutputPrice(_amt);
-                return exchange.ethToTokenTransferOutput.value(ethToTransfer)(_amt, 1651753129000, _transferTo);
-            }
-
-            return 0;
-        }
     }
 
     // function liquidate(uint256 _repoNum, )
