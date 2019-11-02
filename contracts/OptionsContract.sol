@@ -1,5 +1,6 @@
 pragma solidity 0.5.10;
 
+import "./CompoundOracleInterface.sol";
 import "./OptionsFactory.sol";
 import "./UniswapFactoryInterface.sol";
 import "./UniswapExchangeInterface.sol";
@@ -17,6 +18,10 @@ contract OptionsContract is ERC20 {
 
     UniswapFactoryInterface constant UNISWAP_FACTORY = UniswapFactoryInterface(
         0xc0a47dFe034B400B47bDaD5FecDa2621de6c4d95
+    );
+
+    CompoundOracleInterface constant COMPOUND_ORACLE = CompoundOracleInterface(
+        0x02557a5e05defeffd4cae6d83ea3d173b272c904
     );
 
     Repo[] repos;
@@ -40,8 +45,6 @@ contract OptionsContract is ERC20 {
     IERC20 public payout;
     UniswapExchangeInterface public payoutExchange;
     uint256 public expiry;
-
-
 
     constructor(
         IERC20 _collateral,
@@ -298,7 +301,7 @@ contract OptionsContract is ERC20 {
         //check that we are well collateralized enough to remove this amount of collateral
     }
 
-
-
-
+    function getPrice(asset) internal {
+        COMPOUND_ORACLE.getPrice(asset);
+    }
 }
