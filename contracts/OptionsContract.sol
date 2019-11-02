@@ -135,10 +135,14 @@ contract OptionsContract is ERC20 {
         /* 2.4.2 if collateral = strike != payout, 
         uniswap transfer input. This transfers in strikePrice * pTokens collateral for how many ever payoutTokens you can get. */
         else if(collateral == strikeAsset && strikeAsset != payout) {
-
+            uint256 amtToSend = strikePrice * _pTokens/ (10 ** 18);
+            exchangeAndTransferInput(collateral, payout, amtToSend, msg.sender);
         }
         /* 2.4.3 if collateral != strike = payout. uniswap transfer output. This transfers in as much 
         collateral as will get you strikePrice * payout payoutTokens. */ 
+        else if (collateral != strikeAsset && strikeAsset == payout) {
+
+        }
 
         /* 2.4.4 if collateral = payout != strike. strikeToCollateralPrice = amt of collateral 1 strikeToken can give you.
          Payout strikeToCollateralPrice * strikePrice * pTokens worth of payoutTokens. */
@@ -149,7 +153,8 @@ contract OptionsContract is ERC20 {
         // 3. after: TBD (but don't allow exercise)
     }
 
-    function tokenToTokenTransferInput(IERC20 _inputToken, IERC20 _outputToken, uint256 _amt, address _transferTo) internal returns (uint256) {
+    /// TODO: move ths to the Options Exchange contract. 
+    function exchangeAndTransferInput(IERC20 _inputToken, IERC20 _outputToken, uint256 _amt, address _transferTo) internal returns (uint256) {
         if (!isETH(_inputToken)) {
             UniswapExchangeInterface exchange = UniswapExchangeInterface(
                 UNISWAP_FACTORY.getExchange(address(_inputToken))
@@ -161,9 +166,11 @@ contract OptionsContract is ERC20 {
 
             /// Token to ETH
             if(isETH(_outputToken)) {
+                _inputToken.approve(address(exchange), _amt);
                 return exchange.tokenToEthTransferInput(_amt, 1, 1651753129000, _transferTo);
             } else {
             /// Token to Token
+                 _inputToken.approve(address(exchange), _amt);
                 return exchange.tokenToTokenTransferInput(_amt, 1, 1, 1651753129000,_transferTo, address(_outputToken));
             }
         } else {
@@ -173,16 +180,46 @@ contract OptionsContract is ERC20 {
                 UNISWAP_FACTORY.getExchange(address(_outputToken))
             );
 
-            return exchange.ethToTokenTransferInput(1, 1651753129000, _transferTo);
+            return exchange.ethToTokenTransferInput.value(_amt)(1, 1651753129000, _transferTo);
             } 
 
             return 0;
         }
     }
 
-    // function tokenToTokenTransferOutput(address inputToken, address outputToken, uint256 _amt, address transferTo) public {
-        
-    // }
+    function exchangeAndTransferOutput(IERC20 _inputToken, IERC20 _outputToken, uint256 _amt, address _transferTo) public returns (uint256) {
+        if (!isETH(_inputToken)) {
+            UniswapExchangeInterface exchange = UniswapExchangeInterface(
+                UNISWAP_FACTORY.getExchange(address(_inputToken))
+            );
+
+            if (address(exchange) == address(0)) {
+                revert("No payout exchange");
+            }
+
+            /// Token to ETH
+            if(isETH(_outputToken)) {
+                 _inputToken.approve(address(exchange), (10 ** 30));
+                return exchange.tokenToEthTransferOutput(_amt, (10 ** 30), 1651753129000, _transferTo);
+            } else {
+            /// Token to Token
+                 _inputToken.approve(address(exchange), (10 ** 30));
+                return exchange.tokenToTokenTransferOutput(_amt, (10 ** 30), (10 ** 30), 1651753129000,_transferTo, address(_outputToken));
+            }
+        } else {
+            // ETH to Token
+            if(!isETH(_outputToken)) {
+            UniswapExchangeInterface exchange = UniswapExchangeInterface(
+                UNISWAP_FACTORY.getExchange(address(_outputToken))
+            );
+
+            uint256 ethToTransfer = exchange.getEthToTokenOutputPrice(_amt);
+            return exchange.ethToTokenTransferOutput.value(ethToTransfer)(_amt, 1651753129000, _transferTo);
+            } 
+
+            return 0;
+        }
+    }
 
     // function getReposByOwner(address owner) public view returns (uint[] memory) {
     //     //how to write this in a gas efficient way lol
