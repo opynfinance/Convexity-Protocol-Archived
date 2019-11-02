@@ -13,24 +13,23 @@ contract OptionsContract is ERC20 {
 
     Repo[] repos;
 
-    uint256 constant strikePrice; //depending on underlying type need to be able to handle decimal places
-    uint256 constant totalCollateral; // denominated in collateralType, depending on underlying type need to be able to handle decimal places
-    uint256 constant totalUnderlying; // denominated in underlyingType, depending on underlying type need to be able to handle decimal places
-    uint32 constant penaltyFee; //(need 4 decimal places → egs. 45.55% needs to be storable)
-    uint128 constant numRepos;
-    mapping (address exerciser => uint256 amtExercised) amtExercised
-    bool constant optionType: // 1 is American / 0 is European
-    uint256 constant windowSize // amt of seconds before expiry tht a person has to exercise
-    uint256 amtOptionsExercised??!!
+    uint256 totalCollateral; // denominated in collateralType, depending on underlying type need to be able to handle decimal places
+    uint256 totalUnderlying; // denominated in underlyingType, depending on underlying type need to be able to handle decimal places
+    uint32 penaltyFee; //(need 4 decimal places → egs. 45.55% needs to be storable)
+    uint128 numRepos;
+    mapping (address => uint256) amtExercised;
+    bool optionType; // 1 is American / 0 is European
+    uint256 windowSize; // amt of seconds before expiry tht a person has to exercise
+    uint256 amtOptionsExercised;
 
-    uint16 collateralizationRatio public = 1.6; //(need to be able have 1 decimal place)
+    uint16 public collateralizationRatio = 1.6; //(need to be able have 1 decimal place)
 
     IERC20 public collateral;
     IERC20 public underlying;
-    uint256 public strikePrice;
+    uint256 public strikePrice; //depending on underlying type need to be able to handle decimal places
     IERC20 public strikeAsset;
     IERC20 public payout;
-    uint256 public constant expiry;
+    uint256 public expiry;
 
     constructor(
         IERC20 _collateral,
@@ -50,10 +49,10 @@ contract OptionsContract is ERC20 {
         expiry = _expiry;
     }
 
-    getRepos(address owner) public view returns uint[]
+    function getRepos(address owner) public view returns (uint[] memory);
 
-    isEthCollateral () publc view returns bool {
-        return !collateralType;
+    function isEthCollateral() public view returns (bool) {
+        return collateral == IERC20(0);
     }
 
 
