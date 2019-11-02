@@ -24,7 +24,7 @@ contract OptionsContract is ERC20 {
     uint256 totalCollateral; // denominated in collateralType, depending on underlying type need to be able to handle decimal places
     uint256 totalUnderlying; // denominated in underlyingType, depending on underlying type need to be able to handle decimal places
     uint32 penaltyFee; //(need 4 decimal places → egs. 45.55% needs to be storable)
-    uint32 transactionFee // needs 4 decimal places -> egs. 10.02%
+    uint32 transactionFee; // needs 4 decimal places -> egs. 10.02%
     uint128 numRepos;
     bool optionType; // 1 is American / 0 is European
     uint256 windowSize; // amt of seconds before expiry tht a person has to exercise
@@ -121,15 +121,22 @@ contract OptionsContract is ERC20 {
         /// 2.4 sell enough collateral to get strikePrice * pTokens number of payoutTokens
         /// TODO: decimal places of different assets. 
         /// 2.4.1 if collateral = strike = payout, send strikePrice * pTokens number of collateral. 
-
-        if (isETH(collateral)) {
-
-        }
+        if (collateral == strikeAsset && strikeAsset == payout) {
+            uint256 amtToSend = strikePrice * _pTokens/ (10 ** 18);
+            if (isETH(collateral)){
+                (msg.sender).send(amtToSend);
+            } else {
+                collateral.approve(msg.sender, amtToSend);
+                collateral.transfer(msg.sender, amtToSend);
+            }
+        } 
         /* TODO: In the long term, need to first calculate how many payoutTokens you can get based 
         on only oracle prices, not with uniswap slippage. Then call the uniswap transfer output on the payOutTokens. */
         /* 2.4.2 if collateral = strike != payout, 
         uniswap transfer input. This transfers in strikePrice * pTokens collateral for how many ever payoutTokens you can get. */
+        else if(collateral == strikeAsset && strikeAsset != payout) {
 
+        }
         /* 2.4.3 if collateral != strike = payout. uniswap transfer output. This transfers in as much 
         collateral as will get you strikePrice * payout payoutTokens. */ 
 
@@ -141,6 +148,41 @@ contract OptionsContract is ERC20 {
 
         // 3. after: TBD (but don't allow exercise)
     }
+
+    function tokenToTokenTransferInput(IERC20 _inputToken, IERC20 _outputToken, uint256 _amt, address _transferTo) internal returns (uint256) {
+        if (!isETH(_inputToken)) {
+            UniswapExchangeInterface exchange = UniswapExchangeInterface(
+                UNISWAP_FACTORY.getExchange(address(_inputToken))
+            );
+
+            if (address(exchange) == address(0)) {
+                revert("No payout exchange");
+            }
+
+            /// Token to ETH
+            if(isETH(_outputToken)) {
+                return exchange.tokenToEthTransferInput(_amt, 1, 1651753129000, _transferTo);
+            } else {
+            /// Token to Token
+                return exchange.tokenToTokenTransferInput(_amt, 1, 1, 1651753129000,_transferTo, address(_outputToken));
+            }
+        } else {
+            // ETH to Token
+            if(!isETH(_outputToken)) {
+            UniswapExchangeInterface exchange = UniswapExchangeInterface(
+                UNISWAP_FACTORY.getExchange(address(_outputToken))
+            );
+
+            return exchange.ethToTokenTransferInput(1, 1651753129000, _transferTo);
+            } 
+
+            return 0;
+        }
+    }
+
+    // function tokenToTokenTransferOutput(address inputToken, address outputToken, uint256 _amt, address transferTo) public {
+        
+    // }
 
     // function getReposByOwner(address owner) public view returns (uint[] memory) {
     //     //how to write this in a gas efficient way lol
