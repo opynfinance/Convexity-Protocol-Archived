@@ -24,6 +24,7 @@ contract OptionsContract is ERC20 {
     uint256 totalCollateral; // denominated in collateralType, depending on underlying type need to be able to handle decimal places
     uint256 totalUnderlying; // denominated in underlyingType, depending on underlying type need to be able to handle decimal places
     uint32 penaltyFee; //(need 4 decimal places → egs. 45.55% needs to be storable)
+    uint32 transactionFee // needs 4 decimal places -> egs. 10.02%
     uint128 numRepos;
     bool optionType; // 1 is American / 0 is European
     uint256 windowSize; // amt of seconds before expiry tht a person has to exercise
@@ -114,16 +115,29 @@ contract OptionsContract is ERC20 {
 
         /// 2.3 transfer in pTokens
         _burnFrom(msg.sender, _pTokens);
-
+        // TODO: need to keep track of totalCollateralExercised, not pTokens. 
         totalExercised = totalExercised.add(_pTokens);
 
         /// 2.4 sell enough collateral to get strikePrice * pTokens number of payoutTokens
+        /// TODO: decimal places of different assets. 
+        /// 2.4.1 if collateral = strike = payout, send strikePrice * pTokens number of collateral. 
+
         if (isETH(collateral)) {
 
         }
+        /* TODO: In the long term, need to first calculate how many payoutTokens you can get based 
+        on only oracle prices, not with uniswap slippage. Then call the uniswap transfer output on the payOutTokens. */
+        /* 2.4.2 if collateral = strike != payout, 
+        uniswap transfer input. This transfers in strikePrice * pTokens collateral for how many ever payoutTokens you can get. */
 
-        //// 2.4.1 func on uniswap which performs sell and transfer to given user
+        /* 2.4.3 if collateral != strike = payout. uniswap transfer output. This transfers in as much 
+        collateral as will get you strikePrice * payout payoutTokens. */ 
 
+        /* 2.4.4 if collateral = payout != strike. strikeToCollateralPrice = amt of collateral 1 strikeToken can give you.
+         Payout strikeToCollateralPrice * strikePrice * pTokens worth of payoutTokens. */
+
+         /* 2.4.5, collateral != strike != payout. Uniswap transfer output. This sells 
+         enough collateral to get strikePrice * pTokens * strikeToPayoutPrice payoutTokens. */
 
         // 3. after: TBD (but don't allow exercise)
     }
