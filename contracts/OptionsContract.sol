@@ -151,9 +151,11 @@ contract OptionsContract is ERC20 {
         /* 2.4.4 if collateral = payout != strike. strikeToCollateralPrice = amt of collateral 1 strikeToken can give you.
          Payout strikeToCollateralPrice * strikePrice * pTokens worth of payoutTokens. */
          else if (collateral == payout && payout != strikeAsset) {
-             // TODO: get price from oracle
-             uint256 strikeToCollateralPrice = 1;
-             uint256 amtToPayout = strikePrice.mul(_pTokens).mul(strikeToCollateralPrice);
+            //TODO: first check if either are ETH so we don't have to call oracle
+            uint256 ethToCollateralPrice = getPrice(collateral);
+            uint256 ethToStrikePrice = getPrice(strikeAsset);
+            uint256 strikeToCollateralPrice = getPrice(strikeAsset) / getPrice(collateral);
+            uint256 amtToPayout = strikePrice.mul(_pTokens).mul(strikeToCollateralPrice);
             if (isETH(collateral)){
                 msg.sender.transfer(amtToPayout);
             } else {
@@ -163,10 +165,12 @@ contract OptionsContract is ERC20 {
          /* 2.4.5, collateral != strike != payout. Uniswap transfer output. This sells
          enough collateral to get strikePrice * pTokens * strikeToPayoutPrice payoutTokens. */
          else {
-            // TODO: get price from oracle
-             uint256 strikeToPayoutPrice = 1;
-             uint256 amtToPayout = strikePrice.mul(_pTokens).mul(strikeToPayoutPrice);
-             exchangeAndTransferOutput(collateral, payout, amtToPayout, msg.sender);
+            //TODO: first check if either are ETH so we don't have to call oracle
+            uint256 ethToPayoutPrice = getPrice(payout);
+            uint256 ethToStrikePrice = getPrice(strikeAsset);
+            uint256 strikeToPayoutPrice = getPrice(strikeAsset) / getPrice(payout);
+            uint256 amtToPayout = strikePrice.mul(_pTokens).mul(strikeToPayoutPrice);
+            exchangeAndTransferOutput(collateral, payout, amtToPayout, msg.sender);
          }
         // 3. after: TBD (but don't allow exercise)
     }
