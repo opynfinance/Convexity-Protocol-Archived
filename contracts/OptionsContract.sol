@@ -49,8 +49,17 @@ contract OptionsContract is ERC20 {
         expiry = _expiry;
     }
 
-    function getRepos(address owner) public view returns (uint[] memory) {
+    function getReposByOwner(address owner) public view returns (uint[] memory) {
+        //how to write this in a gas efficient way lol
+    }
+
+    function getRepos() public view returns (uint[] memory) {
+        //how to write this in a gas efficient way lol
         return repos;
+    }
+
+    function getReposByIndex(uint256 repoIndex) public view returns (Repo) {
+        return repos[repoIndex];
     }
 
     function isEthCollateral() public view returns (bool) {
@@ -62,21 +71,19 @@ contract OptionsContract is ERC20 {
         return repoIndex;
     }
 
-    function addERC20Collateral (amtCollateral, repoNum) {
+    function addETHCollateral(uint256 repoIndex) payable {
+        require(isEthCollateral());
+        repos[repoIndex].collateral += msg.value;
         return;
     }
 
-
-    function addETHCollateral(repoNum) payable {
+    function addERC20Collateral (amtCollateral, repoIndex) {
+        require(!isEthCollateral());
         return;
     }
 
-    function mint(msg.sender, numtokens) public  {
-        return;
-    }
-
-    function issueOptionTokens (repoNum, numTokens) {
-
+    function issueOptionTokens (uint256 repoNum, uint256 numTokens) {
+        //check that we're properly collateralized to mint this number, then call _mint(address account, uint256 amount)
     }
 
 
