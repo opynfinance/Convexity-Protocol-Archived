@@ -11,7 +11,7 @@ contract OptionsContract is ERC20 {
     using SafeMath for uint256;
     struct Repo {
         uint256 collateral;
-        uint256 debt;
+        uint256 putsOutstanding;
         address payable owner;
     }
 
@@ -92,9 +92,6 @@ contract OptionsContract is ERC20 {
         return _addCollateral(_repoNum, _amt);
     }
 
-    // function getRepos(address owner) public view returns (uint[] memory);
-
-
     function exercise(uint256 _pTokens) public {
         // 1. before exercise window: revert
         require(now >= expiry - windowSize, "Too early to exercise");
@@ -109,8 +106,21 @@ contract OptionsContract is ERC20 {
 
 
         // 3. after: TBD (but don't allow exercise)
-
     }
+
+    function getReposByOwner(address owner) public view returns (uint[] memory) {
+        //how to write this in a gas efficient way lol
+    }
+
+    function getRepos() public view returns (uint[] memory) {
+        //how to write this in a gas efficient way lol
+        return repos;
+    }
+
+    function getReposByIndex(uint256 repoIndex) public view returns (Repo) {
+        return repos[repoIndex];
+    }
+
 
     function isETH(IERC20 _ierc20) public pure returns (bool) {
         return _ierc20 == IERC20(0);
@@ -126,5 +136,28 @@ contract OptionsContract is ERC20 {
         totalCollateral = totalCollateral.add(_amt);
 
         return repo.collateral;
+    }
+    function openRepo() public returns (uint) {
+        uint repoIndex = repos.push(Repo(0, 0, msg.sender)) - 1 ; //the length
+        return repoIndex;
+    }
+
+    function issueOptionTokens (uint256 repoIndex, uint256 numTokens) public {
+        //check that we're properly collateralized to mint this number, then call _mint(address account, uint256 amount)
+        return;
+    }
+
+    function burnPutTokens(uint256 repoIndex, uint256 amtToBurn) public {
+        _burn(amtToBurn);
+        repos[repoIndex].putsOutstanding -= amtToBurn;
+    }
+
+    function transferRepoOwnership(uint256 repoIndex, address newOwner) public {
+        require(repos[repoIndex].owner == msg.sender, "Cannot transferRepoOwnership as non owner");
+        repos[repoIndex].owner = newOwner;
+    }
+
+    function removeCollateral(uint256 repoIndex, uint256 amtToRemove) public {
+        //check that we are well collateralized enough to remove this amount of collateral
     }
 }
