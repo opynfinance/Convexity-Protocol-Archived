@@ -21,7 +21,7 @@ contract OptionsContract is OptionsUtils, ERC20 {
     // TODO: PROPERLY INITIALIZE
     OptionsExchange constant OPTIONS_EXCHANGE = OptionsExchange(0);
 
-    Repo[] repos;
+    Repo[] public repos;
 
     uint256 totalCollateral; // denominated in collateralType, depending on underlying type need to be able to handle decimal places
     uint256 totalUnderlying; // denominated in underlyingType, depending on underlying type need to be able to handle decimal places
@@ -70,6 +70,11 @@ contract OptionsContract is OptionsUtils, ERC20 {
 
         expiry = _expiry;
     }
+    function openRepo() public returns (uint) {
+        require(now < expiry, "Options contract expired");
+        repos.push(Repo(0, 0, msg.sender));
+        return repos.length - 1;
+    }
 
     function addETHCollateral(uint256 _repoNum) public payable returns (uint256) {
         return _addCollateral(_repoNum, msg.value);
@@ -84,7 +89,8 @@ contract OptionsContract is OptionsUtils, ERC20 {
         return _addCollateral(_repoNum, _amt);
     }
 
-    /// TODO: look up pToken to underlying ratio. rn 1:1.
+/// TODO: look up pToken to underlying ratio. rn 1:1.
+/// TODO: add fees
     function exercise(uint256 _pTokens) public payable {
         // 1. before exercise window: revert
         require(now >= expiry - windowSize, "Too early to exercise");
@@ -165,21 +171,31 @@ contract OptionsContract is OptionsUtils, ERC20 {
         // 3. after: TBD (but don't allow exercise)
     }
 
-    // function liquidate(uint256 _repoNum, )
-    function getReposByOwner(address owner) public view returns (uint[] memory) {
-        uint[] memory repoNumbersOwned;
+    function getReposByOwner(address _owner) public view returns (uint[] memory) {
+        uint[] memory reposOwned;
+        uint256 count = 0;
         uint index = 0;
-       for (uint256 i = 0; i < repos.length; i++){
-           if(repos[i].owner == owner){
-               repoNumbersOwned[index] = i;
-               index += 1;
-           }
-       }
 
-       return repoNumbersOwned;
+        // get length necessary for returned array
+        for (uint256 i = 0; i < repos.length; i++) {
+            if(repos[i].owner == _owner){
+                count += 1;
+            }
+        }
+
+        reposOwned = new uint[](count);
+
+        // get each index of each repo owned by given address
+        for (uint256 i = 0; i < repos.length; i++) {
+            if(repos[i].owner == _owner) {
+                reposOwned[index++] = i;
+            }
+        }
+
+       return reposOwned;
     }
 
-    function getReposByIndex(uint256 repoIndex) public view returns (uint256, uint256, address) {
+    function getRepoByIndex(uint256 repoIndex) public view returns (uint256, uint256, address) {
         Repo storage repo = repos[repoIndex];
 
         return (
@@ -204,13 +220,15 @@ contract OptionsContract is OptionsUtils, ERC20 {
 
         return repo.collateral;
     }
-    function openRepo() public returns (uint) {
-        uint repoIndex = repos.push(Repo(0, 0, msg.sender)) - 1; //the length
-        return repoIndex;
-    }
 
     function issueOptionTokens (uint256 repoIndex, uint256 numTokens) public {
         //check that we're properly collateralized to mint this number, then call _mint(address account, uint256 amount)
+        require(now < expiry, "Options contract expired");
+        // TODO: get the price from Oracle
+        uint256 collateralToStrikePrice = 1;
+        Repo storage repo = repos[repoIndex];
+        require(numTokens.mul(collateralizationRatio).mul(strikePrice) <= repo.collateral.mul(collateralToStrikePrice), "unsafe to mint");
+        _mint(msg.sender, numTokens);
         return;
     }
 
@@ -229,6 +247,8 @@ contract OptionsContract is OptionsUtils, ERC20 {
     function removeCollateral(uint256 repoIndex, uint256 amtToRemove) public {
         //check that we are well collateralized enough to remove this amount of collateral
     }
+
+    // function liquidate(uint256 repo, )
 
     function getPrice(address asset) internal view returns (uint256) {
         return COMPOUND_ORACLE.getPrice(asset);
