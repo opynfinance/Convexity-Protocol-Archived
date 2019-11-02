@@ -3,7 +3,7 @@ pragma solidity 0.5.10;
 contract OptionsExchange {
 
     function sellPTokens(uint256 _pTokens, address payoutTokenAddress) public {
-        // TODO: first need to boot strap the uniswap exchange to get the address. 
+        // TODO: first need to boot strap the uniswap exchange to get the address.
         // uniswap transfer input _pTokens to payoutTokens
 
     }
@@ -17,6 +17,6 @@ contract OptionsExchange {
     // }
 
     // function tokenToTokenTransferOutput(address inputToken, address outputToken, uint256 _amt, address transferTo) public {
-        
+
     // }
 }
