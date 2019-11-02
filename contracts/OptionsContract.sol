@@ -77,17 +77,31 @@ contract OptionsContract is ERC20 {
         return;
     }
 
-    function addERC20Collateral (amtCollateral, repoIndex) {
+    function addERC20Collateral (uint256 repoIndex, uint256 amtCollateral) {
         require(!isEthCollateral());
         return;
     }
 
-    function issueOptionTokens (uint256 repoNum, uint256 numTokens) {
+    function issueOptionTokens (uint256 repoIndex, uint256 numTokens) {
         //check that we're properly collateralized to mint this number, then call _mint(address account, uint256 amount)
+        return;
     }
 
+    function burnPutTokens(uint256 repoIndex, uint256 amtToBurn) {
+        _burn(amtToBurn);
+        repos[repoIndex].putsOutstanding -= amtToBurn;
+    }
 
+    function transferRepoOwnership(uint256 repoIndex, address newOwner) {
+        require(repos[repoIndex].owner == msg.sender, "Cannot transferRepoOwnership as non owner");
+        repos[repoIndex].owner = newOwner;
+    }
 
+    function exercise(uint256 amtToExercise) {
+        //how does this work with phyiscal settlement tho
+    }
 
-
+    function removeCollateral(uint256 repoIndex, uint256 amtToRemove) {
+        //check that we are well collateralized enough to remove this amount of collateral
+    }
 }
