@@ -1,7 +1,6 @@
 pragma solidity ^0.4.0;
 
 contract Oracle {
-    function Oracle(){
         /**
      * @notice Set new oracle, who can set asset prices
      * @dev Admin function to change oracle
@@ -60,21 +59,21 @@ contract Oracle {
        *      If there's no oraclePrice, this returns (Error.DIVISION_BY_ZERO, 0)
        */
     function getAssetAmountForValue(address asset, Exp ethValue) internal view returns (Error, uint) {
-    Error err;
-    Exp memory assetPrice;
-    Exp memory assetAmount;
+        Error err;
+        Exp memory assetPrice;
+        Exp memory assetAmount;
 
-    (err, assetPrice) = fetchAssetPrice(asset);
-    if (err != Error.NO_ERROR) {
-    return (err, 0);
-    }
+        (err, assetPrice) = fetchAssetPrice(asset);
+        if (err != Error.NO_ERROR) {
+            return (err, 0);
+        }
 
-    (err, assetAmount) = divExp(ethValue, assetPrice);
-    if (err != Error.NO_ERROR) {
-    return (err, 0);
-    }
+        (err, assetAmount) = divExp(ethValue, assetPrice);
+        if (err != Error.NO_ERROR) {
+            return (err, 0);
+        }
 
-    return (Error.NO_ERROR, truncate(assetAmount));
+        return (Error.NO_ERROR, truncate(assetAmount));
     }
 
         // provide address to oracle
