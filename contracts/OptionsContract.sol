@@ -123,7 +123,7 @@ contract OptionsContract is ERC20 {
         /// TODO: decimal places of different assets.
         /// 2.4.1 if collateral = strike = payout, send strikePrice * pTokens number of collateral.
         if (collateral == strikeAsset && strikeAsset == payout) {
-            uint256 amtToSend = strikePrice.mul(_pTokens);;
+            uint256 amtToSend = strikePrice.mul(_pTokens);
             if (isETH(collateral)){
                 msg.sender.transfer(amtToSend);
             } else {
@@ -237,9 +237,18 @@ contract OptionsContract is ERC20 {
     }
 
     // function liquidate(uint256 _repoNum, )
-    // function getReposByOwner(address owner) public view returns (uint[] memory) {
-    //     //how to write this in a gas efficient way lol
-    // }
+    function getReposByOwner(address payable owner) public view returns (uint[] memory) {
+        uint[] memory repoNumbersOwned;
+        uint index = 0;
+       for (uint256 i=0; i<repos.length; i++){
+           if(repos[i].owner == owner){
+               repoNumbersOwned[index] = i;
+               index += 1;
+           }
+       }
+
+       return repoNumbersOwned;
+    }
 
     // function getRepos() public view returns (uint[] memory) {
     //     //how to write this in a gas efficient way lol
