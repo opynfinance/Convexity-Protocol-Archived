@@ -40,6 +40,8 @@ contract OptionsContract is ERC20 {
     UniswapExchangeInterface public payoutExchange;
     uint256 public expiry;
 
+
+
     constructor(
         IERC20 _collateral,
         IERC20 _underlying,
@@ -186,4 +188,8 @@ contract OptionsContract is ERC20 {
     function removeCollateral(uint256 repoIndex, uint256 amtToRemove) public {
         //check that we are well collateralized enough to remove this amount of collateral
     }
+
+
+
+
 }
