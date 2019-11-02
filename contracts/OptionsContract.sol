@@ -104,4 +104,20 @@ contract OptionsContract is ERC20 {
     function removeCollateral(uint256 repoIndex, uint256 amtToRemove) {
         //check that we are well collateralized enough to remove this amount of collateral
     }
+
+
+
+    // provide address to oracle
+    // oracle_ - address of the oracle contract
+    function setOracle(address oracle_) external {
+        require(msg.sender == owner);
+        oracle = oracle_;
+    }
+
+    // get oracle value
+    function peek() public view returns (uint r){
+        Oracle _oracle = Oracle(oracle);
+        r = _oracle.read();
+    }
+
 }
