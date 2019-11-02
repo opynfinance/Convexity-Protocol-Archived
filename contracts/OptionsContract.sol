@@ -18,14 +18,6 @@ contract OptionsContract is OptionsUtils, ERC20 {
         address payable owner;
     }
 
-    UniswapFactoryInterface constant UNISWAP_FACTORY = UniswapFactoryInterface(
-        0xc0a47dFe034B400B47bDaD5FecDa2621de6c4d95
-    );
-
-    CompoundOracleInterface constant COMPOUND_ORACLE = CompoundOracleInterface(
-        0x02557a5E05DeFeFFD4cAe6D83eA3d173B272c904
-    );
-
     // TODO: PROPERLY INITIALIZE
     OptionsExchange constant OPTIONS_EXCHANGE = OptionsExchange(0);
 
@@ -129,6 +121,7 @@ contract OptionsContract is OptionsUtils, ERC20 {
                 collateral.transfer(msg.sender, amtToSend);
             }
         }
+
         /* TODO: In the long term, need to first calculate how many payoutTokens you can get based
         on only oracle prices, not with uniswap slippage. Then call the uniswap transfer output on the payOutTokens. */
         /* 2.4.2 if collateral = strike != payout,
@@ -158,6 +151,7 @@ contract OptionsContract is OptionsUtils, ERC20 {
                 collateral.transfer(msg.sender, amtToPayout);
             }
          }
+
          /* 2.4.5, collateral != strike != payout. Uniswap transfer output. This sells
          enough collateral to get strikePrice * pTokens * strikeToPayoutPrice payoutTokens. */
          else {
@@ -172,7 +166,7 @@ contract OptionsContract is OptionsUtils, ERC20 {
     }
 
     // function liquidate(uint256 _repoNum, )
-    function getReposByOwner(address payable owner) public view returns (uint[] memory) {
+    function getReposByOwner(address owner) public view returns (uint[] memory) {
         uint[] memory repoNumbersOwned;
         uint index = 0;
        for (uint256 i = 0; i < repos.length; i++){
