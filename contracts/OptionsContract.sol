@@ -288,6 +288,7 @@ contract OptionsContract is ERC20 {
 
         return repo.collateral;
     }
+
     function openRepo() public returns (uint) {
         uint repoIndex = repos.push(Repo(0, 0, msg.sender)) - 1; //the length
         return repoIndex;
@@ -298,7 +299,20 @@ contract OptionsContract is ERC20 {
         return;
     }
 
-    function burnPutTokens(uint256 repoIndex, uint256 amtToBurn) public {
+    function createOption(uint256 repoIndex, uint256 amtToBurn) public {
+        //TODO: this opens a repo adds collateral and mints new tokens in one step
+        //first check that we have enough collateral to do things
+        //        Repo storage repo = repos[repoIndex];
+//        require(repo.owner == msg.sender, "Not the owner of this repo");
+//        repo.putsOutstanding = repo.putsOutstanding.sub(amtToBurn);
+//        _burn(msg.sender, amtToBurn);
+    }
+
+    function createAndSellOption(uint256 repoIndex, uint256 amtToBurn) public {
+        //TODO: write this
+    }
+
+    function  burnPutTokens(uint256 repoIndex, uint256 amtToBurn) public {
         Repo storage repo = repos[repoIndex];
         require(repo.owner == msg.sender, "Not the owner of this repo");
         repo.putsOutstanding = repo.putsOutstanding.sub(amtToBurn);
@@ -311,7 +325,7 @@ contract OptionsContract is ERC20 {
     }
 
     function removeCollateral(uint256 repoIndex, uint256 amtToRemove) public {
-        //check that we are well collateralized enough to remove this amount of collateral
+        //TODO: check that we are well collateralized enough to remove this amount of collateral
     }
 
     function getPrice(address asset) internal returns (uint256){
