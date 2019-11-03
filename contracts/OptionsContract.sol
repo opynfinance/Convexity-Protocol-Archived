@@ -221,14 +221,41 @@ contract OptionsContract is OptionsUtils, ERC20 {
         return;
     }
 
-    function createOption(uint256 repoIndex, uint256 amtToBurn) public {
-        //TODO: this opens a repo adds collateral and mints new tokens in one step
-        //first check that we have enough collateral to do things
-        //        Repo storage repo = repos[repoIndex];
-//        require(repo.owner == msg.sender, "Not the owner of this repo");
-//        repo.putsOutstanding = repo.putsOutstanding.sub(amtToBurn);
-//        _burn(msg.sender, amtToBurn);
+    //this function opens a repo, adds ETH collateral, and mints new putTokens in one step, returing the repoIndex
+    function createOptionETHCollateral(uint256 amtToCreate) payable external returns (uint256) {
+        require(isETH(collateral), "cannot add ETH as collateral to an ERC20 collateralized option");
+        uint256 repoIndex = openRepo();
+        //TODO: can ETH be passed around payables like this?
+        createOptionETHCollateral(amtToCreate, repoIndex);
+        return repoIndex;
     }
+
+    //this function adds ETH collateral to an existing repo and mints new tokens in one step
+    function createOptionETHCollateral(uint256 amtToCreate, uint256 repoIndex) payable public {
+        require(isETH(collateral), "cannot add ETH as collateral to an ERC20 collateralized option");
+        require(repos[repoIndex].owner == msg.sender, "trying to createOption on a repo that is not yours");
+        //TODO: can ETH be passed around payables like this?
+        addETHCollateral(repoIndex);
+        issueOptionTokens(repoIndex, amtToCreate);
+    }
+
+    //this function opens a repo, adds ERC20 collateral to that repo and mints new tokens in one step, returning the repoIndex
+    function createOptionERC20Collateral(uint256 amtToCreate, uint256 amtCollateral) external returns (uint256) {
+        //TODO: was it okay to remove the require here?
+        uint256 repoIndex = openRepo();
+        createOptionERC20Collateral(repoIndex, amtToCreate, amtCollateral);
+        return repoIndex;
+    }
+
+    //this function adds ERC20 collateral to an existing repo and mints new tokens in one step
+    function createOptionERC20Collateral(uint256 amtToCreate, uint256 amtCollateral, uint256 repoIndex) public {
+        require(!isETH(collateral), "cannot add ERC20 collateral to an ETH collateralized option");
+        require(repos[repoIndex].owner == msg.sender, "trying to createOption on a repo that is not yours");
+        uint256 repoIndex = openRepo();
+        addERC20Collateral(repoIndex, amtCollateral);
+        issueOptionTokens(repoIndex, amtToCreate);
+    }
+
 
     function createAndSellOption(uint256 repoIndex, uint256 amtToBurn) public {
         //TODO: write this
