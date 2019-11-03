@@ -144,7 +144,7 @@ contract OptionsContract is OptionsUtils, ERC20 {
             OPTIONS_EXCHANGE.exchangeAndTransferOutput(collateral, payout, amtToPayout, msg.sender);
         }
 
-        /* 2.4.4 if collateral = payout != strike. strikeToCollateralPrice = amt of collateral 1 strikeToken can give you.
+        /* 2.4.4 if collateral = payout != strike. strikeToCollateralPrice = amt of collateral 1 strikeToken can get you.
          Payout strikeToCollateralPrice * strikePrice * pTokens worth of payoutTokens. */
          else if (collateral == payout && payout != strikeAsset) {
             //TODO: first check if either are ETH so we don't have to call oracle
@@ -222,11 +222,15 @@ contract OptionsContract is OptionsUtils, ERC20 {
         return repo.collateral;
     }
 
+    //strikeToCollateralPrice = amt of strikeTokens 1 collateralToken can give you.
     function issueOptionTokens (uint256 repoIndex, uint256 numTokens) public {
         //check that we're properly collateralized to mint this number, then call _mint(address account, uint256 amount)
         require(now < expiry, "Options contract expired");
         // TODO: get the price from Oracle
-        uint256 collateralToStrikePrice = 1;
+        uint256 ethToCollateralPrice = getPrice(address(collateral));
+        uint256 ethToStrikePrice = getPrice(address(strikeAsset));
+        //TODO: why are we using strikeToCollateralPrice here but collateralToStrikePrice elsewhere
+        uint256 collateralToStrikePrice =  ethToCollateralPrice / ethToStrikePrice;
         Repo storage repo = repos[repoIndex];
         require(numTokens.mul(collateralizationRatio).mul(strikePrice) <= repo.collateral.mul(collateralToStrikePrice), "unsafe to mint");
         _mint(msg.sender, numTokens);
@@ -267,7 +271,6 @@ contract OptionsContract is OptionsUtils, ERC20 {
         issueOptionTokens(repoIndex, amtToCreate);
     }
 
-
     function createAndSellOption(uint256 repoIndex, uint256 amtToBurn) public {
         //TODO: write this
     }
@@ -289,7 +292,6 @@ contract OptionsContract is OptionsUtils, ERC20 {
     }
 
     // function liquidate(uint256 repo, )
-
     function getPrice(address asset) internal view returns (uint256) {
         return COMPOUND_ORACLE.getPrice(asset);
     }
