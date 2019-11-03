@@ -17,3 +17,20 @@
 .card-amount-uninsured {
   color: #6979F8;
 }
+
+.card-title-duration {
+  color: #B3B3B3;
+  font-size: 18px;
+  padding-bottom: 18px;
+}
+
+.card-description {
+  color: #333333;
+  font-size: 16px;
+  padding-bottom: 4px;
+}
+
+.back-text {
+  color: #B3B3B3;
+  font-size: 16px;
+}

@@ -3,7 +3,7 @@ import './index.css';
 import logo from './logo.svg';
 
 import { Box, Flex, Button, useDisclosure } from "@chakra-ui/core";
-import { Link, HashRouter } from 'react-router-dom';
+import { Link} from 'react-router-dom';
 import PurchaseModal from '../PurchaseModal';
 
 export default function Header() {
