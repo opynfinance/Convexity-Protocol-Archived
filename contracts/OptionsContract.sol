@@ -17,8 +17,7 @@ contract OptionsContract is OptionsUtils, ERC20 {
         address payable owner;
     }
 
-    // TODO: PROPERLY INITIALIZE
-    OptionsExchange constant OPTIONS_EXCHANGE = OptionsExchange(0);
+    OptionsExchange public optionsExchange;
 
     Repo[] public repos;
 
@@ -49,8 +48,12 @@ contract OptionsContract is OptionsUtils, ERC20 {
         uint256 _strikePrice,
         IERC20 _strikeAsset,
         IERC20 _payout,
-        uint256 _expiry
+        uint256 _expiry,
+        OptionsExchange _optionsExchange
     )
+        OptionsUtils(
+            _optionsExchange.UNISWAP_FACTORY(), _optionsExchange.COMPOUND_ORACLE()
+        )
         public
     {
         collateral = _collateral;
@@ -69,6 +72,7 @@ contract OptionsContract is OptionsUtils, ERC20 {
         }
 
         expiry = _expiry;
+        optionsExchange = _optionsExchange;
     }
 
     function openRepo() public returns (uint) {
@@ -123,7 +127,7 @@ contract OptionsContract is OptionsUtils, ERC20 {
             totalStrikePool = totalStrikePool.sub(amtOwed);
 
             if(strikeAsset != payout) {
-                OPTIONS_EXCHANGE.exchangeAndTransferInput(strikeAsset, payout, amtOwed, msg.sender);
+                optionsExchange.exchangeAndTransferInput(strikeAsset, payout, amtOwed, msg.sender);
             } else {
                 transferCollateral(msg.sender, amtOwed);
             }
@@ -134,7 +138,7 @@ contract OptionsContract is OptionsUtils, ERC20 {
             _pTokens = _pTokens.sub((totalStrikePool.div(strikePrice)));
 
             if(strikeAsset != payout) {
-                OPTIONS_EXCHANGE.exchangeAndTransferInput(strikeAsset, payout, totalStrikePool, msg.sender);
+                optionsExchange.exchangeAndTransferInput(strikeAsset, payout, totalStrikePool, msg.sender);
             } else {
                 transferCollateral(msg.sender, totalStrikePool);
             }
@@ -154,14 +158,14 @@ contract OptionsContract is OptionsUtils, ERC20 {
         uniswap transfer input. This transfers in strikePrice * pTokens collateral for how many ever payoutTokens you can get. */
         else if(collateral == strikeAsset && strikeAsset != payout) {
             uint256 amtToSend = strikePrice.mul(_pTokens);
-            OPTIONS_EXCHANGE.exchangeAndTransferInput(collateral, payout, amtToSend, msg.sender);
+            optionsExchange.exchangeAndTransferInput(collateral, payout, amtToSend, msg.sender);
             totalExercised = totalExercised.add(amtToSend);
         }
         /* 2.4.3 if collateral != strike = payout. uniswap transfer output. This transfers in as much
         collateral as will get you strikePrice * payout payoutTokens. */
         else if (collateral != strikeAsset && strikeAsset == payout) {
             uint256 amtToPayout = strikePrice.mul(_pTokens);
-            uint256 amtSent = OPTIONS_EXCHANGE.exchangeAndTransferOutput(collateral, payout, amtToPayout, msg.sender);
+            uint256 amtSent = optionsExchange.exchangeAndTransferOutput(collateral, payout, amtToPayout, msg.sender);
             totalExercised = totalExercised.add(amtSent);
         }
 
@@ -186,7 +190,7 @@ contract OptionsContract is OptionsUtils, ERC20 {
             uint256 ethToStrikePrice = getPrice(address(strikeAsset));
             uint256 strikeToPayoutPrice = ethToStrikePrice / ethToPayoutPrice;
             uint256 amtToPayout = strikePrice.mul(_pTokens).mul(strikeToPayoutPrice);
-            uint256 amtSent = OPTIONS_EXCHANGE.exchangeAndTransferOutput(collateral, payout, amtToPayout, msg.sender);
+            uint256 amtSent = optionsExchange.exchangeAndTransferOutput(collateral, payout, amtToPayout, msg.sender);
             totalExercised = totalExercised.add(amtSent);
          }
         // 3. after: TBD (but don't allow exercise)
@@ -250,7 +254,7 @@ contract OptionsContract is OptionsUtils, ERC20 {
         uint256 ethToCollateralPrice = getPrice(address(collateral));
         uint256 ethToStrikePrice = getPrice(address(strikeAsset));
         //TODO: why are we using strikeToCollateralPrice here but collateralToStrikePrice elsewhere
-        uint256 collateralToStrikePrice =  ethToCollateralPrice / ethToStrikePrice;
+        uint256 collateralToStrikePrice = ethToCollateralPrice / ethToStrikePrice;
         Repo storage repo = repos[repoIndex];
         require(numTokens.mul(collateralizationRatio).mul(strikePrice) <= repo.collateral.mul(collateralToStrikePrice), "unsafe to mint");
         _mint(msg.sender, numTokens);
@@ -267,7 +271,7 @@ contract OptionsContract is OptionsUtils, ERC20 {
     }
 
     //this function adds ETH collateral to an existing repo and mints new tokens in one step
-    function createOptionETHCollateral(uint256 amtToCreate, uint256 repoIndex) payable public {
+    function createOptionETHCollateral(uint256 amtToCreate, uint256 repoIndex) public payable {
         require(isETH(collateral), "cannot add ETH as collateral to an ERC20 collateralized option");
         require(repos[repoIndex].owner == msg.sender, "trying to createOption on a repo that is not yours");
         //TODO: can ETH be passed around payables like this?
@@ -295,7 +299,7 @@ contract OptionsContract is OptionsUtils, ERC20 {
         //TODO: write this
     }
 
-    function  burnPutTokens(uint256 repoIndex, uint256 amtToBurn) public {
+    function burnPutTokens(uint256 repoIndex, uint256 amtToBurn) public {
         Repo storage repo = repos[repoIndex];
         require(repo.owner == msg.sender, "Not the owner of this repo");
         repo.putsOutstanding = repo.putsOutstanding.sub(amtToBurn);
@@ -345,7 +349,7 @@ contract OptionsContract is OptionsUtils, ERC20 {
 
         // determine how much collateral has to be deducted
         uint256 debtOwed = strikePrice.mul(repo.putsOutstanding);
-        uint256 collateralTaken = OPTIONS_EXCHANGE.exchangeAndTransferOutput(collateral, strikeAsset, debtOwed, address(this));
+        uint256 collateralTaken = optionsExchange.exchangeAndTransferOutput(collateral, strikeAsset, debtOwed, address(this));
         totalStrikePool = totalStrikePool.add(debtOwed);
         uint256 feeAmount = repo.collateral.mul(penaltyFee);
 
@@ -379,6 +383,4 @@ contract OptionsContract is OptionsUtils, ERC20 {
     function() external payable {
         // to get ether from uniswap exchanges
     }
-
-    //TODO: there should be a fallback function
 }

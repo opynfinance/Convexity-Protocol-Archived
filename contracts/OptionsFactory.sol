@@ -12,10 +12,16 @@ contract OptionsFactory is Ownable {
     // keys saved in front-end -- look at the docs if needed
     mapping (string => IERC20) public tokens;
 
+    OptionsExchange public optionsExchange;
+
     event ContractCreated(address addr);
     event AssetAdded(string indexed asset, address indexed addr);
     event AssetChanged(string indexed asset, address indexed addr);
     event AssetDeleted(string indexed asset);
+
+    constructor(OptionsExchange _optionsExchange) public {
+        optionsExchange = _optionsExchange;
+    }
 
     function createOptionsContract(
         string memory _collateralType,
@@ -39,7 +45,8 @@ contract OptionsFactory is Ownable {
             _strikePrice,
             tokens[_strikeAsset],
             tokens[_payoutType],
-            _expiry
+            _expiry,
+            optionsExchange
         );
 
         emit ContractCreated(address(optionsContract));
