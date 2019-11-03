@@ -1,17 +1,7 @@
 module.exports = {
-  AssetAdded(params) {
+  RepoOpened(params) {
     return {
-      event: 'AssetAdded',
-      args: {
-        asset: params.asset,
-        addr: params.addr,
-      }
-    }
-  },
-
-  ContractCreated(params) {
-    return {
-      event: 'ContractCreated',
+      event: 'RepoOpened',
       args: {
         addr: params.addr,
       }
