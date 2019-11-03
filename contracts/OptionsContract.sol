@@ -2,7 +2,6 @@ pragma solidity 0.5.10;
 
 import "./CompoundOracleInterface.sol";
 import "./OptionsExchange.sol";
-import "./OptionsFactory.sol";
 import "./OptionsUtils.sol";
 import "./UniswapFactoryInterface.sol";
 import "./UniswapExchangeInterface.sol";
@@ -166,7 +165,7 @@ contract OptionsContract is OptionsUtils, ERC20 {
             totalExercised = totalExercised.add(amtSent);
         }
 
-        /* 2.4.4 if collateral = payout != strike. strikeToCollateralPrice = amt of collateral 1 strikeToken can give you.
+        /* 2.4.4 if collateral = payout != strike. strikeToCollateralPrice = amt of collateral 1 strikeToken can get you.
          Payout strikeToCollateralPrice * strikePrice * pTokens worth of payoutTokens. */
          else if (collateral == payout && payout != strikeAsset) {
             //TODO: first check if either are ETH so we don't have to call oracle
@@ -243,11 +242,15 @@ contract OptionsContract is OptionsUtils, ERC20 {
         return repo.collateral;
     }
 
+    //strikeToCollateralPrice = amt of strikeTokens 1 collateralToken can give you.
     function issueOptionTokens (uint256 repoIndex, uint256 numTokens) public {
         //check that we're properly collateralized to mint this number, then call _mint(address account, uint256 amount)
         require(now < expiry, "Options contract expired");
         // TODO: get the price from Oracle
-        uint256 collateralToStrikePrice = 1;
+        uint256 ethToCollateralPrice = getPrice(address(collateral));
+        uint256 ethToStrikePrice = getPrice(address(strikeAsset));
+        //TODO: why are we using strikeToCollateralPrice here but collateralToStrikePrice elsewhere
+        uint256 collateralToStrikePrice =  ethToCollateralPrice / ethToStrikePrice;
         Repo storage repo = repos[repoIndex];
         require(numTokens.mul(collateralizationRatio).mul(strikePrice) <= repo.collateral.mul(collateralToStrikePrice), "unsafe to mint");
         _mint(msg.sender, numTokens);
@@ -287,7 +290,6 @@ contract OptionsContract is OptionsUtils, ERC20 {
         addERC20Collateral(repoIndex, amtCollateral);
         issueOptionTokens(repoIndex, amtToCreate);
     }
-
 
     function createAndSellOption(uint256 repoIndex, uint256 amtToBurn) public {
         //TODO: write this
@@ -330,8 +332,9 @@ contract OptionsContract is OptionsUtils, ERC20 {
             repo.collateral = 0;
         }
     }
+
     // TODO: look at compound docs and improve how it is built
-    function liquidate(uint256 repoNum) public returns (uint256) {
+    function liquidate(uint256 repoNum) public {
         require(now < expiry, "Options contract expired");
 
        // TODO: get price from Oracle
@@ -376,4 +379,6 @@ contract OptionsContract is OptionsUtils, ERC20 {
     function() external payable {
         // to get ether from uniswap exchanges
     }
+
+    //TODO: there should be a fallback function
 }
