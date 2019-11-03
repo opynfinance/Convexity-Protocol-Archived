@@ -1,0 +1,19 @@
+/* TODO: do not rely on global css sheets */
+
+.card-title {
+  color: #B3B3B3;
+  font-size: 21px;
+  padding-bottom: 12px;
+}
+
+.card-amount {
+  font-size: 32px;
+}
+
+.card-amount-insured {
+  color: #27AE60;
+}
+
+.card-amount-uninsured {
+  color: #6979F8;
+}

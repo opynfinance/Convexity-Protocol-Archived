@@ -1,0 +1,9 @@
+.header {
+  display: flex;
+  justify-content: space-between;
+  margin: 32px;
+}
+
+.header-cta-container {
+  margin-right: 8px;
+}

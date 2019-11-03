@@ -1,0 +1,45 @@
+.input-container {
+  display: flex;
+  justify-content: center;
+  padding-left: 37px;
+  /* FIXME: autoscale */
+}
+
+.prefix {
+  display: flex;
+  align-items: center;
+  padding-bottom: 12px;
+  font-size: 32px;
+  color: #bebebe;
+}
+
+.prefix-active {
+  color: #333333;
+}
+
+.purchase-input {
+  border: 0;
+  font-size: 65px;
+  background: none;
+  width: 100px;
+  -webkit-appearance: none;
+  margin: 0;
+  outline: none;
+}
+
+.purchase-input::placeholder {
+  color: #bebebe;
+}
+
+.purchase-input::-webkit-outer-spin-button,
+.purchase-input::-webkit-inner-spin-button {
+  /* display: none; <- Crashes Chrome on hover */
+  -webkit-appearance: none;
+  margin: 0;
+  /* <-- Apparently some margin are still there even though it's hidden */
+}
+
+.purchase-input[type=number] {
+  -moz-appearance: textfield;
+  /* Firefox */
+}

@@ -1,0 +1,9 @@
+.asset-icon {
+  width: 24px;
+  margin-right: 4px;
+}
+
+.asset-cell {
+  display: flex;
+  align-items: center;
+}
