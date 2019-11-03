@@ -17,33 +17,33 @@ contract OptionsFactory is Ownable {
     event AssetChanged(string indexed asset, address indexed addr);
     event AssetDeleted(string indexed asset);
 
-//    function createOptionsContract(
-//        string memory _collateralType,
-//        string memory _underlyingType,
-//        uint256 _strikePrice,
-//        string memory _strikeAsset,
-//        string memory _payoutType,
-//        uint256 _expiry
-//    )
-//        public
-//        returns (address)
-//    {
-//        require(supportsAsset(_collateralType), "Collateral type not supported");
-//        require(supportsAsset(_underlyingType), "Underlying type not supported");
-//        require(supportsAsset(_strikeAsset), "Strike asset type not supported");
-//        require(supportsAsset(_payoutType), "Payout type not supported");
-//
-//        OptionsContract optionsContract = new OptionsContract(
-//            tokens[_collateralType],
-//            tokens[_underlyingType],
-//            _strikePrice,
-//            tokens[_strikeAsset],
-//            tokens[_payoutType],
-//            _expiry
-//        );
-//
-//        return address(optionsContract);
-//    }
+    function createOptionsContract(
+        string memory _collateralType,
+        string memory _underlyingType,
+        uint256 _strikePrice,
+        string memory _strikeAsset,
+        string memory _payoutType,
+        uint256 _expiry
+    )
+        public
+        returns (address)
+    {
+        require(supportsAsset(_collateralType), "Collateral type not supported");
+        require(supportsAsset(_underlyingType), "Underlying type not supported");
+        require(supportsAsset(_strikeAsset), "Strike asset type not supported");
+        require(supportsAsset(_payoutType), "Payout type not supported");
+
+        OptionsContract optionsContract = new OptionsContract(
+            tokens[_collateralType],
+            tokens[_underlyingType],
+            _strikePrice,
+            tokens[_strikeAsset],
+            tokens[_payoutType],
+            _expiry
+        );
+
+        return address(optionsContract);
+    }
 
     function addAsset(string memory _asset, address _addr) public onlyOwner {
         require(tokens[_asset] == IERC20(0), "Asset already added");
