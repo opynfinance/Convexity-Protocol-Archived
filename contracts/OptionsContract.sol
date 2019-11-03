@@ -18,19 +18,10 @@ contract OptionsContract is OptionsUtils, ERC20 {
         address payable owner;
     }
 
-    UniswapFactoryInterface constant UNISWAP_FACTORY = UniswapFactoryInterface(
-        0xc0a47dFe034B400B47bDaD5FecDa2621de6c4d95
-    );
-
-    CompoundOracleInterface constant COMPOUND_ORACLE = CompoundOracleInterface(
-        0x02557a5E05DeFeFFD4cAe6D83eA3d173B272c904
-    );
-
     // TODO: PROPERLY INITIALIZE
     OptionsExchange constant OPTIONS_EXCHANGE = OptionsExchange(0);
 
-    Repo[] repos;
-
+    Repo[] public repos;
 
     uint256 totalCollateral; // denominated in collateralType, depending on underlying type need to be able to handle decimal places
     uint256 totalUnderlying; // denominated in underlyingType, depending on underlying type need to be able to handle decimal places
@@ -80,6 +71,7 @@ contract OptionsContract is OptionsUtils, ERC20 {
 
         expiry = _expiry;
     }
+
     function openRepo() public returns (uint) {
         require(now < expiry, "Options contract expired");
         repos.push(Repo(0, 0, msg.sender));
@@ -156,6 +148,7 @@ contract OptionsContract is OptionsUtils, ERC20 {
             transferCollateral(msg.sender, amtToSend);
             totalExercised = totalExercised.add(amtToSend);
         }
+
         /* TODO: In the long term, need to first calculate how many payoutTokens you can get based
         on only oracle prices, not with uniswap slippage. Then call the uniswap transfer output on the payOutTokens. */
         /* 2.4.2 if collateral = strike != payout,
@@ -185,6 +178,7 @@ contract OptionsContract is OptionsUtils, ERC20 {
             totalExercised = totalExercised.add(amtToPayout);
 
          }
+
          /* 2.4.5, collateral != strike != payout. Uniswap transfer output. This sells
          enough collateral to get strikePrice * pTokens * strikeToPayoutPrice payoutTokens. */
          else {
@@ -199,20 +193,31 @@ contract OptionsContract is OptionsUtils, ERC20 {
         // 3. after: TBD (but don't allow exercise)
     }
 
-    function getReposByOwner(address payable owner) public view returns (uint[] memory) {
-        uint[] memory repoNumbersOwned;
+    function getReposByOwner(address _owner) public view returns (uint[] memory) {
+        uint[] memory reposOwned;
+        uint256 count = 0;
         uint index = 0;
-       for (uint256 i = 0; i < repos.length; i++){
-           if(repos[i].owner == owner){
-               repoNumbersOwned[index] = i;
-               index += 1;
-           }
-       }
 
-       return repoNumbersOwned;
+        // get length necessary for returned array
+        for (uint256 i = 0; i < repos.length; i++) {
+            if(repos[i].owner == _owner){
+                count += 1;
+            }
+        }
+
+        reposOwned = new uint[](count);
+
+        // get each index of each repo owned by given address
+        for (uint256 i = 0; i < repos.length; i++) {
+            if(repos[i].owner == _owner) {
+                reposOwned[index++] = i;
+            }
+        }
+
+       return reposOwned;
     }
 
-    function getReposByIndex(uint256 repoIndex) public view returns (uint256, uint256, address) {
+    function getRepoByIndex(uint256 repoIndex) public view returns (uint256, uint256, address) {
         Repo storage repo = repos[repoIndex];
 
         return (
@@ -249,7 +254,46 @@ contract OptionsContract is OptionsUtils, ERC20 {
         return;
     }
 
-    function burnPutTokens(uint256 repoIndex, uint256 amtToBurn) public {
+    //this function opens a repo, adds ETH collateral, and mints new putTokens in one step, returing the repoIndex
+    function createOptionETHCollateral(uint256 amtToCreate) payable external returns (uint256) {
+        require(isETH(collateral), "cannot add ETH as collateral to an ERC20 collateralized option");
+        uint256 repoIndex = openRepo();
+        //TODO: can ETH be passed around payables like this?
+        createOptionETHCollateral(amtToCreate, repoIndex);
+        return repoIndex;
+    }
+
+    //this function adds ETH collateral to an existing repo and mints new tokens in one step
+    function createOptionETHCollateral(uint256 amtToCreate, uint256 repoIndex) payable public {
+        require(isETH(collateral), "cannot add ETH as collateral to an ERC20 collateralized option");
+        require(repos[repoIndex].owner == msg.sender, "trying to createOption on a repo that is not yours");
+        //TODO: can ETH be passed around payables like this?
+        addETHCollateral(repoIndex);
+        issueOptionTokens(repoIndex, amtToCreate);
+    }
+
+    //this function opens a repo, adds ERC20 collateral to that repo and mints new tokens in one step, returning the repoIndex
+    function createOptionERC20Collateral(uint256 amtToCreate, uint256 amtCollateral) external returns (uint256) {
+        //TODO: was it okay to remove the require here?
+        uint256 repoIndex = openRepo();
+        createOptionERC20Collateral(repoIndex, amtToCreate, amtCollateral);
+        return repoIndex;
+    }
+
+    //this function adds ERC20 collateral to an existing repo and mints new tokens in one step
+    function createOptionERC20Collateral(uint256 amtToCreate, uint256 amtCollateral, uint256 repoIndex) public {
+        require(!isETH(collateral), "cannot add ERC20 collateral to an ETH collateralized option");
+        require(repos[repoIndex].owner == msg.sender, "trying to createOption on a repo that is not yours");
+        addERC20Collateral(repoIndex, amtCollateral);
+        issueOptionTokens(repoIndex, amtToCreate);
+    }
+
+
+    function createAndSellOption(uint256 repoIndex, uint256 amtToBurn) public {
+        //TODO: write this
+    }
+
+    function  burnPutTokens(uint256 repoIndex, uint256 amtToBurn) public {
         Repo storage repo = repos[repoIndex];
         require(repo.owner == msg.sender, "Not the owner of this repo");
         repo.putsOutstanding = repo.putsOutstanding.sub(amtToBurn);
@@ -262,7 +306,7 @@ contract OptionsContract is OptionsUtils, ERC20 {
     }
 
     function removeCollateral(uint256 repoIndex, uint256 amtToRemove) public {
-        //check that we are well collateralized enough to remove this amount of collateral
+        //TODO: check that we are well collateralized enough to remove this amount of collateral
     }
     // TODO: look at compound docs and improve how it is built
     function liquidate(uint256 repoNum) public returns (uint256) {
