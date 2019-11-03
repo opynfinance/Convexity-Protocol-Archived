@@ -94,6 +94,12 @@ function DynamicModalContent({ step, setStep, onClose }) {
               border="0px"
               color="#ffffff"
               onClick={() => setStep(step + 1)}
+              _hover={{ bg: "#34ab66" }}
+              _active={{
+                bg: "#34ab66",
+                transform: "scale(0.98)",
+                borderColor: "#bec3c9",
+              }}
             >
               Confirm Purchase
             </Button>
@@ -143,6 +149,12 @@ function DynamicModalContent({ step, setStep, onClose }) {
               background="#27AE60"
               border="0px"
               color="#ffffff"
+              _hover={{ bg: "#34ab66" }}
+              _active={{
+                bg: "#34ab66",
+                transform: "scale(0.98)",
+                borderColor: "#bec3c9",
+              }}
               onClick={()=>setStep(step + 1)}
             >
               Buy Insurance
@@ -181,6 +193,12 @@ function DynamicModalContent({ step, setStep, onClose }) {
               background="#27AE60"
               border="0px"
               color="#ffffff"
+              _hover={{ bg: "#34ab66" }}
+              _active={{
+                bg: "#34ab66",
+                transform: "scale(0.98)",
+                borderColor: "#bec3c9",
+              }}
               onClick={onClose}
             >
               Done

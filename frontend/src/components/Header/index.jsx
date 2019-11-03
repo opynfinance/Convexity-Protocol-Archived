@@ -24,6 +24,12 @@ export default function Header() {
             border="0px"
             background="#6979F8"
             color="#FFFFFF"
+            _hover={{ bg: "#5e6eec" }}
+            _active={{
+              bg: "#5e6eec",
+              transform: "scale(0.98)",
+              borderColor: "#5e6eec",
+            }}
             onClick={onOpen}
           >
             Get Insurance

@@ -11,7 +11,7 @@ import cUSDCIcon from './assetLogos/cUSDC-icon.svg';
 const list = [
   { name: 'DAI', insured: '10,000 DAI', expiring_in: '3 months' },
   { name: 'cDAI', insured: '10,000 cDAI', expiring_in: '6 months' },
-  { name: 'cUSDC', insured: '10,000 cUSDC', expiring_in: '4 years' }
+  { name: 'cUSDC', insured: '10,000 cUSDC', expiring_in: '9 months' }
 ];
 
 
@@ -69,6 +69,9 @@ export default function PurchaseInsuranceTable() {
             color="#6979F8"
             borderColor="#6979F8"
             height="36px"
+            _focus={{
+              outline: 'none',
+            }}
           >
             See Details
           </Button>
