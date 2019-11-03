@@ -1,0 +1,5 @@
+/* TODO: make this responsive and use flexbox */
+.detail-container {
+  max-width: 40%;
+  margin: 0 auto;
+}
