@@ -20,7 +20,7 @@ const Util = require('./util.js');
 const Web3 = require('web3');
 const web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'))
 const util = new Util(web3);
-var { expect } = require('expect.js');
+var expect = require('expect');
 var OptionsContract = artifacts.require("/Users/zubinkoticha/WebstormProjects/OptionsProtocol/contracts/OptionsContract.sol");
 var OptionsFactory = artifacts.require("/Users/zubinkoticha/WebstormProjects/OptionsProtocol/contracts/OptionsFactory.sol");
 var OptionsContractJSON = require("../build/contracts/OptionsContract.json");
@@ -38,7 +38,7 @@ contract('OptionsContract', (accounts) => {
   var unprivilegedAddress = accounts[4]
   /* create named accounts for contract roles */
 
-  let optionsContractAddr;
+  let optionsContract;
 
 
     let ConstructorArgs = {
@@ -82,18 +82,13 @@ contract('OptionsContract', (accounts) => {
       // console.log(optionsContractAddr)
 
       //
-      var optionsContract = new web3.eth.Contract(OptionsContractABI,optionsContractAddr, {from: creatorAddress, gasPrice: '20000000000'})
-      console.log(await promisify(cb =>  optionsContract.methods.openRepo().estimateGas(cb)))
+      optionsContract = new web3.eth.Contract(OptionsContractABI,optionsContractAddr, {from: creatorAddress, gasPrice: '20000000000'})
 
-      var result = await promisify(cb =>  optionsContract.methods.openRepo().send({from: creatorAddress, gas: '100675'}, cb))
-      // var result = optionsContract.methods.openRepo().send()
-      console.log(result)
-      var res = await optionsContract.getPastEvents( 'RepoOpened', { fromBlock: 0, toBlock: 'latest' } )[0];
-      console.log(res)
+
+      // console.log(repoIndex)
       // // const repoIndex = res.returnValues();
       // console.log(repoIndex)
       // console.log(repoIndex[0])
-      // // expect(repoIndex).equals(0);
 
       // console.log(result)
       // truffleAssert.eventEmitted(result, 'RepoOpened', (ev) => {
@@ -127,27 +122,26 @@ contract('OptionsContract', (accounts) => {
   });
 
   describe("#openRepo()", () => {
-    it("should open repo correctly", async () => {
-      // console.log(OptionsContractABI);
-      // console.log('ayy')
-      // console.log(optionsContractAddr);
-      // var optionsContract = new web3.eth.Contract(OptionsContractABI,optionsContractAddr, {from: creatorAddress})
-      // console.log(optionsContract.address)
+    it("should open first repo correctly", async () => {
+      var result = await promisify(cb =>  optionsContract.methods.openRepo().send({from: creatorAddress, gas: '100000'}, cb))
+      var returnValues = (await optionsContract.getPastEvents( 'RepoOpened', { fromBlock: 0, toBlock: 'latest' } ))[0].returnValues;
+      var repoIndex = returnValues.repoIndex;
+      expect(repoIndex).toBe("0");
+    })
 
-      // const repoIndex = await optionsContract.openRepo()
-      // // console.log(repoIndex);
-      // assert(repoIndex).equals(0);
-      // console.log(repoIndex)
-      // console.log(repoIndex)
-      // console.log(repoIndex)
-      // console.log(repoIndex)
-      // console.log(repoIndex)
-      // console.log(repoIndex)
-      // console.log(repoIndex)
-      // console.log(repoIndex)
-      // console.log(repoIndex)
-      // console.log(repoIndex)
-      // console.log('here');
+    it("should open second repo correctly", async () => {
+      var result = await promisify(cb =>  optionsContract.methods.openRepo().send({from: creatorAddress, gas: '100000'}, cb))
+      var returnValues1 = (await optionsContract.getPastEvents( 'RepoOpened', { fromBlock: 0, toBlock: 'latest' } ))[1].returnValues;
+      var repoIndex1 = returnValues1.repoIndex;
+      expect(repoIndex1).toBe("1");
+    })
+
+
+    it("should add ETH collateral successfully", async () => {
+      var result = await promisify(cb =>  optionsContract.methods.openRepo().send({from: creatorAddress, gas: '100000'}, cb))
+      var returnValues1 = (await optionsContract.getPastEvents( 'RepoOpened', { fromBlock: 0, toBlock: 'latest' } ))[1].returnValues;
+      var repoIndex1 = returnValues1.repoIndex;
+      expect(repoIndex1).toBe("1");
     })
 
     // it("fails if an asset is added twice", async () => {
@@ -169,7 +163,40 @@ contract('OptionsContract', (accounts) => {
 
   });
 
-  // describe("#changeAsset()", () => {
+  describe("#addETHCollateral()", () => {
+
+
+    it("should add ETH collateral successfully", async () => {
+      const repoNum = 1;
+      var msgValue = "10000000";
+      var result = await promisify(cb =>  optionsContract.methods.addETHCollateral(repoNum).send({from: creatorAddress, gas: '100000', value: msgValue}, cb))
+      var returnValues = (await optionsContract.getPastEvents( 'ETHCollateralAdded', { fromBlock: 0, toBlock: 'latest' } ))[0].returnValues;
+      var repoIndex1 = returnValues.repoIndex;
+      var amount = returnValues.amount;
+      expect(repoIndex1).toBe("1");
+      expect(amount).toBe("10000000");
+    })
+  });
+
+  //   it("should not allow you to add erc20 collateral", async () => {
+  //
+  //     const result = await optionsFactory.addAsset(
+  //       "DAI",
+  //       "0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359"
+  //     )
+  //
+  //     truffleAssert.eventEmitted(result, 'AssetAdded', (ev) => {
+  //       return ev.asset === web3.utils.keccak256("DAI") && ev.addr === '0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359'
+  //     });
+  //
+  //     console.log(web3.utils.keccak256("DAI"))
+  //     console.log(result.logs[0])
+  //
+  //
+  //   })
+
+
+    // describe("#changeAsset()", () => {
   //   it("should change an asset correctly", async () => {
   //
   //     const result = await optionsFactory.addAsset(
@@ -223,5 +250,28 @@ contract('OptionsContract', (accounts) => {
   //   })
   //
   // });
+
+
+  describe("#issueOptionTokens()", () => {
+    it("should allow you to mint correctly", async () => {
+
+      const repoIndex = 1;
+      const numTokens = 10000000/2 ;
+
+      var result = await promisify(cb =>  optionsContract.methods.issueOptionTokens(repoIndex, numTokens).send({from: creatorAddress, gas: '100000'}, cb))
+      var returnValues = (await optionsContract.getPastEvents( 'ETHCollateralAdded', { fromBlock: 0, toBlock: 'latest' } ))[0].returnValues;
+      console.log(result)
+      console.log(returnValues)
+    })
+
+    it("should not allow you to mint from wrong repo", async () => {
+
+      // const repoIndex = 1;
+      //
+      // var result = await promisify(cb =>  optionsContract.methods.issueOptionTokens(repoIndex, numTokens).send({from: creatorAddress, gas: '100000', value: "10000000"}, cb))
+      // var returnValues = (await optionsContract.getPastEvents( 'ETHCollateralAdded', { fromBlock: 0, toBlock: 'latest' } ))[0].returnValues;
+
+    })
+  });
 
 });
