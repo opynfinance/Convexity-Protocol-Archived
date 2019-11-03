@@ -2,7 +2,6 @@ pragma solidity 0.5.10;
 
 import "./CompoundOracleInterface.sol";
 import "./OptionsExchange.sol";
-import "./OptionsFactory.sol";
 import "./OptionsUtils.sol";
 import "./UniswapFactoryInterface.sol";
 import "./UniswapExchangeInterface.sol";
@@ -311,6 +310,7 @@ contract OptionsContract is OptionsUtils, ERC20 {
     function removeCollateral(uint256 repoIndex, uint256 amtToRemove) public {
         //TODO: check that we are well collateralized enough to remove this amount of collateral
     }
+
     // TODO: look at compound docs and improve how it is built
     function liquidate(uint256 repoNum) public {
         require(now < expiry, "Options contract expired");
@@ -349,4 +349,6 @@ contract OptionsContract is OptionsUtils, ERC20 {
     function() external payable {
         // to get ether from uniswap exchanges
     }
+
+    //TODO: there should be a fallback function
 }
