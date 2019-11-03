@@ -318,10 +318,10 @@ contract OptionsContract is OptionsUtils, ERC20 {
 
         require(repo.putsOutstanding.mul(collateralizationRatio).mul(strikePrice) > repo.collateral.mul(collateralToStrikePrice), "Repo is safe");
 
+        // determine how much collateral has to be deducted
         uint256 debtOwed = strikePrice.mul(repo.putsOutstanding);
-
         uint256 collateralTaken = OPTIONS_EXCHANGE.exchangeAndTransferOutput(collateral, strikeAsset, debtOwed, address(this));
-
+        totalStrikePool = totalStrikePool.add(debtOwed);
         uint256 feeAmount = repo.collateral.mul(penaltyFee);
 
         transferCollateral(msg.sender, feeAmount);
