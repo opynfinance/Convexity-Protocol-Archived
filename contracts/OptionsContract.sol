@@ -70,6 +70,7 @@ contract OptionsContract is OptionsUtils, ERC20 {
 
         expiry = _expiry;
     }
+
     function openRepo() public returns (uint) {
         require(now < expiry, "Options contract expired");
         repos.push(Repo(0, 0, msg.sender));
@@ -221,11 +222,6 @@ contract OptionsContract is OptionsUtils, ERC20 {
         return repo.collateral;
     }
 
-    function openRepo() public returns (uint) {
-        uint repoIndex = repos.push(Repo(0, 0, msg.sender)) - 1; //the length
-        return repoIndex;
-    }
-
     function issueOptionTokens (uint256 repoIndex, uint256 numTokens) public {
         //check that we're properly collateralized to mint this number, then call _mint(address account, uint256 amount)
         require(now < expiry, "Options contract expired");
@@ -267,7 +263,6 @@ contract OptionsContract is OptionsUtils, ERC20 {
     function createOptionERC20Collateral(uint256 amtToCreate, uint256 amtCollateral, uint256 repoIndex) public {
         require(!isETH(collateral), "cannot add ERC20 collateral to an ETH collateralized option");
         require(repos[repoIndex].owner == msg.sender, "trying to createOption on a repo that is not yours");
-        uint256 repoIndex = openRepo();
         addERC20Collateral(repoIndex, amtCollateral);
         issueOptionTokens(repoIndex, amtToCreate);
     }
