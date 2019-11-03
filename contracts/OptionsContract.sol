@@ -111,7 +111,7 @@ contract OptionsContract is OptionsUtils, ERC20 {
                 "Could not transfer in tokens"
             );
         }
-
+        totalUnderlying = totalUnderlying.add(_pTokens);
         /// 2.3 transfer in pTokens
         _burnFrom(msg.sender, _pTokens);
 
@@ -306,7 +306,29 @@ contract OptionsContract is OptionsUtils, ERC20 {
     }
 
     function removeCollateral(uint256 repoIndex, uint256 amtToRemove) public {
-        //TODO: check that we are well collateralized enough to remove this amount of collateral
+        if(now < expiry) {
+            // check that we are well collateralized enough to remove this amount of collateral
+            Repo storage repo = repos[repoIndex];
+            require(msg.sender == repo.owner, "Only owner can remove collateral");
+            require(amtToRemove <= repo.collateral, "Can't remove more collateral than owned");
+            uint256 newRepoCollateralAmt = repo.collateral.sub(amtToRemove);
+             // TODO: get the price from Oracle
+            uint256 collateralToStrikePrice = 1;
+            require(repo.putsOutstanding.mul(collateralizationRatio).mul(strikePrice) <=
+                     newRepoCollateralAmt.mul(collateralToStrikePrice), "Repo is unsafe");
+            repo.collateral = newRepoCollateralAmt;
+            transferCollateral(msg.sender, amtToRemove);
+            totalCollateral = totalCollateral.sub(amtToRemove);
+
+        } else {
+            // pay out people proportional
+            Repo storage repo = repos[repoIndex];
+            uint256 collateralToTransfer = repo.collateral.div(totalCollateral);
+            uint256 underlyingToTransfer = repo.collateral.div(totalUnderlying);
+            transferCollateral(msg.sender, collateralToTransfer);
+            transferUnderlying(msg.sender, underlyingToTransfer);
+            repo.collateral = 0;
+        }
     }
     // TODO: look at compound docs and improve how it is built
     function liquidate(uint256 repoNum) public returns (uint256) {
@@ -336,6 +358,14 @@ contract OptionsContract is OptionsUtils, ERC20 {
             msg.sender.transfer(_amt);
         } else {
             collateral.transfer(msg.sender, _amt);
+        }
+    }
+
+    function transferUnderlying(address payable _addr, uint256 _amt) internal {
+        if (isETH(underlying)){
+            msg.sender.transfer(_amt);
+        } else {
+            underlying.transfer(msg.sender, _amt);
         }
     }
 
