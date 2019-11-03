@@ -73,12 +73,7 @@ contract('OptionsFactory', (accounts) => {
 
   });
 
-  describe("#makeARepo()", () => {
-    it("should change an asset correctly", async () => {
-
-
-
-  //
+      //
   //     const result = await optionsFactory.addAsset(
   //       "DAI",
   //       "0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359"
@@ -92,7 +87,6 @@ contract('OptionsFactory', (accounts) => {
   //     console.log(result.logs[0])
   //
   //
-    });
   //
   //   it("fails if an asset is added twice", async () => {
   //     try {
@@ -113,6 +107,8 @@ contract('OptionsFactory', (accounts) => {
   //
   // });
 
+
+
   describe("#createOptionsContract()", () => {
     it("should change an asset correctly", async () => {
       try {
@@ -130,8 +126,10 @@ contract('OptionsFactory', (accounts) => {
     })
 
   });
+});
 
-  // it('should revert if ...', () => {
+
+// it('should revert if ...', () => {
   //   return OptionsFactory.deployed()
   //     .then(instance => {
   //       return instance.publicOrExternalContractMethod(argument1, argument2, {from:externalAddress});
@@ -167,4 +165,3 @@ contract('OptionsFactory', (accounts) => {
   //   })
   //
   // })
-});

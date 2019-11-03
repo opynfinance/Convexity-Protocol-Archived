@@ -75,10 +75,14 @@ contract OptionsContract is OptionsUtils, ERC20 {
         optionsExchange = _optionsExchange;
     }
 
+    event RepoOpened(uint256 repoIndex);
+
     function openRepo() public returns (uint) {
         require(now < expiry, "Options contract expired");
         repos.push(Repo(0, 0, msg.sender));
-        return repos.length - 1;
+        uint256 repoIndex = repos.length - 1;
+        emit RepoOpened(repoIndex);
+        return repoIndex;
     }
 
     function addETHCollateral(uint256 _repoNum) public payable returns (uint256) {

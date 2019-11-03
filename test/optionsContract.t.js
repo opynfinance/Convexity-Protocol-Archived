@@ -6,6 +6,16 @@
  *  #> truffle test <path/to/this/test.js>
  *
  * */
+
+const promisify = (inner) =>
+  new Promise((resolve, reject) =>
+    inner((err, res) => {
+      if (err) { reject(err) }
+
+      resolve(res);
+    })
+  );
+
 const Util = require('./util.js');
 const Web3 = require('web3');
 const web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'))
@@ -13,7 +23,10 @@ const util = new Util(web3);
 var { expect } = require('expect.js');
 var OptionsContract = artifacts.require("/Users/zubinkoticha/WebstormProjects/OptionsProtocol/contracts/OptionsContract.sol");
 var OptionsFactory = artifacts.require("/Users/zubinkoticha/WebstormProjects/OptionsProtocol/contracts/OptionsFactory.sol");
-var { AssetAdded }= require('./utils/FactoryEvents.js')
+var OptionsContractJSON = require("../build/contracts/OptionsContract.json");
+var OptionsContractABI = OptionsContractJSON.abi;
+var { ContractCreated }= require('./utils/FactoryEvents.js')
+
 const truffleAssert = require('truffle-assertions');
 // var AssetAdded = FactoryEvents.AssetAdded;
 
@@ -46,67 +59,115 @@ contract('OptionsContract', (accounts) => {
     //   ConstructorArgs.payoutAddr,
     //   ConstructorArgs.expiry);
     try {
-      optionsFactory = await OptionsFactory.deployed();
-      const result = await optionsFactory.addAsset(
+      var optionsFactory = await OptionsFactory.deployed();
+      // const result = await optionsFactory.addAsset(
+      //   "ETH",
+      //   "0x0000000000000000000000000000000000000001"
+      // );
+      //TODO: why does uncommenting the above cause errors?
+
+
+      var optionsContractResult = await optionsFactory.createOptionsContract(
         "ETH",
-        "0x0000000000000000000000000000000000000001"
-      );
-      optionsContractAddr = await optionsFactory.createOptionsContract.call(
+        "ETH",
+        "96",
         "ETH",
         "ETH",
-        "95",
-        "ETH",
-        "ETH",
-        "109182389"
+        "1577836800",
       );
 
-      console.log(optionsContractAddr)
+      const optionsContractAddr = optionsContractResult.logs[0].args[0];
+
+      // // var optionsContractAddr = optionsContractLog.logs[0].args[0];
+      // console.log(optionsContractAddr)
+
+      //
+      var optionsContract = new web3.eth.Contract(OptionsContractABI,optionsContractAddr, {from: creatorAddress, gasPrice: '20000000000'})
+      console.log(await promisify(cb =>  optionsContract.methods.openRepo().estimateGas(cb)))
+
+      var result = await promisify(cb =>  optionsContract.methods.openRepo().send({from: creatorAddress, gas: '100675'}, cb))
+      // var result = optionsContract.methods.openRepo().send()
+      console.log(result)
+      var res = await optionsContract.getPastEvents( 'RepoOpened', { fromBlock: 0, toBlock: 'latest' } )[0];
+      console.log(res)
+      // // const repoIndex = res.returnValues();
+      // console.log(repoIndex)
+      // console.log(repoIndex[0])
+      // // expect(repoIndex).equals(0);
+
+      // console.log(result)
+      // truffleAssert.eventEmitted(result, 'RepoOpened', (ev) => {
+      //         return ev.repoIndex === '0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359'
+      //       });
+
+      // // console.log(web3.eth.estimateGas({from: creatorAddress, to: "0xEDA8A2E1dfA5B93692D2a9dDF833B6D7DF6D5f93", amount: web3.toWei(1, "ether")}))
+      // // console.log(web3.eth.estimateGas({from: creatorAddress, to: "0xEDA8A2E1dfA5B93692D2a9dDF833B6D7DF6D5f93", amount: web3.toWei(1, "ether")}))
+      //
+      // console.log(await promisify(cb =>  optionsContract.methods.openRepo().estimateGas(cb)))
+      //
+      // console.log(await promisify(cb =>  optionsContract.methods.openRepo().send({from: creatorAddress, gas: '31272'}, cb)))
+
+      // console.log(optionsContract.methods)
+      // console.log(optionsContract.methods.openRepo.call());
+      // console.log(optionsContract.methods.collateralizationRatio())
+      // console.log(optionsContract.methods.collateralizationRatio())
+      // console.log(optionsContract.methods.collateralizationRatio())
+      // console.log(optionsContract.methods.collateralizationRatio())
+      // console.log(optionsContract.methods.collateralizationRatio())
+      // console.log(optionsContract.methods.collateralizationRatio())
+
+      // const repoIndex = await optionsContract
 
 
     } catch (err) {
       console.error(err);
+      expect.fail("didn't create optionsContract correctly");
     }
 
   });
 
+  describe("#openRepo()", () => {
+    it("should open repo correctly", async () => {
+      // console.log(OptionsContractABI);
+      // console.log('ayy')
+      // console.log(optionsContractAddr);
+      // var optionsContract = new web3.eth.Contract(OptionsContractABI,optionsContractAddr, {from: creatorAddress})
+      // console.log(optionsContract.address)
+
+      // const repoIndex = await optionsContract.openRepo()
+      // // console.log(repoIndex);
+      // assert(repoIndex).equals(0);
+      // console.log(repoIndex)
+      // console.log(repoIndex)
+      // console.log(repoIndex)
+      // console.log(repoIndex)
+      // console.log(repoIndex)
+      // console.log(repoIndex)
+      // console.log(repoIndex)
+      // console.log(repoIndex)
+      // console.log(repoIndex)
+      // console.log(repoIndex)
+      // console.log('here');
+    })
+
+    // it("fails if an asset is added twice", async () => {
+    //   try {
+    //     // await util.setBlockNumberForward(8);
+    //     await optionsFactory.addAsset(
+    //       "DAI",
+    //       "0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359"
+    //     )
+    //
+    //   } catch (err) {
+    //     return;
+    //     // console.log(err)
+    //     // util.assertThrowMessage(err);
+    //   }
+    //   expect.fail("should throw error")
+    // })
 
 
-  // describe("#addAsset()", () => {
-  //   it("should add an asset correctly", async () => {
-  //
-  //     const result = await optionsFactory.addAsset(
-  //       "DAI",
-  //       "0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359"
-  //     )
-  //
-  //     truffleAssert.eventEmitted(result, 'AssetAdded', (ev) => {
-  //       return ev.asset === web3.utils.keccak256("DAI") && ev.addr === '0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359'
-  //     });
-  //
-  //     console.log(web3.utils.keccak256("DAI"))
-  //     console.log(result.logs[0])
-  //
-  //
-  //   })
-  //
-  //   it("fails if an asset is added twice", async () => {
-  //     try {
-  //       // await util.setBlockNumberForward(8);
-  //       await optionsFactory.addAsset(
-  //         "DAI",
-  //         "0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359"
-  //       )
-  //
-  //     } catch (err) {
-  //       return;
-  //       // console.log(err)
-  //       // util.assertThrowMessage(err);
-  //     }
-  //     expect.fail("should throw error")
-  //   })
-
-
-  // });
+  });
 
   // describe("#changeAsset()", () => {
   //   it("should change an asset correctly", async () => {
