@@ -1,0 +1,10 @@
+.header {
+  display: flex;
+  justify-content: space-between;
+  /*TODO: fix header / table bug */
+  margin: 32px -10px;
+}
+
+.header-cta-container {
+  margin-right: 8px;
+}
