@@ -312,7 +312,7 @@ contract OptionsContract is OptionsUtils, ERC20 {
         //TODO: check that we are well collateralized enough to remove this amount of collateral
     }
     // TODO: look at compound docs and improve how it is built
-    function liquidate(uint256 repoNum) public returns (uint256) {
+    function liquidate(uint256 repoNum) public {
         require(now < expiry, "Options contract expired");
 
        // TODO: get price from Oracle
