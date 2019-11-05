@@ -1,0 +1,17 @@
+{
+  "package_name": "options-protocol",
+  "version": "0.0.1",
+  "description": "Options on Ethereum",
+  "authors": [
+    "Nadir Akhtar <nadirakhtar123@gmail.com>",
+    "Aparna Krishnan <aparna@opyn.co>",
+    "Zubin Koticha <zk@opyn.co>"
+
+  ],
+  "keywords": [
+    "ethereum",
+    "options",
+    "insurance"
+  ],
+  "license": "MIT"
+}
