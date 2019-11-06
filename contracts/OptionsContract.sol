@@ -77,6 +77,8 @@ contract OptionsContract is OptionsUtils, ERC20 {
 
     event RepoOpened(uint256 repoIndex);
 
+    event ETHCollateralAdded(uint256 repoIndex, uint256 amount);
+
     function openRepo() public returns (uint) {
         require(now < expiry, "Options contract expired");
         repos.push(Repo(0, 0, msg.sender));
@@ -86,6 +88,9 @@ contract OptionsContract is OptionsUtils, ERC20 {
     }
 
     function addETHCollateral(uint256 _repoNum) public payable returns (uint256) {
+        //TODO: do we need to have require checks? do we need require msg.value > 0 ?
+        //TODO: does it make sense to have the event emitted here or should it be in the helper function?
+        emit ETHCollateralAdded(_repoNum, msg.value);
         return _addCollateral(_repoNum, msg.value);
     }
 
