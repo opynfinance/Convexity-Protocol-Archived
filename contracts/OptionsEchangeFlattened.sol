@@ -177,13 +177,19 @@ pragma solidity 0.5.10;
 
 
 contract OptionsUtils {
-    UniswapFactoryInterface constant public UNISWAP_FACTORY = UniswapFactoryInterface(
+    // defauls are for mainnet
+    UniswapFactoryInterface public UNISWAP_FACTORY = UniswapFactoryInterface(
         0xc0a47dFe034B400B47bDaD5FecDa2621de6c4d95
     );
 
-    CompoundOracleInterface constant COMPOUND_ORACLE = CompoundOracleInterface(
+    CompoundOracleInterface public COMPOUND_ORACLE = CompoundOracleInterface(
         0x02557a5E05DeFeFFD4cAe6D83eA3d173B272c904
     );
+
+    constructor(UniswapFactoryInterface _uniswapFactory, CompoundOracleInterface _compoundOracle) public {
+        UNISWAP_FACTORY = _uniswapFactory;
+        COMPOUND_ORACLE = _compoundOracle;
+    }
 
     function getUniswapExchange(address _token) public view returns (UniswapExchangeInterface) {
         UniswapExchangeInterface exchange = UniswapExchangeInterface(
@@ -211,9 +217,14 @@ pragma solidity 0.5.10;
 
 
 
+
 contract OptionsExchange is OptionsUtils {
 
     uint256 constant LARGE_BLOCK_SIZE = 1651753129000;
+
+    constructor(UniswapFactoryInterface _uniswapFactory, CompoundOracleInterface _compoundOracle) OptionsUtils(_uniswapFactory, _compoundOracle) public {
+
+    }
 
     function sellPTokens(uint256 _pTokens, address payoutTokenAddress) public {
         // TODO: first need to boot strap the uniswap exchange to get the address.
