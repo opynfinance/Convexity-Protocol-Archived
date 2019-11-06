@@ -94,9 +94,9 @@ function DynamicModalContent({ step, setStep, onClose }) {
               border="0px"
               color="#ffffff"
               onClick={() => setStep(step + 1)}
-              _hover={{ bg: "#34ab66" }}
+              _hover={{ bg: "#0e9447" }}
               _active={{
-                bg: "#34ab66",
+                bg: "#0e9447",
                 transform: "scale(0.98)",
                 borderColor: "#bec3c9",
               }}
@@ -149,9 +149,9 @@ function DynamicModalContent({ step, setStep, onClose }) {
               background="#27AE60"
               border="0px"
               color="#ffffff"
-              _hover={{ bg: "#34ab66" }}
+              _hover={{ bg: "#0e9447" }}
               _active={{
-                bg: "#34ab66",
+                bg: "#0e9447",
                 transform: "scale(0.98)",
                 borderColor: "#bec3c9",
               }}
@@ -193,9 +193,9 @@ function DynamicModalContent({ step, setStep, onClose }) {
               background="#27AE60"
               border="0px"
               color="#ffffff"
-              _hover={{ bg: "#34ab66" }}
+              _hover={{ bg: "#0e9447" }}
               _active={{
-                bg: "#34ab66",
+                bg: "#0e9447",
                 transform: "scale(0.98)",
                 borderColor: "#bec3c9",
               }}

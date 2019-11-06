@@ -12,7 +12,6 @@ export default function Header() {
   return (
     <header className="header">
       <div className="logo">
-        {/* TODO: optimize this image/svg */}
         <Link to="/home"><img src={logo} alt="Logo" /></Link>
       </div>
 
