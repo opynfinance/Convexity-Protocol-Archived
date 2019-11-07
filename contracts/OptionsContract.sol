@@ -52,7 +52,7 @@ contract OptionsContract is OptionsUtils, ERC20 {
         OptionsExchange _optionsExchange
     )
         OptionsUtils(
-             address(_optionsExchange.UNISWAP_FACTORY())
+            //  address(_optionsExchange.UNISWAP_FACTORY())
             // address(_optionsExchange.UNISWAP_FACTORY()), address(_optionsExchange.COMPOUND_ORACLE())
         )
         public
