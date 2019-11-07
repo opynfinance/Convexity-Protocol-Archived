@@ -19,8 +19,11 @@ contract OptionsFactory is Ownable {
     event AssetChanged(string indexed asset, address indexed addr);
     event AssetDeleted(string indexed asset);
 
-    constructor(OptionsExchange _optionsExchange) public {
-        optionsExchange = _optionsExchange;
+    // constructor(OptionsExchange _optionsExchange) public {
+    //     optionsExchange = _optionsExchange;
+    // }
+
+    constructor() public {
     }
 
     function createOptionsContract(

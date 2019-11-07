@@ -15,9 +15,12 @@ contract OptionsUtils {
         0x02557a5E05DeFeFFD4cAe6D83eA3d173B272c904
     );
 
-    constructor(UniswapFactoryInterface _uniswapFactory, CompoundOracleInterface _compoundOracle) public {
-        UNISWAP_FACTORY = _uniswapFactory;
-        COMPOUND_ORACLE = _compoundOracle;
+    // constructor(address _uniswapFactory, address _compoundOracle) public {
+    //     UNISWAP_FACTORY =  UniswapFactoryInterface(_uniswapFactory);
+    //     COMPOUND_ORACLE = CompoundOracleInterface(_compoundOracle);
+    // }
+    constructor (address _uniswapFactory) public {
+        UNISWAP_FACTORY =  UniswapFactoryInterface(_uniswapFactory);
     }
 
     function getUniswapExchange(address _token) public view returns (UniswapExchangeInterface) {
