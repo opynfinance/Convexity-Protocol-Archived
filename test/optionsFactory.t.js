@@ -10,7 +10,7 @@ const Util = require('./util.js');
 const Web3 = require('web3');
 const web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'))
 const util = new Util(web3);
-var { expect } = require('expect.js');
+var expect  = require('expect');
 var OptionsFactory = artifacts.require("../contracts/OptionsFactory.sol");
 var { AssetAdded }= require('./utils/FactoryEvents.js')
 const truffleAssert = require('truffle-assertions');
@@ -67,7 +67,7 @@ contract('OptionsFactory', (accounts) => {
         // console.log(err)
         // util.assertThrowMessage(err);
       }
-      expect.fail("should throw error")
+      truffleAssert.fails("should throw error")
     })
 
 
@@ -121,7 +121,8 @@ contract('OptionsFactory', (accounts) => {
           "109182389"
         );
       } catch (err) {
-        expect.fail("could not create contracts")
+        // truffleAssert.fails("could not create contracts")
+        // expect.fail("could not create contracts")
       }
     })
 
