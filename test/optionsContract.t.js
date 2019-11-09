@@ -63,12 +63,6 @@ contract('OptionsContract', (accounts) => {
 
   );
     var optionsFactory = await OptionsFactory.deployed();
-      // const result = await optionsFactory.addAsset(
-      //   "ETH",
-      //   "0x0000000000000000000000000000000000000001"
-      // );
-      //TODO: why does uncommenting the above cause errors?
-
 
       var optionsContractResult = await optionsFactory.createOptionsContract(
         "ETH",

@@ -11,6 +11,7 @@ contract OptionsFactory is Ownable {
 
     // keys saved in front-end -- look at the docs if needed
     mapping (string => IERC20) public tokens;
+    address[] public optionsContracts;
 
     OptionsExchange public optionsExchange;
 
@@ -19,6 +20,7 @@ contract OptionsFactory is Ownable {
     event AssetChanged(string indexed asset, address indexed addr);
     event AssetDeleted(string indexed asset);
 
+    //TODO: need this as the constructor.
     // constructor(OptionsExchange _optionsExchange) public {
     //     optionsExchange = _optionsExchange;
     // }
@@ -52,12 +54,13 @@ contract OptionsFactory is Ownable {
             optionsExchange
         );
 
+        optionsContracts.push(address(optionsContract));
         emit ContractCreated(address(optionsContract));
         return address(optionsContract);
     }
-
+    // @note: admin don't add ETH. ETH is set to 0x0.
     function addAsset(string memory _asset, address _addr) public onlyOwner {
-        require(tokens[_asset] == IERC20(0), "Asset already added");
+        require(!supportsAsset(_asset), "Asset already added");
         require(_addr != address(0), "Cannot set to address(0)");
 
         tokens[_asset] = IERC20(_addr);
