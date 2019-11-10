@@ -58,6 +58,11 @@ contract OptionsFactory is Ownable {
         emit ContractCreated(address(optionsContract));
         return address(optionsContract);
     }
+
+    function getNumberOfOptionsContracts() public view returns (uint256) {
+        return optionsContracts.length;
+    }
+
     // @note: admin don't add ETH. ETH is set to 0x0.
     function addAsset(string memory _asset, address _addr) public onlyOwner {
         require(!supportsAsset(_asset), "Asset already added");

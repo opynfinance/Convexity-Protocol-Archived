@@ -160,10 +160,12 @@ contract('OptionsFactory', (accounts) => {
           "109182389"
         );
 
-        truffleAssert.eventEmitted(result, 'ContractCreated', async (ev) => {
-          var index = await optionsFactory.optionsContracts().length;
-          var lastAdded = await optionsFactory.optionsContracts(index-1);
-          ev.addr != lastAdded;
+        // Test that the Factory stores addresses of any new options contract added.
+        var index = (await optionsFactory.getNumberOfOptionsContracts()).toNumber();
+        var lastAdded = await optionsFactory.optionsContracts(index-1);
+
+        truffleAssert.eventEmitted(result, 'ContractCreated', (ev) => {
+          return ev.addr === lastAdded;
         });
     })
 
