@@ -149,6 +149,42 @@ contract('OptionsFactory', (accounts) => {
 
   })
 
+  describe("#deleteAsset()", () => {
+    it("should delete an asset that exists correctly", async() => {
+      const result = await optionsFactory.deleteAsset(
+        "BAT"
+      )
+        // check for proper event emitted
+      truffleAssert.eventEmitted(result, 'AssetDeleted', (ev) => {
+        return ev.asset === web3.utils.keccak256("BAT");
+      });
+    })
+
+    it("fails if asset doesn't exist", async() => {
+      try {
+        const result = await optionsFactory.deleteAsset(
+          "ZRX"
+        )
+      } catch (err) {
+        return;
+      }
+      truffleAssert.fails("should throw error")
+    })
+
+    it("fails if anyone but owner tries to delete asset", async() => {
+      try{
+        await optionsFactory.changeAsset(
+           "BAT",
+           {from: firstOwnerAddress}
+         )
+       } catch (err) {
+         return;
+       }
+       truffleAssert.fails("should throw error")
+    })
+
+  })
+
   describe("#createOptionsContract()", () => {
     it("should create a new options contract correctly", async () => {
       const result = await optionsFactory.createOptionsContract(
@@ -168,6 +204,25 @@ contract('OptionsFactory', (accounts) => {
           return ev.addr === lastAdded;
         });
     })
+    it("anyone else should be able to create a second options contract correctly", async () => {
+      const result = await optionsFactory.createOptionsContract(
+          "ETH",
+          "ETH",
+          "97",
+          "ETH",
+          "ETH",
+          "109182389", {from: firstOwnerAddress}
+        );
+
+        // Test that the Factory stores addresses of any new options contract added.
+        var index = (await optionsFactory.getNumberOfOptionsContracts()).toNumber();
+        var lastAdded = await optionsFactory.optionsContracts(index-1);
+
+        truffleAssert.eventEmitted(result, 'ContractCreated', (ev) => {
+          return ev.addr === lastAdded;
+        });
+    })
+
 
   });
 
