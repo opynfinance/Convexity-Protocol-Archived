@@ -10,8 +10,8 @@ const Util = require('./util.js');
 const Web3 = require('web3');
 const web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'))
 const util = new Util(web3);
-var expect = require('expect');
-var OptionsFactory = artifacts.require("/Users/zubinkoticha/WebstormProjects/OptionsProtocol/contracts/OptionsFactory.sol");
+var expect  = require('expect');
+var OptionsFactory = artifacts.require("../contracts/OptionsFactory.sol");
 var { AssetAdded }= require('./utils/FactoryEvents.js')
 const truffleAssert = require('truffle-assertions');
 // var AssetAdded = FactoryEvents.AssetAdded;
@@ -38,20 +38,45 @@ contract('OptionsFactory', (accounts) => {
 
   describe("#addAsset()", () => {
     it("should add an asset correctly", async () => {
-
+      // Add the asset
       const result = await optionsFactory.addAsset(
         "DAI",
         "0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359"
       )
-
+        // check for proper event emitted
       truffleAssert.eventEmitted(result, 'AssetAdded', (ev) => {
         return ev.asset === web3.utils.keccak256("DAI") && ev.addr === '0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359'
       });
+      // check the supports Asset function
+      const supported = await optionsFactory.supportsAsset("DAI");
 
-      // console.log(web3.utils.keccak256("DAI"))
-      // console.log(result.logs[0])
+      expect(supported).toBe(true);
 
+    })
 
+    it("should not add ETH", async () => {
+      try{
+        const result = await optionsFactory.addAsset(
+          "ETH",
+          "0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359"
+        )
+      } catch (err) {
+        return;
+      }
+      truffleAssert.fails("should throw error");
+    });
+
+    it("fails if anyone but owner tries to add asset", async () => {
+      try{
+       await optionsFactory.addAsset(
+          "BAT",
+          "0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359",
+          {from: firstOwnerAddress}
+        )
+      } catch (err) {
+        return;
+      }
+      truffleAssert.fails("should throw error")
     })
 
     it("fails if an asset is added twice", async () => {
@@ -64,55 +89,69 @@ contract('OptionsFactory', (accounts) => {
 
       } catch (err) {
         return;
-        // console.log(err)
-        // util.assertThrowMessage(err);
       }
-      expect.fail("should throw error")
+      truffleAssert.fails("should throw error")
     })
 
+    it("should add a second asset correctly", async () => {
+      // Add the asset
+      const result = await optionsFactory.addAsset(
+        "BAT",
+        "0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359"
+      )
+        // check for proper event emitted
+      truffleAssert.eventEmitted(result, 'AssetAdded', (ev) => {
+        return ev.asset === web3.utils.keccak256("BAT") && ev.addr === '0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359'
+      });
+      // check the supports Asset function
+      const supported = await optionsFactory.supportsAsset("BAT");
 
+      expect(supported).toBe(true);
+
+    })
   });
+  describe("#changeAsset()", () => {
+    it("should change an asset that exists correctly", async() => {
+      const result = await optionsFactory.changeAsset(
+        "BAT",
+        "0xEd1af8c036fcAEbc5be8FcbF4a85d08F67Ce5Fa1"
+      )
+        // check for proper event emitted
+      truffleAssert.eventEmitted(result, 'AssetChanged', (ev) => {
+        return ev.asset === web3.utils.keccak256("BAT") && ev.addr === '0xEd1af8c036fcAEbc5be8FcbF4a85d08F67Ce5Fa1'
+      });
+    })
 
-      //
-  //     const result = await optionsFactory.addAsset(
-  //       "DAI",
-  //       "0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359"
-  //     )
-  //
-  //     truffleAssert.eventEmitted(result, 'AssetAdded', (ev) => {
-  //       return ev.asset === web3.utils.keccak256("DAI") && ev.addr === '0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359'
-  //     });
-  //
-  //     console.log(web3.utils.keccak256("DAI"))
-  //     console.log(result.logs[0])
-  //
-  //
-  //
-  //   it("fails if an asset is added twice", async () => {
-  //     try {
-  //       // await util.setBlockNumberForward(8);
-  //       await optionsFactory.addAsset(
-  //         "DAI",
-  //         "0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359"
-  //       )
-  //
-  //     } catch (err) {
-  //       return;
-  //       // console.log(err)
-  //       // util.assertThrowMessage(err);
-  //     }
-  //     expect.fail("should throw error")
-  //   })
-  //
-  //
-  // });
+    it("fails if asset doesn't exist", async() => {
+      try {
+        const result = await optionsFactory.changeAsset(
+          "ZRX",
+          "0xEd1af8c036fcAEbc5be8FcbF4a85d08F67Ce5Fa1"
+        )
+      } catch (err) {
+        return;
+      }
+      truffleAssert.fails("should throw error")
+    })
 
+    it("fails if anyone but owner tries to change asset", async() => {
+      try{
+        await optionsFactory.changeAsset(
+           "BAT",
+           "0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359",
+           {from: firstOwnerAddress}
+         )
+       } catch (err) {
+         return;
+       }
+       truffleAssert.fails("should throw error")
+    })
 
+  })
 
   describe("#createOptionsContract()", () => {
-    it("should change an asset correctly", async () => {
-      try {
-        optionsContractAddr = await optionsFactory.createOptionsContract.call(
+    it("should create a new options contract correctly", async () => {
+      const result = await optionsFactory.createOptionsContract(
           "ETH",
           "ETH",
           "95",
@@ -120,12 +159,16 @@ contract('OptionsFactory', (accounts) => {
           "ETH",
           "109182389"
         );
-      } catch (err) {
-        expect.fail("could not create contracts")
-      }
+
+        truffleAssert.eventEmitted(result, 'ContractCreated', async (ev) => {
+          var index = await optionsFactory.optionsContracts().length;
+          var lastAdded = await optionsFactory.optionsContracts(index-1);
+          ev.addr != lastAdded;
+        });
     })
 
   });
+
 });
 
 

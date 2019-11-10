@@ -3,6 +3,10 @@ pragma solidity ^0.5.0;
 contract CompoundOracleInterface {
     // returns asset:eth -- to get USDC:eth, have to do 10**24/result,
 
+
+    constructor() public {
+    }
+
     /**
   * @notice retrieves price of an asset
   * @dev function to get price for an asset
@@ -10,5 +14,8 @@ contract CompoundOracleInterface {
   * @return uint mantissa of asset price (scaled by 1e18) or zero if unset or contract paused
   */
     function getPrice(address asset) public view returns (uint);
+    // function getPrice(address asset) public view returns (uint) {
+    //     return 527557000000000;
+    // }
 
 }

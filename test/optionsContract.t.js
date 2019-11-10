@@ -20,9 +20,13 @@ const Util = require('./util.js');
 const Web3 = require('web3');
 const web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'))
 const util = new Util(web3);
+
 var expect = require('expect');
-var OptionsContract = artifacts.require("/Users/zubinkoticha/WebstormProjects/OptionsProtocol/contracts/OptionsContract.sol");
-var OptionsFactory = artifacts.require("/Users/zubinkoticha/WebstormProjects/OptionsProtocol/contracts/OptionsFactory.sol");
+var OptionsContract = artifacts.require("../contracts/OptionsContract.sol");
+var OptionsFactory = artifacts.require("../contracts/OptionsFactory.sol");
+var OptionsExchange = artifacts.require("../contracts/OptionsExchange.sol");
+var CompoundOracle = artifacts.require("../contracts/MockCompoundOracle.sol");
+var UniswapFactory = artifacts.require("../contracts/MockUniswapFactory.sol");
 var OptionsContractJSON = require("../build/contracts/OptionsContract.json");
 var OptionsContractABI = OptionsContractJSON.abi;
 var { ContractCreated }= require('./utils/FactoryEvents.js')
@@ -30,6 +34,7 @@ var { ContractCreated }= require('./utils/FactoryEvents.js')
 const truffleAssert = require('truffle-assertions');
 // var AssetAdded = FactoryEvents.AssetAdded;
 
+// Initialize the Options Factory, Options Exchange and other mock contracts
 contract('OptionsContract', (accounts) => {
   var creatorAddress = accounts[0];
   var firstOwnerAddress = accounts[1];
@@ -40,32 +45,24 @@ contract('OptionsContract', (accounts) => {
 
   let optionsContract;
 
-
-    let ConstructorArgs = {
-      collateralAddr:  "0x0000000000000000000000000000000000000000",
-      underlyingAddr :  "0x0000000000000000000000000000000000000000",
-      strikePrice: 95,
-      strikeAddr: "0x0000000000000000000000000000000000000000",
-      payoutAddr: "0x0000000000000000000000000000000000000000",
-      expiry: 1239823
-    }
-
   before(async () => {
-    // optionsContract = await OptionsContract.deployed(
-    //   ConstructorArgs.collateralAddr,
-    //   ConstructorArgs.underlyingAddr,
-    //   ConstructorArgs.strikePrice,
-    //   ConstructorArgs.strikeAddr,
-    //   ConstructorArgs.payoutAddr,
-    //   ConstructorArgs.expiry);
     try {
-      var optionsFactory = await OptionsFactory.deployed();
-      // const result = await optionsFactory.addAsset(
-      //   "ETH",
-      //   "0x0000000000000000000000000000000000000001"
-      // );
-      //TODO: why does uncommenting the above cause errors?
+      // 1. Deploy mock contracts
+      // 1.1 Compound Oracle
+      var compoundOracle = await CompoundOracle.deployed();
+      // 1.2 Uniswap Factory
+      var uniswapFactory = await UniswapFactory.deployed();
+      // 2. Deploy our contracts
+      // deploys the Options Exhange contract
+      var optionsExchange = await OptionsExchange.deployed();
 
+      // TODO: remove this later. For now, set the compound Oracle and uniswap Factory addresses here.
+      var uniswapFactoryAddr = uniswapFactory.address;
+      optionsExchange.setUniswapAndCompound(uniswapFactory.address, compoundOracle.address).then(
+        expect(await promisify(cb => optionsExchange.UNISWAP_FACTORY(cb))).toBe(uniswapFactoryAddr)
+
+  );
+    var optionsFactory = await OptionsFactory.deployed();
 
       var optionsContractResult = await optionsFactory.createOptionsContract(
         "ETH",
@@ -77,46 +74,12 @@ contract('OptionsContract', (accounts) => {
       );
 
       const optionsContractAddr = optionsContractResult.logs[0].args[0];
+      console.log(optionsContractAddr);
 
-      // // var optionsContractAddr = optionsContractLog.logs[0].args[0];
-      // console.log(optionsContractAddr)
-
-      //
       optionsContract = new web3.eth.Contract(OptionsContractABI,optionsContractAddr, {from: creatorAddress, gasPrice: '20000000000'})
-
-
-      // console.log(repoIndex)
-      // // const repoIndex = res.returnValues();
-      // console.log(repoIndex)
-      // console.log(repoIndex[0])
-
-      // console.log(result)
-      // truffleAssert.eventEmitted(result, 'RepoOpened', (ev) => {
-      //         return ev.repoIndex === '0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359'
-      //       });
-
-      // // console.log(web3.eth.estimateGas({from: creatorAddress, to: "0xEDA8A2E1dfA5B93692D2a9dDF833B6D7DF6D5f93", amount: web3.toWei(1, "ether")}))
-      // // console.log(web3.eth.estimateGas({from: creatorAddress, to: "0xEDA8A2E1dfA5B93692D2a9dDF833B6D7DF6D5f93", amount: web3.toWei(1, "ether")}))
-      //
-      // console.log(await promisify(cb =>  optionsContract.methods.openRepo().estimateGas(cb)))
-      //
-      // console.log(await promisify(cb =>  optionsContract.methods.openRepo().send({from: creatorAddress, gas: '31272'}, cb)))
-
-      // console.log(optionsContract.methods)
-      // console.log(optionsContract.methods.openRepo.call());
-      // console.log(optionsContract.methods.collateralizationRatio())
-      // console.log(optionsContract.methods.collateralizationRatio())
-      // console.log(optionsContract.methods.collateralizationRatio())
-      // console.log(optionsContract.methods.collateralizationRatio())
-      // console.log(optionsContract.methods.collateralizationRatio())
-      // console.log(optionsContract.methods.collateralizationRatio())
-
-      // const repoIndex = await optionsContract
-
 
     } catch (err) {
       console.error(err);
-      expect.fail("didn't create optionsContract correctly");
     }
 
   });
@@ -260,8 +223,8 @@ contract('OptionsContract', (accounts) => {
 
       var result = await promisify(cb =>  optionsContract.methods.issueOptionTokens(repoIndex, numTokens).send({from: creatorAddress, gas: '100000'}, cb))
       var returnValues = (await optionsContract.getPastEvents( 'ETHCollateralAdded', { fromBlock: 0, toBlock: 'latest' } ))[0].returnValues;
-      console.log(result)
-      console.log(returnValues)
+      // console.log(result)
+      // console.log(returnValues)
     })
 
     it("should not allow you to mint from wrong repo", async () => {

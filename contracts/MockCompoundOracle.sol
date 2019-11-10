@@ -1,6 +1,8 @@
-pragma solidity ^0.4.0;
+pragma solidity 0.5.10;
 
-contract CompoundOracle {
+contract MockCompoundOracle {
+    constructor() public {
+    }
     function getPrice(address asset) public view returns (uint) {
         return 527557000000000;
     }
