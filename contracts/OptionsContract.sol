@@ -34,12 +34,10 @@ contract OptionsContract is OptionsUtils, ERC20 {
     uint16 public collateralizationRatio = 16; //(need to be able have 1 decimal place)
 
     IERC20 public collateral;
-    UniswapExchangeInterface public collateralExchange;
     IERC20 public underlying;
     uint256 public strikePrice; //depending on underlying type need to be able to handle decimal places
     IERC20 public strikeAsset;
     IERC20 public payout;
-    UniswapExchangeInterface public payoutExchange;
     uint256 public expiry;
 
     constructor(
@@ -58,19 +56,11 @@ contract OptionsContract is OptionsUtils, ERC20 {
         public
     {
         collateral = _collateral;
-        if (!isETH(collateral)) {
-            // go to Uniswap for the appropriate exchange
-            collateralExchange = getUniswapExchange(address(collateral));
-        }
 
         underlying = _underlying;
         strikePrice = _strikePrice;
         strikeAsset = _strikeAsset;
         payout = _payout;
-        if (!isETH(payout)) {
-            // same as above for collateral
-            payoutExchange = getUniswapExchange(address(payout));
-        }
 
         expiry = _expiry;
         optionsExchange = _optionsExchange;

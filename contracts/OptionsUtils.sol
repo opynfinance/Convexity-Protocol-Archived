@@ -23,7 +23,8 @@ contract OptionsUtils {
     constructor () public {
     }
 
-    function getUniswapExchange(address _token) public view returns (UniswapExchangeInterface) {
+// TODO: for now gets Uniswap, later update to get other exchanges
+    function getExchange(address _token) public view returns (UniswapExchangeInterface) {
         UniswapExchangeInterface exchange = UniswapExchangeInterface(
             UNISWAP_FACTORY.getExchange(_token)
         );
