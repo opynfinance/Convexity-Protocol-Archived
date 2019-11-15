@@ -12,7 +12,7 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 contract OptionsContract is OptionsUtils, ERC20 {
     using SafeMath for uint256;
     struct Repo {
-        uint256 collateral;
+        uint256 collateral; // 10 ^ -18
         uint256 putsOutstanding;
         address payable owner;
     }
@@ -31,11 +31,11 @@ contract OptionsContract is OptionsUtils, ERC20 {
     uint256 totalExercised; // total collateral withdrawn from contract balance
     uint256 totalStrikePool; // total amount of strikeAssets, gets incremented on liquidations
 
-    uint16 public collateralizationRatio = 16; //(need to be able have 1 decimal place)
+    uint16 public collateralizationRatio = 16; //(scaled by 10). 16 means 1.6
 
     IERC20 public collateral;
     IERC20 public underlying;
-    uint256 public strikePrice; //depending on underlying type need to be able to handle decimal places
+    uint256 public strikePrice; //depending on underlying type need to be able to handle decimal places. rn 10^-18
     IERC20 public strikeAsset;
     IERC20 public payout;
     uint256 public expiry;
@@ -67,8 +67,10 @@ contract OptionsContract is OptionsUtils, ERC20 {
     }
 
     event RepoOpened(uint256 repoIndex);
-
     event ETHCollateralAdded(uint256 repoIndex, uint256 amount);
+    event ERC20CollateralAdded(uint256 repoIndex, uint256 amount);
+    event IssuedOptionTokens(address issuedTo, uint256 amount);
+
 
     function openRepo() public returns (uint) {
         require(now < expiry, "Options contract expired");
@@ -81,6 +83,7 @@ contract OptionsContract is OptionsUtils, ERC20 {
     function addETHCollateral(uint256 _repoNum) public payable returns (uint256) {
         //TODO: do we need to have require checks? do we need require msg.value > 0 ?
         //TODO: does it make sense to have the event emitted here or should it be in the helper function?
+        require(isETH(collateral), "ETH is not the specified collateral type");
         emit ETHCollateralAdded(_repoNum, msg.value);
         return _addCollateral(_repoNum, msg.value);
     }
@@ -91,6 +94,7 @@ contract OptionsContract is OptionsUtils, ERC20 {
             "Could not transfer in collateral tokens"
         );
 
+        emit ERC20CollateralAdded(_repoNum, _amt);
         return _addCollateral(_repoNum, _amt);
     }
 
@@ -256,8 +260,11 @@ contract OptionsContract is OptionsUtils, ERC20 {
         //TODO: why are we using strikeToCollateralPrice here but collateralToStrikePrice elsewhere
         uint256 collateralToStrikePrice = ethToCollateralPrice / ethToStrikePrice;
         Repo storage repo = repos[repoIndex];
-        require(numTokens.mul(collateralizationRatio).mul(strikePrice) <= repo.collateral.mul(collateralToStrikePrice), "unsafe to mint");
+        require(msg.sender == repo.owner, "Only owner can issue options");
+        require(numTokens.mul(collateralizationRatio).mul(strikePrice).div(10) <= repo.collateral.mul(collateralToStrikePrice), "unsafe to mint");
         _mint(msg.sender, numTokens);
+
+        emit IssuedOptionTokens(msg.sender, numTokens);
         return;
     }
 
@@ -377,7 +384,9 @@ contract OptionsContract is OptionsUtils, ERC20 {
     }
 
     function getPrice(address asset) internal view returns (uint256) {
-        return COMPOUND_ORACLE.getPrice(asset);
+        return 527557000000000;
+        // TODO: fix Oracle for testnet testing
+        // return COMPOUND_ORACLE.getPrice(asset);
     }
 
     function() external payable {
