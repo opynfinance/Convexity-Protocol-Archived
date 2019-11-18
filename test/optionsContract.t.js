@@ -25,12 +25,13 @@ var expect = require('expect');
 var OptionsContract = artifacts.require("../contracts/OptionsContract.sol");
 var OptionsFactory = artifacts.require("../contracts/OptionsFactory.sol");
 var OptionsExchange = artifacts.require("../contracts/OptionsExchange.sol");
-var CompoundOracle = artifacts.require("../contracts/MockCompoundOracle.sol");
-var UniswapFactory = artifacts.require("../contracts/MockUniswapFactory.sol");
-var daiMock = artifacts.require("../contracts/simpleERC20.sol");
+var CompoundOracle = artifacts.require("../contracts/lib/MockCompoundOracle.sol");
+var UniswapFactory = artifacts.require("../contracts/lib/MockUniswapFactory.sol");
+var daiMock = artifacts.require("../contracts/lib/simpleERC20.sol");
 var OptionsContractJSON = require("../build/contracts/OptionsContract.json");
 var OptionsContractABI = OptionsContractJSON.abi;
 var { ContractCreated }= require('./utils/FactoryEvents.js')
+const BN = require('bignumber.js');
 
 const truffleAssert = require('truffle-assertions');
 // var AssetAdded = FactoryEvents.AssetAdded;
@@ -477,15 +478,49 @@ contract('OptionsContract', (accounts) => {
 
   describe('#removeCollateral()', () => {
     it("should be able to remove collateral if sufficiently collateralized", async () => {
+      const repoIndex = "1";
+      const numTokens = "1000";
 
+      var result = await promisify(cb =>  optionsContracts[0].methods.removeCollateral(repoIndex, numTokens).send({from: creatorAddress, gas: '100000'}, cb));
+      
+      // Check the contract correctly updated the repo
+      var repo = await promisify(cb => optionsContracts[0].methods.getRepoByIndex(repoIndex).call(cb));
+      const expectedRepo = {
+        '0': '19999000',
+        '1': '138878',
+        '2': creatorAddress }
+      expect(repo).toMatchObject(expectedRepo);
+
+      // Check that the owner correctly got their collateral back. 
     })
 
-    // it("only owner should be able to remove collateral", async () => {
+    it("only owner should be able to remove collateral", async () => {
 
-    // })
+      try {
+        var result = await promisify(cb =>  optionsContracts[0].methods.removeCollateral(repoIndex,"10").send({from: firstOwnerAddress, gas: '100000'}, cb));
+        } catch (err) {
+          return;
+        }
+  
+        truffleAssert.fails("should throw error");
+    })
 
     it("should not be able to remove collateral if not sufficient collateral", async () => {
+      try {
+        var result = await promisify(cb =>  optionsContracts[0].methods.removeCollateral(repoIndex,"600").send({from: creatorAddress, gas: '100000'}, cb));
+        } catch (err) {
+          return;
+        }
+  
+        truffleAssert.fails("should throw error");
 
+        // check that the collateral in the repo remains the same 
+        var repo = await promisify(cb => optionsContracts[0].methods.getRepoByIndex(repoIndex).call(cb));
+        const expectedRepo = {
+          '0': '19999000',
+          '1': '138878',
+          '2': creatorAddress }
+        expect(repo).toMatchObject(expectedRepo);
     })
 
     // it("should not be able to remove collateral after expiry", async () => {

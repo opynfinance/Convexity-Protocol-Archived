@@ -1,9 +1,9 @@
 var OptionsFactory = artifacts.require('./OptionsFactory.sol');
-var StringComparator = artifacts.require('./StringComparator.sol');
-var mockUniswapFactory = artifacts.require('./MockUniswapFactory.sol');
-var mockCompoundOracle = artifacts.require('./MockCompoundOracle.sol');
+var StringComparator = artifacts.require('./lib/StringComparator.sol');
+var mockUniswapFactory = artifacts.require('./lib/MockUniswapFactory.sol');
+var mockCompoundOracle = artifacts.require('./lib/MockCompoundOracle.sol');
 var OptionsExchange = artifacts.require('./OptionsExchange.sol');
-var daiMock = artifacts.require('./simpleERC20.sol');
+var daiMock = artifacts.require('./lib/simpleERC20.sol');
 
 var Metadata = require("../ethpm.json");
 //var semver = require('semver');

@@ -1,9 +1,9 @@
 pragma solidity 0.5.10;
 
-import "./CompoundOracleInterface.sol";
+import "./lib/CompoundOracleInterface.sol";
 import "./OptionsUtils.sol";
-import "./UniswapFactoryInterface.sol";
-import "./UniswapExchangeInterface.sol";
+import "./lib/UniswapFactoryInterface.sol";
+import "./lib/UniswapExchangeInterface.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 

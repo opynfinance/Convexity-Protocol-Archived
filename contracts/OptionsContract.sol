@@ -1,10 +1,10 @@
 pragma solidity 0.5.10;
 
-import "./CompoundOracleInterface.sol";
+import "./lib/CompoundOracleInterface.sol";
 import "./OptionsExchange.sol";
 import "./OptionsUtils.sol";
-import "./UniswapFactoryInterface.sol";
-import "./UniswapExchangeInterface.sol";
+import "./lib/UniswapFactoryInterface.sol";
+import "./lib/UniswapExchangeInterface.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
@@ -40,6 +40,14 @@ contract OptionsContract is OptionsUtils, ERC20 {
     IERC20 public payout;
     uint256 public expiry;
 
+    /* @notice: constructor
+        @param _collateral: The collateral asset
+        @param _underlying: The asset that is being protected
+        @param _strikePrice: The amount of strike asset that will be paid out
+        @param _strikeAsset: The asset in which i
+        @param _payout: The asset in which insurance is paid out
+        @param _expiry: The time at which the insurance expires
+        @param OptionsExchange: The contract which interfaces with the exchange */
     constructor(
         IERC20 _collateral,
         IERC20 _underlying,
@@ -70,7 +78,7 @@ contract OptionsContract is OptionsUtils, ERC20 {
     event ETHCollateralAdded(uint256 repoIndex, uint256 amount);
     event ERC20CollateralAdded(uint256 repoIndex, uint256 amount);
     event IssuedOptionTokens(address issuedTo, uint256 amount);
-
+    // event BurnOptions()
 
     function openRepo() public returns (uint) {
         require(now < expiry, "Options contract expired");
@@ -320,8 +328,8 @@ contract OptionsContract is OptionsUtils, ERC20 {
     }
 
     /* @notice: allows the owner to burn their put Tokens
-    @param repoIndex : Index of the repo to burn putTokens
-    @param amtToBurn : number of pTokens to burn
+    @param repoIndex: Index of the repo to burn putTokens
+    @param amtToBurn: number of pTokens to burn
     @dev: only want to call this function before expiry. After expiry, 
     no benefit to calling it.
     */
@@ -337,6 +345,10 @@ contract OptionsContract is OptionsUtils, ERC20 {
         repos[repoIndex].owner = newOwner;
     }
 
+    /* @notice: allows the owner to remove excess collateral from the repo before expiry. 
+    @param repoIndex: Index of the repo to burn putTokens
+    @param amtToRemove: Amount of collateral to remove in 10^-18. 
+    */ 
     function removeCollateral(uint256 repoIndex, uint256 amtToRemove) public {
 
         require(now < expiry, "Can only call remove collateral before expiry");
@@ -349,7 +361,7 @@ contract OptionsContract is OptionsUtils, ERC20 {
             // TODO: get the price from Oracle
         uint256 collateralToStrikePrice = 1;
         require(repo.putsOutstanding.mul(collateralizationRatio).mul(strikePrice) <=
-                    newRepoCollateralAmt.mul(collateralToStrikePrice), "Repo is unsafe");
+                    newRepoCollateralAmt.mul(collateralToStrikePrice).mul(10), "Repo is unsafe");
         repo.collateral = newRepoCollateralAmt;
         transferCollateral(msg.sender, amtToRemove);
         totalCollateral = totalCollateral.sub(amtToRemove);
@@ -366,6 +378,10 @@ contract OptionsContract is OptionsUtils, ERC20 {
         repo.collateral = 0;
     }
 
+    /* Liquidator comes with putsOutstanding * strikePrice amount of 
+    strike asset. They get all the collateral in return (minus some tx fees which goes to us)
+    */ 
+    
     // TODO: look at compound docs and improve how it is built
     function liquidate(uint256 repoNum) public {
         require(now < expiry, "Options contract expired");
