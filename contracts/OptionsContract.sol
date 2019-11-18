@@ -250,19 +250,32 @@ contract OptionsContract is OptionsUtils, ERC20 {
         return repo.collateral;
     }
 
-    //strikeToCollateralPrice = amt of strikeTokens 1 collateralToken can give you.
+    /*
+    @notice: This function is called to issue the option tokens
+    @dev: The owner of a repo should only be able to have a max of 
+    floor(Collateral * collateralToStrike / (minCollateralizationRatio * strikePrice)) tokens issued. 
+    @param repoIndex : The index of the repo to issue tokens from
+    @param numTokens : The number of tokens to issue
+    */
     function issueOptionTokens (uint256 repoIndex, uint256 numTokens) public {
         //check that we're properly collateralized to mint this number, then call _mint(address account, uint256 amount)
         require(now < expiry, "Options contract expired");
-        // TODO: get the price from Oracle
-        uint256 ethToCollateralPrice = getPrice(address(collateral));
-        uint256 ethToStrikePrice = getPrice(address(strikeAsset));
-        //TODO: why are we using strikeToCollateralPrice here but collateralToStrikePrice elsewhere
-        uint256 collateralToStrikePrice = ethToCollateralPrice / ethToStrikePrice;
+
         Repo storage repo = repos[repoIndex];
         require(msg.sender == repo.owner, "Only owner can issue options");
-        require(numTokens.mul(collateralizationRatio).mul(strikePrice).div(10) <= repo.collateral.mul(collateralToStrikePrice), "unsafe to mint");
+
+        //gets the price from the oracle
+        uint256 ethToCollateralPrice = getPrice(address(collateral));
+        uint256 ethToStrikePrice = getPrice(address(strikeAsset));
+
+        // collateralToStrikePrice = amt of strikeTokens 1 collateralToken can give you.
+        uint256 collateralToStrikePrice = ethToCollateralPrice / ethToStrikePrice;
+
+        // checks that the repo is sufficiently collateralized 
+        uint256 newNumTokens = repo.putsOutstanding.add(numTokens);
+        require(newNumTokens.mul(collateralizationRatio).mul(strikePrice).div(10) <= repo.collateral.mul(collateralToStrikePrice), "unsafe to mint");
         _mint(msg.sender, numTokens);
+        repo.putsOutstanding = newNumTokens;
 
         emit IssuedOptionTokens(msg.sender, numTokens);
         return;
@@ -306,6 +319,12 @@ contract OptionsContract is OptionsUtils, ERC20 {
         //TODO: write this
     }
 
+    /* @notice: allows the owner to burn their put Tokens
+    @param repoIndex : Index of the repo to burn putTokens
+    @param amtToBurn : number of pTokens to burn
+    @dev: only want to call this function before expiry. After expiry, 
+    no benefit to calling it.
+    */
     function burnPutTokens(uint256 repoIndex, uint256 amtToBurn) public {
         Repo storage repo = repos[repoIndex];
         require(repo.owner == msg.sender, "Not the owner of this repo");
@@ -319,29 +338,32 @@ contract OptionsContract is OptionsUtils, ERC20 {
     }
 
     function removeCollateral(uint256 repoIndex, uint256 amtToRemove) public {
-        if(now < expiry) {
-            // check that we are well collateralized enough to remove this amount of collateral
-            Repo storage repo = repos[repoIndex];
-            require(msg.sender == repo.owner, "Only owner can remove collateral");
-            require(amtToRemove <= repo.collateral, "Can't remove more collateral than owned");
-            uint256 newRepoCollateralAmt = repo.collateral.sub(amtToRemove);
-             // TODO: get the price from Oracle
-            uint256 collateralToStrikePrice = 1;
-            require(repo.putsOutstanding.mul(collateralizationRatio).mul(strikePrice) <=
-                     newRepoCollateralAmt.mul(collateralToStrikePrice), "Repo is unsafe");
-            repo.collateral = newRepoCollateralAmt;
-            transferCollateral(msg.sender, amtToRemove);
-            totalCollateral = totalCollateral.sub(amtToRemove);
 
-        } else {
-            // pay out people proportional
-            Repo storage repo = repos[repoIndex];
-            uint256 collateralToTransfer = repo.collateral.div(totalCollateral);
-            uint256 underlyingToTransfer = repo.collateral.div(totalUnderlying);
-            transferCollateral(msg.sender, collateralToTransfer);
-            transferUnderlying(msg.sender, underlyingToTransfer);
-            repo.collateral = 0;
-        }
+        require(now < expiry, "Can only call remove collateral before expiry");
+        // check that we are well collateralized enough to remove this amount of collateral
+        Repo storage repo = repos[repoIndex];
+        require(msg.sender == repo.owner, "Only owner can remove collateral");
+        require(amtToRemove <= repo.collateral, "Can't remove more collateral than owned");
+        uint256 newRepoCollateralAmt = repo.collateral.sub(amtToRemove);
+
+            // TODO: get the price from Oracle
+        uint256 collateralToStrikePrice = 1;
+        require(repo.putsOutstanding.mul(collateralizationRatio).mul(strikePrice) <=
+                    newRepoCollateralAmt.mul(collateralToStrikePrice), "Repo is unsafe");
+        repo.collateral = newRepoCollateralAmt;
+        transferCollateral(msg.sender, amtToRemove);
+        totalCollateral = totalCollateral.sub(amtToRemove);
+    }
+
+    function claimCollateral (uint256 repoIndex) public {
+        require(now >= expiry, "Can't collect collateral until expiry");
+        // pay out people proportional
+        Repo storage repo = repos[repoIndex];
+        uint256 collateralToTransfer = repo.collateral.div(totalCollateral);
+        uint256 underlyingToTransfer = repo.collateral.div(totalUnderlying);
+        transferCollateral(msg.sender, collateralToTransfer);
+        transferUnderlying(msg.sender, underlyingToTransfer);
+        repo.collateral = 0;
     }
 
     // TODO: look at compound docs and improve how it is built

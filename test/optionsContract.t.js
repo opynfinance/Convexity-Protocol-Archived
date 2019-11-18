@@ -83,7 +83,7 @@ contract('OptionsContract', (accounts) => {
       var optionsContractResult = await optionsFactory.createOptionsContract(
         "ETH",
         "DAI",
-        "96",
+        "90",
         "ETH",
         "ETH",
         "1577836800",
@@ -96,7 +96,7 @@ contract('OptionsContract', (accounts) => {
       optionsContractResult = await optionsFactory.createOptionsContract(
         "ETH",
         "DAI",
-        "96",
+        "90",
         "ETH",
         "ETH",
         "1",
@@ -110,7 +110,7 @@ contract('OptionsContract', (accounts) => {
       optionsContractResult = await optionsFactory.createOptionsContract(
         "DAI",
         "ETH",
-        "96",
+        "90",
         "ETH",
         "ETH",
         "1577836800",
@@ -392,7 +392,7 @@ contract('OptionsContract', (accounts) => {
     it("should allow you to mint correctly", async () => {
 
       const repoIndex = "1";
-      const numTokens = "13020";
+      const numTokens = "138888";
 
       var result = await promisify(cb =>  optionsContracts[0].methods.issueOptionTokens(repoIndex, numTokens).send({from: creatorAddress, gas: '100000'}, cb));
       var amtPTokens = await promisify(cb => optionsContracts[0].methods.balanceOf(creatorAddress).call(cb));
@@ -404,7 +404,7 @@ contract('OptionsContract', (accounts) => {
       var personIssuedTo = returnValues.issuedTo;
       var amount = returnValues.amount;
       expect(personIssuedTo).toBe(creatorAddress);
-      expect(amount).toBe("13020");
+      expect(amount).toBe("138888");
     })
 
     it("only owner should of repo should be able to mint", async () => {
@@ -425,7 +425,7 @@ contract('OptionsContract', (accounts) => {
 
     it ("should only allow you to mint tokens if you have sufficient collateral", async () => {
       const repoIndex = "1";
-      const numTokens = "10000000000";
+      const numTokens = "1";
       try {
         var result = await promisify(cb =>  optionsContracts[0].methods.issueOptionTokens(repoIndex, numTokens).send({from: creatorAddress, gas: '100000'}, cb));
       } catch (err) {
@@ -437,7 +437,61 @@ contract('OptionsContract', (accounts) => {
       var amtPTokens = await promisify(cb => optionsContracts[0].methods.balanceOf(creatorAddress).call(cb));
       expect(amtPTokens).toBe("0");
     })
-    
+    // it("should not be able to issue tokens after expiry", async ()=> {
+
+    // })
+
   });
+
+  describe('#burnPutTokens()', () => {
+    it("should be able to burn put tokens", async () => {
+      const repoIndex = "1";
+      const numTokens = "10";
+
+      var result = await promisify(cb =>  optionsContracts[0].methods.burnPutTokens(repoIndex, numTokens).send({from: creatorAddress, gas: '100000'}, cb));
+      var amtPTokens = await promisify(cb => optionsContracts[0].methods.balanceOf(creatorAddress).call(cb));
+      expect(amtPTokens).toBe("138878");
+    })
+
+    // it("correct events should be emitted", async () => {
+
+    // }) 
+    it("only owner should be able to burn tokens", async () => {
+      var transferred = await promisify(cb => optionsContracts[0].methods.transfer(firstOwnerAddress, "10").send({from: creatorAddress, gas: '100000'}, cb));
+      var amtPTokens = await promisify(cb => optionsContracts[0].methods.balanceOf(firstOwnerAddress).call(cb));
+      expect(amtPTokens).toBe("10");
+
+      const repoIndex = "1";
+      const numTokens = "10";
+
+      try {
+      var result = await promisify(cb =>  optionsContracts[0].methods.burnPutTokens(repoIndex, numTokens).send({from: firstOwnerAddress, gas: '100000'}, cb));
+      } catch (err) {
+        return;
+      }
+
+      truffleAssert.fails("should throw error");
+  })
+
+  })
+
+  describe('#removeCollateral()', () => {
+    it("should be able to remove collateral if sufficiently collateralized", async () => {
+
+    })
+
+    // it("only owner should be able to remove collateral", async () => {
+
+    // })
+
+    it("should not be able to remove collateral if not sufficient collateral", async () => {
+
+    })
+
+    // it("should not be able to remove collateral after expiry", async () => {
+
+    // })
+
+  })
 
 });
