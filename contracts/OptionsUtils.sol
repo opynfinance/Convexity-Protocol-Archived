@@ -1,8 +1,8 @@
 pragma solidity 0.5.10;
 
-import "./CompoundOracleInterface.sol";
-import "./UniswapExchangeInterface.sol";
-import "./UniswapFactoryInterface.sol";
+import "./lib/CompoundOracleInterface.sol";
+import "./lib/UniswapExchangeInterface.sol";
+import "./lib/UniswapFactoryInterface.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract OptionsUtils {
@@ -23,7 +23,8 @@ contract OptionsUtils {
     constructor () public {
     }
 
-    function getUniswapExchange(address _token) public view returns (UniswapExchangeInterface) {
+// TODO: for now gets Uniswap, later update to get other exchanges
+    function getExchange(address _token) public view returns (UniswapExchangeInterface) {
         UniswapExchangeInterface exchange = UniswapExchangeInterface(
             UNISWAP_FACTORY.getExchange(_token)
         );

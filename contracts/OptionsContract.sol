@@ -1,10 +1,10 @@
 pragma solidity 0.5.10;
 
-import "./CompoundOracleInterface.sol";
+import "./lib/CompoundOracleInterface.sol";
 import "./OptionsExchange.sol";
 import "./OptionsUtils.sol";
-import "./UniswapFactoryInterface.sol";
-import "./UniswapExchangeInterface.sol";
+import "./lib/UniswapFactoryInterface.sol";
+import "./lib/UniswapExchangeInterface.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
@@ -12,7 +12,7 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 contract OptionsContract is OptionsUtils, ERC20 {
     using SafeMath for uint256;
     struct Repo {
-        uint256 collateral;
+        uint256 collateral; // 10 ^ -18
         uint256 putsOutstanding;
         address payable owner;
     }
@@ -31,17 +31,23 @@ contract OptionsContract is OptionsUtils, ERC20 {
     uint256 totalExercised; // total collateral withdrawn from contract balance
     uint256 totalStrikePool; // total amount of strikeAssets, gets incremented on liquidations
 
-    uint16 public collateralizationRatio = 16; //(need to be able have 1 decimal place)
+    uint16 public collateralizationRatio = 16; //(scaled by 10). 16 means 1.6
 
     IERC20 public collateral;
-    UniswapExchangeInterface public collateralExchange;
     IERC20 public underlying;
-    uint256 public strikePrice; //depending on underlying type need to be able to handle decimal places
+    uint256 public strikePrice; //depending on underlying type need to be able to handle decimal places. rn 10^-18
     IERC20 public strikeAsset;
     IERC20 public payout;
-    UniswapExchangeInterface public payoutExchange;
     uint256 public expiry;
 
+    /* @notice: constructor
+        @param _collateral: The collateral asset
+        @param _underlying: The asset that is being protected
+        @param _strikePrice: The amount of strike asset that will be paid out
+        @param _strikeAsset: The asset in which i
+        @param _payout: The asset in which insurance is paid out
+        @param _expiry: The time at which the insurance expires
+        @param OptionsExchange: The contract which interfaces with the exchange */
     constructor(
         IERC20 _collateral,
         IERC20 _underlying,
@@ -58,27 +64,21 @@ contract OptionsContract is OptionsUtils, ERC20 {
         public
     {
         collateral = _collateral;
-        if (!isETH(collateral)) {
-            // go to Uniswap for the appropriate exchange
-            collateralExchange = getUniswapExchange(address(collateral));
-        }
 
         underlying = _underlying;
         strikePrice = _strikePrice;
         strikeAsset = _strikeAsset;
         payout = _payout;
-        if (!isETH(payout)) {
-            // same as above for collateral
-            payoutExchange = getUniswapExchange(address(payout));
-        }
 
         expiry = _expiry;
         optionsExchange = _optionsExchange;
     }
 
     event RepoOpened(uint256 repoIndex);
-
     event ETHCollateralAdded(uint256 repoIndex, uint256 amount);
+    event ERC20CollateralAdded(uint256 repoIndex, uint256 amount);
+    event IssuedOptionTokens(address issuedTo, uint256 amount);
+    // event BurnOptions()
 
     function openRepo() public returns (uint) {
         require(now < expiry, "Options contract expired");
@@ -91,6 +91,7 @@ contract OptionsContract is OptionsUtils, ERC20 {
     function addETHCollateral(uint256 _repoNum) public payable returns (uint256) {
         //TODO: do we need to have require checks? do we need require msg.value > 0 ?
         //TODO: does it make sense to have the event emitted here or should it be in the helper function?
+        require(isETH(collateral), "ETH is not the specified collateral type");
         emit ETHCollateralAdded(_repoNum, msg.value);
         return _addCollateral(_repoNum, msg.value);
     }
@@ -101,6 +102,7 @@ contract OptionsContract is OptionsUtils, ERC20 {
             "Could not transfer in collateral tokens"
         );
 
+        emit ERC20CollateralAdded(_repoNum, _amt);
         return _addCollateral(_repoNum, _amt);
     }
 
@@ -256,18 +258,34 @@ contract OptionsContract is OptionsUtils, ERC20 {
         return repo.collateral;
     }
 
-    //strikeToCollateralPrice = amt of strikeTokens 1 collateralToken can give you.
+    /*
+    @notice: This function is called to issue the option tokens
+    @dev: The owner of a repo should only be able to have a max of 
+    floor(Collateral * collateralToStrike / (minCollateralizationRatio * strikePrice)) tokens issued. 
+    @param repoIndex : The index of the repo to issue tokens from
+    @param numTokens : The number of tokens to issue
+    */
     function issueOptionTokens (uint256 repoIndex, uint256 numTokens) public {
         //check that we're properly collateralized to mint this number, then call _mint(address account, uint256 amount)
         require(now < expiry, "Options contract expired");
-        // TODO: get the price from Oracle
+
+        Repo storage repo = repos[repoIndex];
+        require(msg.sender == repo.owner, "Only owner can issue options");
+
+        //gets the price from the oracle
         uint256 ethToCollateralPrice = getPrice(address(collateral));
         uint256 ethToStrikePrice = getPrice(address(strikeAsset));
-        //TODO: why are we using strikeToCollateralPrice here but collateralToStrikePrice elsewhere
+
+        // collateralToStrikePrice = amt of strikeTokens 1 collateralToken can give you.
         uint256 collateralToStrikePrice = ethToCollateralPrice / ethToStrikePrice;
-        Repo storage repo = repos[repoIndex];
-        require(numTokens.mul(collateralizationRatio).mul(strikePrice) <= repo.collateral.mul(collateralToStrikePrice), "unsafe to mint");
+
+        // checks that the repo is sufficiently collateralized 
+        uint256 newNumTokens = repo.putsOutstanding.add(numTokens);
+        require(newNumTokens.mul(collateralizationRatio).mul(strikePrice).div(10) <= repo.collateral.mul(collateralToStrikePrice), "unsafe to mint");
         _mint(msg.sender, numTokens);
+        repo.putsOutstanding = newNumTokens;
+
+        emit IssuedOptionTokens(msg.sender, numTokens);
         return;
     }
 
@@ -309,6 +327,12 @@ contract OptionsContract is OptionsUtils, ERC20 {
         //TODO: write this
     }
 
+    /* @notice: allows the owner to burn their put Tokens
+    @param repoIndex: Index of the repo to burn putTokens
+    @param amtToBurn: number of pTokens to burn
+    @dev: only want to call this function before expiry. After expiry, 
+    no benefit to calling it.
+    */
     function burnPutTokens(uint256 repoIndex, uint256 amtToBurn) public {
         Repo storage repo = repos[repoIndex];
         require(repo.owner == msg.sender, "Not the owner of this repo");
@@ -321,32 +345,43 @@ contract OptionsContract is OptionsUtils, ERC20 {
         repos[repoIndex].owner = newOwner;
     }
 
+    /* @notice: allows the owner to remove excess collateral from the repo before expiry. 
+    @param repoIndex: Index of the repo to burn putTokens
+    @param amtToRemove: Amount of collateral to remove in 10^-18. 
+    */ 
     function removeCollateral(uint256 repoIndex, uint256 amtToRemove) public {
-        if(now < expiry) {
-            // check that we are well collateralized enough to remove this amount of collateral
-            Repo storage repo = repos[repoIndex];
-            require(msg.sender == repo.owner, "Only owner can remove collateral");
-            require(amtToRemove <= repo.collateral, "Can't remove more collateral than owned");
-            uint256 newRepoCollateralAmt = repo.collateral.sub(amtToRemove);
-             // TODO: get the price from Oracle
-            uint256 collateralToStrikePrice = 1;
-            require(repo.putsOutstanding.mul(collateralizationRatio).mul(strikePrice) <=
-                     newRepoCollateralAmt.mul(collateralToStrikePrice), "Repo is unsafe");
-            repo.collateral = newRepoCollateralAmt;
-            transferCollateral(msg.sender, amtToRemove);
-            totalCollateral = totalCollateral.sub(amtToRemove);
 
-        } else {
-            // pay out people proportional
-            Repo storage repo = repos[repoIndex];
-            uint256 collateralToTransfer = repo.collateral.div(totalCollateral);
-            uint256 underlyingToTransfer = repo.collateral.div(totalUnderlying);
-            transferCollateral(msg.sender, collateralToTransfer);
-            transferUnderlying(msg.sender, underlyingToTransfer);
-            repo.collateral = 0;
-        }
+        require(now < expiry, "Can only call remove collateral before expiry");
+        // check that we are well collateralized enough to remove this amount of collateral
+        Repo storage repo = repos[repoIndex];
+        require(msg.sender == repo.owner, "Only owner can remove collateral");
+        require(amtToRemove <= repo.collateral, "Can't remove more collateral than owned");
+        uint256 newRepoCollateralAmt = repo.collateral.sub(amtToRemove);
+
+            // TODO: get the price from Oracle
+        uint256 collateralToStrikePrice = 1;
+        require(repo.putsOutstanding.mul(collateralizationRatio).mul(strikePrice) <=
+                    newRepoCollateralAmt.mul(collateralToStrikePrice).mul(10), "Repo is unsafe");
+        repo.collateral = newRepoCollateralAmt;
+        transferCollateral(msg.sender, amtToRemove);
+        totalCollateral = totalCollateral.sub(amtToRemove);
     }
 
+    function claimCollateral (uint256 repoIndex) public {
+        require(now >= expiry, "Can't collect collateral until expiry");
+        // pay out people proportional
+        Repo storage repo = repos[repoIndex];
+        uint256 collateralToTransfer = repo.collateral.div(totalCollateral);
+        uint256 underlyingToTransfer = repo.collateral.div(totalUnderlying);
+        transferCollateral(msg.sender, collateralToTransfer);
+        transferUnderlying(msg.sender, underlyingToTransfer);
+        repo.collateral = 0;
+    }
+
+    /* Liquidator comes with putsOutstanding * strikePrice amount of 
+    strike asset. They get all the collateral in return (minus some tx fees which goes to us)
+    */ 
+    
     // TODO: look at compound docs and improve how it is built
     function liquidate(uint256 repoNum) public {
         require(now < expiry, "Options contract expired");
@@ -387,7 +422,9 @@ contract OptionsContract is OptionsUtils, ERC20 {
     }
 
     function getPrice(address asset) internal view returns (uint256) {
-        return COMPOUND_ORACLE.getPrice(asset);
+        return 527557000000000;
+        // TODO: fix Oracle for testnet testing
+        // return COMPOUND_ORACLE.getPrice(asset);
     }
 
     function() external payable {

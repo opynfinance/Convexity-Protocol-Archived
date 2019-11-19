@@ -1,9 +1,9 @@
 pragma solidity 0.5.10;
 
-import "./CompoundOracleInterface.sol";
+import "./lib/CompoundOracleInterface.sol";
 import "./OptionsUtils.sol";
-import "./UniswapFactoryInterface.sol";
-import "./UniswapExchangeInterface.sol";
+import "./lib/UniswapFactoryInterface.sol";
+import "./lib/UniswapExchangeInterface.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 
@@ -36,40 +36,42 @@ contract OptionsExchange is OptionsUtils {
         external
         returns (uint256)
     {
-        if (!isETH(_inputToken)) {
-            UniswapExchangeInterface exchange = getUniswapExchange(address(_inputToken));
+        return 5;
+        // TODO: uncomment below and test on testnet
+        // if (!isETH(_inputToken)) {
+        //     UniswapExchangeInterface exchange = getExchange(address(_inputToken));
 
-            if(isETH(_outputToken)) {
-                /// Token to ETH
-                _inputToken.approve(address(exchange), _amt);
-                return exchange.tokenToEthTransferInput(_amt, 1, LARGE_BLOCK_SIZE, _transferTo);
-            } else {
-                /// Token to Token
-                 _inputToken.approve(address(exchange), _amt);
-                return exchange.tokenToTokenTransferInput(
-                    _amt,
-                    1,
-                    1,
-                    LARGE_BLOCK_SIZE,
-                    _transferTo,
-                    address(_outputToken)
-                );
-            }
-        } else {
-            // ETH to Token
-            if(!isETH(_outputToken)) {
-                UniswapExchangeInterface exchange = getUniswapExchange(address(_outputToken));
+        //     if(isETH(_outputToken)) {
+        //         /// Token to ETH
+        //         _inputToken.approve(address(exchange), _amt);
+        //         return exchange.tokenToEthTransferInput(_amt, 1, LARGE_BLOCK_SIZE, _transferTo);
+        //     } else {
+        //         /// Token to Token
+        //          _inputToken.approve(address(exchange), _amt);
+        //         return exchange.tokenToTokenTransferInput(
+        //             _amt,
+        //             1,
+        //             1,
+        //             LARGE_BLOCK_SIZE,
+        //             _transferTo,
+        //             address(_outputToken)
+        //         );
+        //     }
+        // } else {
+        //     // ETH to Token
+        //     if(!isETH(_outputToken)) {
+        //         UniswapExchangeInterface exchange = getExchange(address(_outputToken));
 
-                return exchange.ethToTokenTransferInput.value(_amt)(
-                    1,
-                    LARGE_BLOCK_SIZE,
-                    _transferTo
-                );
-            }
+        //         return exchange.ethToTokenTransferInput.value(_amt)(
+        //             1,
+        //             LARGE_BLOCK_SIZE,
+        //             _transferTo
+        //         );
+        //     }
 
-            // both args are ETH
-            revert("Trying to exchange ETH for ETH");
-        }
+        //     // both args are ETH
+        //     revert("Trying to exchange ETH for ETH");
+        // }
     }
 
      function exchangeAndTransferOutput(
@@ -81,47 +83,49 @@ contract OptionsExchange is OptionsUtils {
             external
             returns (uint256)
         {
-            if (!isETH(_inputToken)) {
-                UniswapExchangeInterface exchange = getUniswapExchange(address(_inputToken));
+            return 5;
+        // TODO: uncomment below and test on testnet
+        //     if (!isETH(_inputToken)) {
+        //         UniswapExchangeInterface exchange = getExchange(address(_inputToken));
 
-                if(isETH(_outputToken)) {
-                    /// Token to ETH
-                    _inputToken.approve(address(exchange), 10 ** 30);
-                    return exchange.tokenToEthTransferOutput(
-                        _amt,
-                        10 ** 30,
-                        LARGE_BLOCK_SIZE,
-                        _transferTo
-                    );
-                } else {
-                    /// Token to Token
-                    _inputToken.approve(address(exchange), 10 ** 30);
-                    return exchange.tokenToTokenTransferOutput(
-                        _amt,
-                        10 ** 30,
-                        10 ** 30,
-                        LARGE_BLOCK_SIZE,
-                        _transferTo,
-                        address(_outputToken)
-                    );
-                }
-        } else {
-            // ETH to Token
-            if(!isETH(_outputToken)) {
-                UniswapExchangeInterface exchange = UniswapExchangeInterface(
-                    UNISWAP_FACTORY.getExchange(address(_outputToken))
-                );
+        //         if(isETH(_outputToken)) {
+        //             /// Token to ETH
+        //             _inputToken.approve(address(exchange), 10 ** 30);
+        //             return exchange.tokenToEthTransferOutput(
+        //                 _amt,
+        //                 10 ** 30,
+        //                 LARGE_BLOCK_SIZE,
+        //                 _transferTo
+        //             );
+        //         } else {
+        //             /// Token to Token
+        //             _inputToken.approve(address(exchange), 10 ** 30);
+        //             return exchange.tokenToTokenTransferOutput(
+        //                 _amt,
+        //                 10 ** 30,
+        //                 10 ** 30,
+        //                 LARGE_BLOCK_SIZE,
+        //                 _transferTo,
+        //                 address(_outputToken)
+        //             );
+        //         }
+        // } else {
+        //     // ETH to Token
+        //     if(!isETH(_outputToken)) {
+        //         UniswapExchangeInterface exchange = UniswapExchangeInterface(
+        //             UNISWAP_FACTORY.getExchange(address(_outputToken))
+        //         );
 
-                uint256 ethToTransfer = exchange.getEthToTokenOutputPrice(_amt);
-                return exchange.ethToTokenTransferOutput.value(ethToTransfer)(
-                    _amt,
-                    LARGE_BLOCK_SIZE,
-                    _transferTo
-                );
-            }
+        //         uint256 ethToTransfer = exchange.getEthToTokenOutputPrice(_amt);
+        //         return exchange.ethToTokenTransferOutput.value(ethToTransfer)(
+        //             _amt,
+        //             LARGE_BLOCK_SIZE,
+        //             _transferTo
+        //         );
+        //     }
 
-            revert("Trying to exchange ETH for ETH");
-        }
+        //     revert("Trying to exchange ETH for ETH");
+        // }
     }
 
 }
