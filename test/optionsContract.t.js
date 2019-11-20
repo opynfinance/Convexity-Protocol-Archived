@@ -75,6 +75,7 @@ contract('OptionsContract', (accounts) => {
         "DAI",
         dai.address
       );
+      // TODO: deploy a mock USDC and get its address
       await optionsFactory.addAsset(
       "USDC",
       "0xB5D0545dF2649359B1F91679f64812dc70Bfd547"
@@ -403,9 +404,7 @@ contract('OptionsContract', (accounts) => {
     it ("should emit events correctly", async () => {
       var returnValues = (await optionsContracts[0].getPastEvents( 'IssuedOptionTokens', { fromBlock: 0, toBlock: 'latest' } ))[0].returnValues;
       var personIssuedTo = returnValues.issuedTo;
-      var amount = returnValues.amount;
       expect(personIssuedTo).toBe(creatorAddress);
-      expect(amount).toBe("138888");
     })
 
     it("only owner should of repo should be able to mint", async () => {
@@ -420,23 +419,25 @@ contract('OptionsContract', (accounts) => {
 
       // the balance of the contract caller should be 0. They should not have gotten tokens.
       var amtPTokens = await promisify(cb => optionsContracts[0].methods.balanceOf(firstOwnerAddress).call(cb));
+      console.log(amtPTokens);
       expect(amtPTokens).toBe("0");
 
     })
 
     it ("should only allow you to mint tokens if you have sufficient collateral", async () => {
       const repoIndex = "1";
-      const numTokens = "1";
+      const numTokens = "2";
       try {
         var result = await promisify(cb =>  optionsContracts[0].methods.issueOptionTokens(repoIndex, numTokens).send({from: creatorAddress, gas: '100000'}, cb));
       } catch (err) {
         return;
       }
+
       truffleAssert.fails("should throw error");
 
       // the balance of the contract caller should be 0. They should not have gotten tokens.
       var amtPTokens = await promisify(cb => optionsContracts[0].methods.balanceOf(creatorAddress).call(cb));
-      expect(amtPTokens).toBe("0");
+      expect(amtPTokens).toBe("138888");
     })
     // it("should not be able to issue tokens after expiry", async ()=> {
 
@@ -505,9 +506,24 @@ contract('OptionsContract', (accounts) => {
         truffleAssert.fails("should throw error");
     })
 
+    it("should be able to remove more collateral if sufficient collateral", async () => {
+      const repoIndex = "1";
+      const numTokens = "500";
+
+      var result = await promisify(cb =>  optionsContracts[0].methods.removeCollateral(repoIndex, numTokens).send({from: creatorAddress, gas: '100000'}, cb));
+      
+      // Check the contract correctly updated the repo
+      var repo = await promisify(cb => optionsContracts[0].methods.getRepoByIndex(repoIndex).call(cb));
+      const expectedRepo = {
+        '0': '19998500',
+        '1': '138878',
+        '2': creatorAddress }
+      expect(repo).toMatchObject(expectedRepo);
+    })
+
     it("should not be able to remove collateral if not sufficient collateral", async () => {
       try {
-        var result = await promisify(cb =>  optionsContracts[0].methods.removeCollateral(repoIndex,"600").send({from: creatorAddress, gas: '100000'}, cb));
+        var result = await promisify(cb =>  optionsContracts[0].methods.removeCollateral(repoIndex,"5").send({from: creatorAddress, gas: '100000'}, cb));
         } catch (err) {
           return;
         }
