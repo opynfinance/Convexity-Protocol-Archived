@@ -79,12 +79,16 @@ contract OptionsContract is OptionsUtils, ERC20 {
         /* NOTE: the precision of strikePrice has to be less than precision of underlying. 
         if 1oToken protects 10^-18 Dai and gives you 9 * 10^-19, then if Dai only has 18 digits of precision, 
         the oToken can only protect against 10^-17 Dai. */ 
+        // TODO: accept precision. 
         strikePrice = Number(_strikePrice, -18);
         strikeAsset = _strikeAsset;
         payout = _payout;
 
         expiry = _expiry;
         optionsExchange = _optionsExchange;
+
+        // TODO: remove this later. 
+        setUniswapAndCompound(address(_optionsExchange.UNISWAP_FACTORY()), address(_optionsExchange.COMPOUND_ORACLE()));
     }
 
     event RepoOpened(uint256 repoIndex);
@@ -92,6 +96,7 @@ contract OptionsContract is OptionsUtils, ERC20 {
     event ERC20CollateralAdded(uint256 repoIndex, uint256 amount);
     event IssuedOptionTokens(address issuedTo);
     event safe(uint256 leftVal, uint256 rightVal, int32 leftExp, int32 rightExp, bool isSafe);
+    event unsafeCalled(bool isUnsafe);
     // event BurnOptions()
 
     function openRepo() public returns (uint) {
@@ -390,18 +395,21 @@ contract OptionsContract is OptionsUtils, ERC20 {
     function isUnsafe(uint256 repoIndex) public returns (bool) {
         Repo storage repo = repos[repoIndex];
 
-        // get price from Oracle
-        return !isSafe(repo.collateral, repo.putsOutstanding);
+        bool isUnsafe = !isSafe(repo.collateral, repo.putsOutstanding);
+
+        emit unsafeCalled(isUnsafe);
+
+        return isUnsafe;
     }
 
     /* @notice: checks if a repo is unsafe. If so, it can be liquidated 
     @param repoNum: The number of the repo to check 
     @return: true or false */
-    function isSafe(uint256 collateralAmt, uint256 putsOutstanding) public returns (bool) {
+    function isSafe(uint256 collateralAmt, uint256 putsOutstanding) internal returns (bool) {
         // get price from Oracle
         uint256 ethToCollateralPrice = getPrice(address(collateral));
         uint256 ethToStrikePrice = getPrice(address(strikeAsset));
-
+  
         /* putsOutstanding * collateralizationRatio * strikePrice <= collAmt * collateralToStrikePrice 
          collateralToStrikePrice = ethToStrikePrice.div(ethToCollateralPrice);  */ 
 
@@ -485,13 +493,11 @@ contract OptionsContract is OptionsUtils, ERC20 {
 
     function getPrice(address asset) internal view returns (uint256) {
 
-        if(isETH(collateral)) {
+        if(asset == address(0)) {
             return (10 ** 18);
         } else {
-            return 527557000000000;
+            return COMPOUND_ORACLE.getPrice(asset);
         }
-        // TODO: fix Oracle for testnet testing
-        // return COMPOUND_ORACLE.getPrice(asset);
     }
 
     function() external payable {
