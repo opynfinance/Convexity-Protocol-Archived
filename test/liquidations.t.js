@@ -241,10 +241,6 @@ contract('OptionsContract', (accounts) => {
         return;
       }
 
-    //   var returnValues = (await optionsContracts[0].getPastEvents( 'safe', { fromBlock: 0, toBlock: 'latest' } ));
-    //   var index = returnValues.length - 1
-    //   console.log(returnValues[index].returnValues);
-
       truffleAssert.fails("should throw error");
 
       // the balance of the contract caller should be 0. They should not have gotten tokens.
@@ -294,32 +290,32 @@ contract('OptionsContract', (accounts) => {
 
   describe("#liquidate()", () => {
       it("Repo should be unsafe when the price drops", async () => {
-        //   // Make sure Repo is safe before price drop
-        //   await promisify(cb => optionsContracts[0].methods.isUnsafe("1").send(cb));
-        //   var returnValues = (await optionsContracts[0].getPastEvents( 'unsafeCalled', { fromBlock: 0, toBlock: 'latest' } ));
-        //   var unsafe = returnValues[0].returnValues.isUnsafe;
-        //   expect(unsafe).toBe(false);
+          // Make sure Repo is safe before price drop
+          await promisify(cb => optionsContracts[0].methods.isUnsafe("1").send(cb));
+          var returnValues = (await optionsContracts[0].getPastEvents( 'unsafeCalled', { fromBlock: 0, toBlock: 'latest' } ));
+          var unsafe = returnValues[0].returnValues.isUnsafe;
+          expect(unsafe).toBe(false);
 
           // change the oracle price: 
           await compoundOracle.updatePrice("100");
 
-        // // Make sure repo is unsafe after price drop
-        //   var unsafe = await promisify(cb => optionsContracts[0].methods.isUnsafe("1").send(cb));
-        //   var returnValues = (await optionsContracts[0].getPastEvents( 'unsafeCalled', { fromBlock: 0, toBlock: 'latest' } ));
-        //   var unsafe = returnValues[1].returnValues.isUnsafe;
-        //   expect(unsafe).toBe(true);
+        // Make sure repo is unsafe after price drop
+          var unsafe = await promisify(cb => optionsContracts[0].methods.isUnsafe("1").send(cb));
+          var returnValues = (await optionsContracts[0].getPastEvents( 'unsafeCalled', { fromBlock: 0, toBlock: 'latest' } ));
+          var unsafe = returnValues[1].returnValues.isUnsafe;
+          expect(unsafe).toBe(true);
       })
 
-    //   it("Should not be able to liquidate more than collateral factor when the price drops", async () => {
-    //     // Try to liquidate the repo
-    //     try {
-    //         await promisify(cb => optionsContracts[0].methods.liquidate("1", "11001105").send({from: firstOwnerAddress, gas: '100000'}, cb));
-    //     } catch (err) {
-    //         return; 
-    //     }
+      it("Should not be able to liquidate more than collateral factor when the price drops", async () => {
+        // Try to liquidate the repo
+        try {
+            await promisify(cb => optionsContracts[0].methods.liquidate("1", "11001105").send({from: firstOwnerAddress, gas: '100000'}, cb));
+        } catch (err) {
+            return; 
+        }
 
-    //     truffleAssert.fails("should throw err");
-    //     })
+        truffleAssert.fails("should throw err");
+        })
 
       it("Should be able to liquidate when the price drops", async () => {
           const repoIndex = "1"
@@ -352,6 +348,7 @@ contract('OptionsContract', (accounts) => {
           // TODO: how to check that collateral has increased? 
           
       })
+
 
   })
 
