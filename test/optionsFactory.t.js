@@ -12,6 +12,9 @@ const web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'))
 const util = new Util(web3);
 var expect  = require('expect');
 var OptionsFactory = artifacts.require("../contracts/OptionsFactory.sol");
+var OptionsExchange = artifacts.require("../contracts/OptionsExchange.sol");
+var CompoundOracle = artifacts.require("../contracts/lib/MockCompoundOracle.sol");
+var UniswapFactory = artifacts.require("../contracts/lib/MockUniswapFactory.sol");
 var { AssetAdded }= require('./utils/FactoryEvents.js')
 const truffleAssert = require('truffle-assertions');
 
@@ -27,6 +30,21 @@ contract('OptionsFactory', (accounts) => {
 
   before(async () => {
     optionsFactory = await OptionsFactory.deployed();
+        // 1. Deploy mock contracts
+      // 1.1 Compound Oracle
+      var compoundOracle = await CompoundOracle.deployed();
+      // 1.2 Uniswap Factory
+      var uniswapFactory = await UniswapFactory.deployed();
+      // 2. Deploy our contracts
+      // deploys the Options Exhange contract
+      optionsExchange = await OptionsExchange.deployed();
+
+      // TODO: remove this later. For now, set the compound Oracle and uniswap Factory addresses here.
+      await optionsExchange.setUniswapAndCompound(uniswapFactory.address, compoundOracle.address);
+
+      // Deploy the Options Factory contract and add assets to it
+      optionsFactory = await OptionsFactory.deployed();
+      await optionsFactory.setOptionsExchange(optionsExchange.address);
   })
 
   let optionsContractAddr;

@@ -498,7 +498,7 @@ contract OptionsContract is OptionsUtils, ERC20 {
 
         // // transfer the collateral and burn the _oTokens
          _burn(msg.sender, _oTokens);
-        //  transferCollateral(msg.sender, amtCollateralToPay);
+         transferCollateral(msg.sender, amtCollateralToPay);
          // TODO: What happens to fees? 
 
          // TODO: emit event and return something
