@@ -291,90 +291,68 @@ contract('OptionsContract', (accounts) => {
 
   })
 
-//   describe('#removeCollateral()', () => {
-//     it("should be able to remove collateral if sufficiently collateralized", async () => {
-//       const repoIndex = "1";
-//       const numTokens = "1000";
-
-//       var result = await promisify(cb =>  optionsContracts[0].methods.removeCollateral(repoIndex, numTokens).send({from: creatorAddress, gas: '100000'}, cb));
-      
-//       // Check the contract correctly updated the repo
-//       var repo = await promisify(cb => optionsContracts[0].methods.getRepoByIndex(repoIndex).call(cb));
-//       const expectedRepo = {
-//         '0': '19999000',
-//         '1': '138878',
-//         '2': creatorAddress }
-//       expect(repo).toMatchObject(expectedRepo);
-
-//       // TODO: Check that the owner correctly got their collateral back. 
-//     })
-
-//     it("only owner should be able to remove collateral", async () => {
-//         const repoIndex = "1";
-
-//       try {
-//         var result = await promisify(cb =>  optionsContracts[0].methods.removeCollateral(repoIndex,"10").send({from: firstOwnerAddress, gas: '100000'}, cb));
-//         } catch (err) {
-//           return;
-//         }
-  
-//         truffleAssert.fails("should throw error");
-//     })
-
-    // it("should be able to remove more collateral if sufficient collateral", async () => {
-    //   const repoIndex = "1";
-    //   const numTokens = "500";
-
-    //   var result = await promisify(cb =>  optionsContracts[0].methods.removeCollateral(repoIndex, numTokens).send({from: creatorAddress, gas: '100000'}, cb));
-      
-    //   // Check the contract correctly updated the repo
-    //   var repo = await promisify(cb => optionsContracts[0].methods.getRepoByIndex(repoIndex).call(cb));
-    //   const expectedRepo = {
-    //     '0': '19998500',
-    //     '1': '138878',
-    //     '2': creatorAddress }
-    //   expect(repo).toMatchObject(expectedRepo);
-    // })
-
-    // it("should not be able to remove collateral if not sufficient collateral", async () => {
-    //     const repoIndex = "1";
-    //     try {
-    //         var result = await promisify(cb =>  optionsContracts[0].methods.removeCollateral(repoIndex,"1069").send({from: creatorAddress, gas: '100000'}, cb));
-    //     } catch (err) {
-    //         return;
-    //     }
-
-    //     // check that the collateral in the repo remains the same 
-    //     var repo = await promisify(cb => optionsContracts[0].methods.getRepoByIndex(repoIndex).call(cb));
-    //     const expectedRepo = {
-    //         '0': '19999500',
-    //         '1': '138878',
-    //         '2': creatorAddress }
-    //     expect(repo).toMatchObject(expectedRepo);
-        
-    //     truffleAssert.fails("should throw error");
-    // })
-
-
-//   })
 
   describe("#liquidate()", () => {
       it("Repo should be unsafe when the price drops", async () => {
-          // Make sure Repo is safe before price drop
-          await promisify(cb => optionsContracts[0].methods.isUnsafe("1").send(cb));
-          var returnValues = (await optionsContracts[0].getPastEvents( 'unsafeCalled', { fromBlock: 0, toBlock: 'latest' } ));
-          var unsafe = returnValues[0].returnValues.isUnsafe;
-          expect(unsafe).toBe(false);
+        //   // Make sure Repo is safe before price drop
+        //   await promisify(cb => optionsContracts[0].methods.isUnsafe("1").send(cb));
+        //   var returnValues = (await optionsContracts[0].getPastEvents( 'unsafeCalled', { fromBlock: 0, toBlock: 'latest' } ));
+        //   var unsafe = returnValues[0].returnValues.isUnsafe;
+        //   expect(unsafe).toBe(false);
 
           // change the oracle price: 
           await compoundOracle.updatePrice("100");
 
-        // Make sure repo is unsafe after price drop
-          var unsafe = await promisify(cb => optionsContracts[0].methods.isUnsafe("1").send(cb));
-          var returnValues = (await optionsContracts[0].getPastEvents( 'unsafeCalled', { fromBlock: 0, toBlock: 'latest' } ));
-          var unsafe = returnValues[1].returnValues.isUnsafe;
-          expect(unsafe).toBe(true);
+        // // Make sure repo is unsafe after price drop
+        //   var unsafe = await promisify(cb => optionsContracts[0].methods.isUnsafe("1").send(cb));
+        //   var returnValues = (await optionsContracts[0].getPastEvents( 'unsafeCalled', { fromBlock: 0, toBlock: 'latest' } ));
+        //   var unsafe = returnValues[1].returnValues.isUnsafe;
+        //   expect(unsafe).toBe(true);
       })
+
+    //   it("Should not be able to liquidate more than collateral factor when the price drops", async () => {
+    //     // Try to liquidate the repo
+    //     try {
+    //         await promisify(cb => optionsContracts[0].methods.liquidate("1", "11001105").send({from: firstOwnerAddress, gas: '100000'}, cb));
+    //     } catch (err) {
+    //         return; 
+    //     }
+
+    //     truffleAssert.fails("should throw err");
+    //     })
+
+      it("Should be able to liquidate when the price drops", async () => {
+          const repoIndex = "1"
+          //Liquidator first needs oTokens
+          await promisify(cb => optionsContracts[0].methods.transfer(firstOwnerAddress, "11001100").send({from: creatorAddress, gas: '100000'}, cb));
+          var amtPTokens = await promisify(cb => optionsContracts[0].methods.balanceOf(firstOwnerAddress).call(cb));
+          expect(amtPTokens).toBe("11001110");
+
+          // Approve before burn
+          await promisify(cb => optionsContracts[0].methods.approve(optionsContracts[0].options.address, "10000000000000000").send({from: firstOwnerAddress}, cb));
+
+          // Try to liquidate the repo
+          await promisify(cb => optionsContracts[0].methods.liquidate(repoIndex, "11001100").send({from: firstOwnerAddress, gas: '100000'}, cb));
+
+          // Check that the correct liquidate events are emitted
+          var returnValues = (await optionsContracts[0].getPastEvents( 'Liquidate', { fromBlock: 0, toBlock: 'latest' } ));
+          expect(returnValues[0].returnValues.amtCollateralToPay).toBe('9999999');
+
+          // check that the repo balances have changed
+          var repo = await promisify(cb => optionsContracts[0].methods.getRepoByIndex(repoIndex).call(cb));
+          const expectedRepo = {
+            '0': '10000001',
+            '1': '16776667',
+            '2': creatorAddress }
+          expect(repo).toMatchObject(expectedRepo);
+
+          // check that the liquidator balances have changed 
+          var amtPTokens = await promisify(cb => optionsContracts[0].methods.balanceOf(firstOwnerAddress).call(cb));
+          expect(amtPTokens).toBe("10");
+          // TODO: how to check that collateral has increased? 
+          
+      })
+
   })
 
 });

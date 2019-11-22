@@ -29,10 +29,10 @@ contract OptionsContract is OptionsUtils, ERC20 {
 
     uint256 totalCollateral; // denominated in collateralType, depending on underlying type need to be able to handle decimal places
     uint256 totalUnderlying; // denominated in underlyingType, depending on underlying type need to be able to handle decimal places
-    Number liquidationIncentive; //(need 2 decimal places → egs. 45.55% needs to be storable)
+    Number liquidationIncentive = Number(1010, -3); // need 3 decimal places → egs. 1.054 is 5.4% needs to be storable
     Number transactionFee; // needs 2 decimal places -> egs. 10.02%
-    Number liquidationFactor; // Max amt a repo can be liquidated by i.e. max collateral that can be taken in a time period. 2 decimals. 
-    Number liquidationFee; // The fees paid to our protocol every time a liquidation happens
+    Number liquidationFactor = Number(500, -3); // need 2 decimal places → egs. 500 is 50.0% needs to be storable. Max amt a repo can be liquidated by i.e. max collateral that can be taken in a time period. 
+    Number liquidationFee = Number(1000, -3); // need 3 decimal places → egs. 1.054 is 5.4% needs to be storable. The fees paid to our protocol every time a liquidation happens
     Number numRepos; 
     uint256 windowSize; // amt of seconds before expiry tht a person has to exercise
     uint256 totalExercised; // total collateral withdrawn from contract balance
@@ -95,9 +95,10 @@ contract OptionsContract is OptionsUtils, ERC20 {
     event ETHCollateralAdded(uint256 repoIndex, uint256 amount);
     event ERC20CollateralAdded(uint256 repoIndex, uint256 amount);
     event IssuedOptionTokens(address issuedTo);
+    // TODO: remove safe + unsafe called once testing is done
     event safe(uint256 leftVal, uint256 rightVal, int32 leftExp, int32 rightExp, bool isSafe);
     event unsafeCalled(bool isUnsafe);
-    // event BurnOptions()
+    event Liquidate (uint256 amtCollateralToPay);
 
     function openRepo() public returns (uint) {
         require(now < expiry, "Options contract expired");
@@ -438,42 +439,70 @@ contract OptionsContract is OptionsUtils, ERC20 {
     amount of collateral out. They can get a max of liquidationFactor * collateral out 
     in one function call. 
     */ 
-    // function liquidate(uint256 repoNum, uint256 _oTokens) public {
-    //     // can only be called before the options contract expired
-    //     require(now < expiry, "Options contract expired");
+    function liquidate(uint256 repoNum, uint256 _oTokens) public {
+        // can only be called before the options contract expired
+        require(now < expiry, "Options contract expired");
 
-    //     Repo storage repo = repos[repoNum];
+        Repo storage repo = repos[repoNum];
 
-    //     // cannot liquidate a safe repo.
-    //     require(isUnsafe(repoNum), "Repo is safe");
+        // cannot liquidate a safe repo.
+        require(isUnsafe(repoNum), "Repo is safe");
 
-    //     // Owner can't liquidate themselves
-    //     require(msg.sender != repo.owner, "Owner can't liquidate themselves");
+        // Owner can't liquidate themselves
+        require(msg.sender != repo.owner, "Owner can't liquidate themselves");
 
-    //     // TODO: Price oracle + decimal conversions for liqFee etc. 
-    //     // Get price from oracle
-    //     uint256 ethToCollateralPrice = getPrice(address(collateral));
-    //     uint256 ethToStrikePrice = getPrice(address(strikeAsset));
-    //     uint256 strikeToCollateralPrice = ethToCollateralPrice.div(ethToStrikePrice); 
+        // TODO: Price oracle + decimal conversions for liqFee etc. 
+        // Get price from oracle
+        uint256 ethToCollateralPrice = getPrice(address(collateral));
+        uint256 ethToStrikePrice = getPrice(address(strikeAsset));
+ 
+        // calculate how much should be paid out        
+        uint256 amtCollateralToPayNum = _oTokens.mul(strikePrice.value).mul(liquidationIncentive.value).mul(ethToCollateralPrice);
+        int32 amtCollateralToPayExp = strikePrice.exponent + liquidationIncentive.exponent - collateralExp;
+        uint256 amtCollateralToPay = 0;
+        if(amtCollateralToPayExp > 0) {
+            uint32 exp = uint32(amtCollateralToPayExp);
+            amtCollateralToPay = amtCollateralToPayNum.mul(10 ** exp).div(ethToStrikePrice);
+        } else {
+            uint32 exp = uint32(-1 * amtCollateralToPayExp);
+            amtCollateralToPay = (amtCollateralToPayNum.div(10 ** exp)).div(ethToStrikePrice);
+        }
 
-    //     // calculate how much should be paid out
-        
-    //     uint256 amtFees = _oTokens.mul(strikePrice).mul(liquidationFee).mul(strikeToCollateralPrice);
-    //     uint256 amtCollateralToPay = _oTokens.mul(strikePrice).mul(liquidationIncentive).mul(strikeToCollateralPrice);
-    //     require(amtCollateralToPay.add(amtFees) <= repo.collateral.mul(liquidationFactor), 
-    //     "Can only liquidate liquidation factor at any given time");
+        // calculate our protocol fees
+        // uint256 amtCollateralFeeNum = _oTokens.mul(strikePrice.value).mul(liquidationFee.value).mul(ethToCollateralPrice);
+        // int32 amtCollateralFeeExp = strikePrice.exponent + liquidationFee.exponent - collateralExp;
+        // if(amtCollateralToPayExp > 0) {
+        //     uint32 exp = uint32(amtCollateralFeeExp);
+        //     amtCollateralFeeNum = amtCollateralFeeNum.mul(10 ** exp).div(ethToStrikePrice);
+        // } else {
+        //     uint32 exp = uint32(-1 * amtCollateralFeeExp);
+        //     amtCollateralFeeNum = (amtCollateralFeeNum.div(10 ** exp)).div(ethToStrikePrice);
+        // }
 
-    //     // deduct the collateral and putsOutstanding
-    //     repo.collateral = repo.collateral.sub(amtCollateralToPay.add(amtFees));
-    //     repo.putsOutstanding = repo.putsOutstanding.sub(_oTokens);
+        emit Liquidate(amtCollateralToPay);
 
-    //     // transfer the collateral and burn the _oTokens
-    //      _burnFrom(msg.sender, _oTokens);
-    //      transferCollateral(msg.sender, amtCollateralToPay);
-    //      // TODO: What happens to fees? 
+        // calculate the maximum amount of collateral that can be liquidated
+        uint256 maxCollateralLiquidatable = repo.collateral.mul(liquidationFactor.value);
+        if(liquidationFactor.exponent > 0) {
+            maxCollateralLiquidatable = maxCollateralLiquidatable.div(10 ** uint32(liquidationFactor.exponent));
+        } else {
+            maxCollateralLiquidatable = maxCollateralLiquidatable.div(10 ** uint32(-1 * liquidationFactor.exponent));
+        }
 
-    //      // TODO: emit event and return something
-    // }
+        require(amtCollateralToPay <= maxCollateralLiquidatable, 
+        "Can only liquidate liquidation factor at any given time");
+
+        // deduct the collateral and putsOutstanding
+        repo.collateral = repo.collateral.sub(amtCollateralToPay);
+        repo.putsOutstanding = repo.putsOutstanding.sub(_oTokens);
+
+        // // transfer the collateral and burn the _oTokens
+         _burn(msg.sender, _oTokens);
+        //  transferCollateral(msg.sender, amtCollateralToPay);
+         // TODO: What happens to fees? 
+
+         // TODO: emit event and return something
+    }
 
     function transferCollateral(address payable _addr, uint256 _amt) internal {
         if (isETH(collateral)){
