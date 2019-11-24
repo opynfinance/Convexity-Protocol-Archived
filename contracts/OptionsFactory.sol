@@ -28,6 +28,12 @@ contract OptionsFactory is Ownable {
     constructor() public {
     }
 
+
+    // TODO: need to remove this instead and replace with a constructor. 
+    function setOptionsExchange(address _optionsExchange) public {
+        optionsExchange = OptionsExchange(_optionsExchange);
+    }
+
     function createOptionsContract(
         string memory _collateralType,
         string memory _underlyingType,

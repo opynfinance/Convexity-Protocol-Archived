@@ -11,6 +11,12 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 
 contract OptionsContract is OptionsUtils, ERC20 {
     using SafeMath for uint256;
+
+    struct Number {
+        uint256 value;
+        int32 exponent; 
+    }
+
     struct Repo {
         uint256 collateral; // 10 ^ -18
         uint256 putsOutstanding;
@@ -23,23 +29,27 @@ contract OptionsContract is OptionsUtils, ERC20 {
 
     uint256 totalCollateral; // denominated in collateralType, depending on underlying type need to be able to handle decimal places
     uint256 totalUnderlying; // denominated in underlyingType, depending on underlying type need to be able to handle decimal places
-    uint32 penaltyFee; //(need 4 decimal places → egs. 45.55% needs to be storable)
-    uint32 transactionFee; // needs 4 decimal places -> egs. 10.02%
-    uint128 numRepos;
-    bool optionType; // 1 is American / 0 is European
+    Number liquidationIncentive; //(need 2 decimal places → egs. 45.55% needs to be storable)
+    Number transactionFee; // needs 2 decimal places -> egs. 10.02%
+    Number liquidationFactor; // Max amt a repo can be liquidated by i.e. max collateral that can be taken in a time period. 2 decimals. 
+    Number liquidationFee; // The fees paid to our protocol every time a liquidation happens
+    Number numRepos; 
     uint256 windowSize; // amt of seconds before expiry tht a person has to exercise
     uint256 totalExercised; // total collateral withdrawn from contract balance
     uint256 totalStrikePool; // total amount of strikeAssets, gets incremented on liquidations
 
-    uint16 public collateralizationRatio = 16; //(scaled by 10). 16 means 1.6
+    Number public collateralizationRatio = Number(16, -1); //(scaled by 10). 16 means 1.6
 
     IERC20 public collateral;
+    int32 collateralExp = -18;
     IERC20 public underlying;
-    uint256 public strikePrice; //depending on underlying type need to be able to handle decimal places. rn 10^-18
+    Number public strikePrice; // number of strike tokens given out per oToken. 
     IERC20 public strikeAsset;
     IERC20 public payout;
     uint256 public expiry;
 
+    // TODO: include windowsize, collateralizationRatio, liquidationFactor, liquidationFee, liquidationIncentive in constructor. 
+    // TODO: do we need to be able to change any of the above
     /* @notice: constructor
         @param _collateral: The collateral asset
         @param _underlying: The asset that is being protected
@@ -66,18 +76,27 @@ contract OptionsContract is OptionsUtils, ERC20 {
         collateral = _collateral;
 
         underlying = _underlying;
-        strikePrice = _strikePrice;
+        /* NOTE: the precision of strikePrice has to be less than precision of underlying. 
+        if 1oToken protects 10^-18 Dai and gives you 9 * 10^-19, then if Dai only has 18 digits of precision, 
+        the oToken can only protect against 10^-17 Dai. */ 
+        // TODO: accept precision. 
+        strikePrice = Number(_strikePrice, -18);
         strikeAsset = _strikeAsset;
         payout = _payout;
 
         expiry = _expiry;
         optionsExchange = _optionsExchange;
+
+        // TODO: remove this later. 
+        setUniswapAndCompound(address(_optionsExchange.UNISWAP_FACTORY()), address(_optionsExchange.COMPOUND_ORACLE()));
     }
 
     event RepoOpened(uint256 repoIndex);
     event ETHCollateralAdded(uint256 repoIndex, uint256 amount);
     event ERC20CollateralAdded(uint256 repoIndex, uint256 amount);
-    event IssuedOptionTokens(address issuedTo, uint256 amount);
+    event IssuedOptionTokens(address issuedTo);
+    event safe(uint256 leftVal, uint256 rightVal, int32 leftExp, int32 rightExp, bool isSafe);
+    event unsafeCalled(bool isUnsafe);
     // event BurnOptions()
 
     function openRepo() public returns (uint) {
@@ -108,105 +127,105 @@ contract OptionsContract is OptionsUtils, ERC20 {
 
 /// TODO: look up pToken to underlying ratio. rn 1:1.
 /// TODO: add fees
-    function exercise(uint256 _pTokens) public payable {
-        // 1. before exercise window: revert
-        require(now >= expiry - windowSize, "Too early to exercise");
-        require(now < expiry, "Beyond exercise time");
+    // function exercise(uint256 _pTokens) public payable {
+    //     // 1. before exercise window: revert
+    //     require(now >= expiry - windowSize, "Too early to exercise");
+    //     require(now < expiry, "Beyond exercise time");
 
-        // 2. during exercise window: exercise
-        /// 2.1 ensure person calling has enough pTokens
-        require(balanceOf(msg.sender) >= _pTokens, "Not enough pTokens");
+    //     // 2. during exercise window: exercise
+    //     /// 2.1 ensure person calling has enough pTokens
+    //     require(balanceOf(msg.sender) >= _pTokens, "Not enough pTokens");
 
-        /// 2.2 check they have corresponding number of underlying (and transfer in)
-        if (isETH(collateral)) {
-            require(msg.value == _pTokens, "Incorrect msg.value");
-        } else {
-            require(
-                collateral.transferFrom(msg.sender, address(this), _pTokens),
-                "Could not transfer in tokens"
-            );
-        }
-        totalUnderlying = totalUnderlying.add(_pTokens);
-        /// 2.3 transfer in pTokens
-        _burnFrom(msg.sender, _pTokens);
+    //     /// 2.2 check they have corresponding number of underlying (and transfer in)
+    //     if (isETH(collateral)) {
+    //         require(msg.value == _pTokens, "Incorrect msg.value");
+    //     } else {
+    //         require(
+    //             collateral.transferFrom(msg.sender, address(this), _pTokens),
+    //             "Could not transfer in tokens"
+    //         );
+    //     }
+    //     totalUnderlying = totalUnderlying.add(_pTokens);
+    //     /// 2.3 transfer in pTokens
+    //     _burnFrom(msg.sender, _pTokens);
 
-        /// 2.4 sell enough collateral to get strikePrice * pTokens number of payoutTokens
+    //     /// 2.4 sell enough collateral to get strikePrice * pTokens number of payoutTokens
 
-        /// 2.4.0 first sell from the strikeAsset pool
-        uint256 amtOwed = strikePrice.mul(_pTokens);
-        /// 2.4.0.1. strikeAssetPool is big enough
-        if (totalStrikePool >= amtOwed) {
-            totalStrikePool = totalStrikePool.sub(amtOwed);
+    //     /// 2.4.0 first sell from the strikeAsset pool
+    //     uint256 amtOwed = strikePrice.mul(_pTokens);
+    //     /// 2.4.0.1. strikeAssetPool is big enough
+    //     if (totalStrikePool >= amtOwed) {
+    //         totalStrikePool = totalStrikePool.sub(amtOwed);
 
-            if(strikeAsset != payout) {
-                optionsExchange.exchangeAndTransferInput(strikeAsset, payout, amtOwed, msg.sender);
-            } else {
-                transferCollateral(msg.sender, amtOwed);
-            }
-        }
-        // 2.4.0.2 strikeAsset + normal pool
-        else {
+    //         if(strikeAsset != payout) {
+    //             optionsExchange.exchangeAndTransferInput(strikeAsset, payout, amtOwed, msg.sender);
+    //         } else {
+    //             transferCollateral(msg.sender, amtOwed);
+    //         }
+    //     }
+    //     // 2.4.0.2 strikeAsset + normal pool
+    //     else {
 
-            _pTokens = _pTokens.sub((totalStrikePool.div(strikePrice)));
+    //         _pTokens = _pTokens.sub((totalStrikePool.div(strikePrice)));
 
-            if(strikeAsset != payout) {
-                optionsExchange.exchangeAndTransferInput(strikeAsset, payout, totalStrikePool, msg.sender);
-            } else {
-                transferCollateral(msg.sender, totalStrikePool);
-            }
-            totalStrikePool = 0;
-        }
-        /// TODO: decimal places of different assets.
-        /// 2.4.1 if collateral = strike = payout, send strikePrice * pTokens number of collateral.
-        if (collateral == strikeAsset && strikeAsset == payout) {
-            uint256 amtToSend = strikePrice.mul(_pTokens);
-            transferCollateral(msg.sender, amtToSend);
-            totalExercised = totalExercised.add(amtToSend);
-        }
+    //         if(strikeAsset != payout) {
+    //             optionsExchange.exchangeAndTransferInput(strikeAsset, payout, totalStrikePool, msg.sender);
+    //         } else {
+    //             transferCollateral(msg.sender, totalStrikePool);
+    //         }
+    //         totalStrikePool = 0;
+    //     }
+    //     /// TODO: decimal places of different assets.
+    //     /// 2.4.1 if collateral = strike = payout, send strikePrice * pTokens number of collateral.
+    //     if (collateral == strikeAsset && strikeAsset == payout) {
+    //         uint256 amtToSend = strikePrice.mul(_pTokens);
+    //         transferCollateral(msg.sender, amtToSend);
+    //         totalExercised = totalExercised.add(amtToSend);
+    //     }
 
-        /* TODO: In the long term, need to first calculate how many payoutTokens you can get based
-        on only oracle prices, not with uniswap slippage. Then call the uniswap transfer output on the payOutTokens. */
-        /* 2.4.2 if collateral = strike != payout,
-        uniswap transfer input. This transfers in strikePrice * pTokens collateral for how many ever payoutTokens you can get. */
-        else if(collateral == strikeAsset && strikeAsset != payout) {
-            uint256 amtToSend = strikePrice.mul(_pTokens);
-            optionsExchange.exchangeAndTransferInput(collateral, payout, amtToSend, msg.sender);
-            totalExercised = totalExercised.add(amtToSend);
-        }
-        /* 2.4.3 if collateral != strike = payout. uniswap transfer output. This transfers in as much
-        collateral as will get you strikePrice * payout payoutTokens. */
-        else if (collateral != strikeAsset && strikeAsset == payout) {
-            uint256 amtToPayout = strikePrice.mul(_pTokens);
-            uint256 amtSent = optionsExchange.exchangeAndTransferOutput(collateral, payout, amtToPayout, msg.sender);
-            totalExercised = totalExercised.add(amtSent);
-        }
+    //     /* TODO: In the long term, need to first calculate how many payoutTokens you can get based
+    //     on only oracle prices, not with uniswap slippage. Then call the uniswap transfer output on the payOutTokens. */
+    //     /* 2.4.2 if collateral = strike != payout,
+    //     uniswap transfer input. This transfers in strikePrice * pTokens collateral for how many ever payoutTokens you can get. */
+    //     else if(collateral == strikeAsset && strikeAsset != payout) {
+    //         uint256 amtToSend = strikePrice.mul(_pTokens);
+    //         optionsExchange.exchangeAndTransferInput(collateral, payout, amtToSend, msg.sender);
+    //         totalExercised = totalExercised.add(amtToSend);
+    //     }
+    //     /* 2.4.3 if collateral != strike = payout. uniswap transfer output. This transfers in as much
+    //     collateral as will get you strikePrice * payout payoutTokens. */
+    //     else if (collateral != strikeAsset && strikeAsset == payout) {
+    //         uint256 amtToPayout = strikePrice.mul(_pTokens);
+    //         uint256 amtSent = optionsExchange.exchangeAndTransferOutput(collateral, payout, amtToPayout, msg.sender);
+    //         totalExercised = totalExercised.add(amtSent);
+    //     }
 
-        /* 2.4.4 if collateral = payout != strike. strikeToCollateralPrice = amt of collateral 1 strikeToken can get you.
-         Payout strikeToCollateralPrice * strikePrice * pTokens worth of payoutTokens. */
-         else if (collateral == payout && payout != strikeAsset) {
-            //TODO: first check if either are ETH so we don't have to call oracle
-            uint256 ethToCollateralPrice = getPrice(address(collateral));
-            uint256 ethToStrikePrice = getPrice(address(strikeAsset));
-            uint256 strikeToCollateralPrice = ethToStrikePrice / ethToCollateralPrice;
-            uint256 amtToPayout = strikePrice.mul(_pTokens).mul(strikeToCollateralPrice);
-            transferCollateral(msg.sender, amtToPayout);
-            totalExercised = totalExercised.add(amtToPayout);
+    //     /* 2.4.4 if collateral = payout != strike. strikeToCollateralPrice = amt of collateral 1 strikeToken can get you.
+    //      Payout strikeToCollateralPrice * strikePrice * pTokens worth of payoutTokens. */
+    //      else if (collateral == payout && payout != strikeAsset) {
+    //         //TODO: first check if either are ETH so we don't have to call oracle
+    //         uint256 ethToCollateralPrice = getPrice(address(collateral));
+    //         uint256 ethToStrikePrice = getPrice(address(strikeAsset));
+    //         uint256 strikeToCollateralPrice = ethToStrikePrice / ethToCollateralPrice;
+    //         uint256 amtToPayout = strikePrice.mul(_pTokens).mul(strikeToCollateralPrice);
+    //         transferCollateral(msg.sender, amtToPayout);
+    //         totalExercised = totalExercised.add(amtToPayout);
 
-         }
+    //      }
 
-         /* 2.4.5, collateral != strike != payout. Uniswap transfer output. This sells
-         enough collateral to get strikePrice * pTokens * strikeToPayoutPrice payoutTokens. */
-         else {
-            //TODO: first check if either are ETH so we don't have to call oracle
-            uint256 ethToPayoutPrice = getPrice(address(payout));
-            uint256 ethToStrikePrice = getPrice(address(strikeAsset));
-            uint256 strikeToPayoutPrice = ethToStrikePrice / ethToPayoutPrice;
-            uint256 amtToPayout = strikePrice.mul(_pTokens).mul(strikeToPayoutPrice);
-            uint256 amtSent = optionsExchange.exchangeAndTransferOutput(collateral, payout, amtToPayout, msg.sender);
-            totalExercised = totalExercised.add(amtSent);
-         }
-        // 3. after: TBD (but don't allow exercise)
-    }
+    //      /* 2.4.5, collateral != strike != payout. Uniswap transfer output. This sells
+    //      enough collateral to get strikePrice * pTokens * strikeToPayoutPrice payoutTokens. */
+    //      else {
+    //         //TODO: first check if either are ETH so we don't have to call oracle
+    //         uint256 ethToPayoutPrice = getPrice(address(payout));
+    //         uint256 ethToStrikePrice = getPrice(address(strikeAsset));
+    //         uint256 strikeToPayoutPrice = ethToStrikePrice / ethToPayoutPrice;
+    //         uint256 amtToPayout = strikePrice.mul(_pTokens).mul(strikeToPayoutPrice);
+    //         uint256 amtSent = optionsExchange.exchangeAndTransferOutput(collateral, payout, amtToPayout, msg.sender);
+    //         totalExercised = totalExercised.add(amtSent);
+    //      }
+    //     // 3. after: TBD (but don't allow exercise)
+    // }
 
     function getReposByOwner(address _owner) public view returns (uint[] memory) {
         uint[] memory reposOwned;
@@ -271,61 +290,55 @@ contract OptionsContract is OptionsUtils, ERC20 {
 
         Repo storage repo = repos[repoIndex];
         require(msg.sender == repo.owner, "Only owner can issue options");
-
-        //gets the price from the oracle
-        uint256 ethToCollateralPrice = getPrice(address(collateral));
-        uint256 ethToStrikePrice = getPrice(address(strikeAsset));
-
-        // collateralToStrikePrice = amt of strikeTokens 1 collateralToken can give you.
-        uint256 collateralToStrikePrice = ethToCollateralPrice / ethToStrikePrice;
-
+    
         // checks that the repo is sufficiently collateralized 
         uint256 newNumTokens = repo.putsOutstanding.add(numTokens);
-        require(newNumTokens.mul(collateralizationRatio).mul(strikePrice).div(10) <= repo.collateral.mul(collateralToStrikePrice), "unsafe to mint");
+        require(isSafe(repo.collateral, newNumTokens), "unsafe to mint");
         _mint(msg.sender, numTokens);
         repo.putsOutstanding = newNumTokens;
 
-        emit IssuedOptionTokens(msg.sender, numTokens);
+        // TODO: figure out proper events:
+        emit IssuedOptionTokens(msg.sender);
         return;
     }
 
-    //this function opens a repo, adds ETH collateral, and mints new putTokens in one step, returing the repoIndex
-    function createOptionETHCollateral(uint256 amtToCreate) payable external returns (uint256) {
-        require(isETH(collateral), "cannot add ETH as collateral to an ERC20 collateralized option");
-        uint256 repoIndex = openRepo();
-        //TODO: can ETH be passed around payables like this?
-        createOptionETHCollateral(amtToCreate, repoIndex);
-        return repoIndex;
-    }
+    // this function opens a repo, adds ETH collateral, and mints new putTokens in one step, returing the repoIndex
+    // function createOptionETHCollateral(uint256 amtToCreate) payable external returns (uint256) {
+    //     require(isETH(collateral), "cannot add ETH as collateral to an ERC20 collateralized option");
+    //     uint256 repoIndex = openRepo();
+    //     //TODO: can ETH be passed around payables like this?
+    //     createOptionETHCollateral(amtToCreate, repoIndex);
+    //     return repoIndex;
+    // }
 
-    //this function adds ETH collateral to an existing repo and mints new tokens in one step
-    function createOptionETHCollateral(uint256 amtToCreate, uint256 repoIndex) public payable {
-        require(isETH(collateral), "cannot add ETH as collateral to an ERC20 collateralized option");
-        require(repos[repoIndex].owner == msg.sender, "trying to createOption on a repo that is not yours");
-        //TODO: can ETH be passed around payables like this?
-        addETHCollateral(repoIndex);
-        issueOptionTokens(repoIndex, amtToCreate);
-    }
+    // //this function adds ETH collateral to an existing repo and mints new tokens in one step
+    // function createOptionETHCollateral(uint256 amtToCreate, uint256 repoIndex) public payable {
+    //     require(isETH(collateral), "cannot add ETH as collateral to an ERC20 collateralized option");
+    //     require(repos[repoIndex].owner == msg.sender, "trying to createOption on a repo that is not yours");
+    //     //TODO: can ETH be passed around payables like this?
+    //     addETHCollateral(repoIndex);
+    //     issueOptionTokens(repoIndex, amtToCreate);
+    // }
 
-    //this function opens a repo, adds ERC20 collateral to that repo and mints new tokens in one step, returning the repoIndex
-    function createOptionERC20Collateral(uint256 amtToCreate, uint256 amtCollateral) external returns (uint256) {
-        //TODO: was it okay to remove the require here?
-        uint256 repoIndex = openRepo();
-        createOptionERC20Collateral(repoIndex, amtToCreate, amtCollateral);
-        return repoIndex;
-    }
+    // //this function opens a repo, adds ERC20 collateral to that repo and mints new tokens in one step, returning the repoIndex
+    // function createOptionERC20Collateral(uint256 amtToCreate, uint256 amtCollateral) external returns (uint256) {
+    //     //TODO: was it okay to remove the require here?
+    //     uint256 repoIndex = openRepo();
+    //     createOptionERC20Collateral(repoIndex, amtToCreate, amtCollateral);
+    //     return repoIndex;
+    // }
 
-    //this function adds ERC20 collateral to an existing repo and mints new tokens in one step
-    function createOptionERC20Collateral(uint256 amtToCreate, uint256 amtCollateral, uint256 repoIndex) public {
-        require(!isETH(collateral), "cannot add ERC20 collateral to an ETH collateralized option");
-        require(repos[repoIndex].owner == msg.sender, "trying to createOption on a repo that is not yours");
-        addERC20Collateral(repoIndex, amtCollateral);
-        issueOptionTokens(repoIndex, amtToCreate);
-    }
+    // //this function adds ERC20 collateral to an existing repo and mints new tokens in one step
+    // function createOptionERC20Collateral(uint256 amtToCreate, uint256 amtCollateral, uint256 repoIndex) public {
+    //     require(!isETH(collateral), "cannot add ERC20 collateral to an ETH collateralized option");
+    //     require(repos[repoIndex].owner == msg.sender, "trying to createOption on a repo that is not yours");
+    //     addERC20Collateral(repoIndex, amtCollateral);
+    //     issueOptionTokens(repoIndex, amtToCreate);
+    // }
 
-    function createAndSellOption(uint256 repoIndex, uint256 amtToBurn) public {
-        //TODO: write this
-    }
+    // function createAndSellOption(uint256 repoIndex, uint256 amtToBurn) public {
+    //     //TODO: write this
+    // }
 
     /* @notice: allows the owner to burn their put Tokens
     @param repoIndex: Index of the repo to burn putTokens
@@ -358,10 +371,8 @@ contract OptionsContract is OptionsUtils, ERC20 {
         require(amtToRemove <= repo.collateral, "Can't remove more collateral than owned");
         uint256 newRepoCollateralAmt = repo.collateral.sub(amtToRemove);
 
-            // TODO: get the price from Oracle
-        uint256 collateralToStrikePrice = 1;
-        require(repo.putsOutstanding.mul(collateralizationRatio).mul(strikePrice) <=
-                    newRepoCollateralAmt.mul(collateralToStrikePrice).mul(10), "Repo is unsafe");
+        require(isSafe(newRepoCollateralAmt, repo.putsOutstanding), "Repo is unsafe");
+
         repo.collateral = newRepoCollateralAmt;
         transferCollateral(msg.sender, amtToRemove);
         totalCollateral = totalCollateral.sub(amtToRemove);
@@ -378,32 +389,91 @@ contract OptionsContract is OptionsUtils, ERC20 {
         repo.collateral = 0;
     }
 
-    /* Liquidator comes with putsOutstanding * strikePrice amount of 
-    strike asset. They get all the collateral in return (minus some tx fees which goes to us)
-    */ 
-    
-    // TODO: look at compound docs and improve how it is built
-    function liquidate(uint256 repoNum) public {
-        require(now < expiry, "Options contract expired");
+    /* @notice: checks if a repo is unsafe. If so, it can be liquidated 
+    @param repoIndex: The number of the repo to check 
+    @return: true or false */
+    function isUnsafe(uint256 repoIndex) public returns (bool) {
+        Repo storage repo = repos[repoIndex];
 
-       // TODO: get price from Oracle
-        uint256 collateralToStrikePrice = 1;
-        Repo storage repo = repos[repoNum];
+        bool isUnsafe = !isSafe(repo.collateral, repo.putsOutstanding);
 
-        require(repo.putsOutstanding.mul(collateralizationRatio).mul(strikePrice) > repo.collateral.mul(collateralToStrikePrice), "Repo is safe");
+        emit unsafeCalled(isUnsafe);
 
-        // determine how much collateral has to be deducted
-        uint256 debtOwed = strikePrice.mul(repo.putsOutstanding);
-        uint256 collateralTaken = optionsExchange.exchangeAndTransferOutput(collateral, strikeAsset, debtOwed, address(this));
-        totalStrikePool = totalStrikePool.add(debtOwed);
-        uint256 feeAmount = repo.collateral.mul(penaltyFee);
-
-        transferCollateral(msg.sender, feeAmount);
-
-        repo.collateral = repo.collateral.sub(feeAmount.add(collateralTaken));
-
-        repo.putsOutstanding = 0;
+        return isUnsafe;
     }
+
+    /* @notice: checks if a repo is unsafe. If so, it can be liquidated 
+    @param repoNum: The number of the repo to check 
+    @return: true or false */
+    function isSafe(uint256 collateralAmt, uint256 putsOutstanding) internal returns (bool) {
+        // get price from Oracle
+        uint256 ethToCollateralPrice = getPrice(address(collateral));
+        uint256 ethToStrikePrice = getPrice(address(strikeAsset));
+  
+        /* putsOutstanding * collateralizationRatio * strikePrice <= collAmt * collateralToStrikePrice 
+         collateralToStrikePrice = ethToStrikePrice.div(ethToCollateralPrice);  */ 
+
+        uint256 leftSideVal = putsOutstanding.mul(collateralizationRatio.value).mul(strikePrice.value);
+        int32 leftSideExp = collateralizationRatio.exponent + strikePrice.exponent;
+
+        uint256 rightSideVal = (collateralAmt.mul(ethToStrikePrice)).div(ethToCollateralPrice);
+        int32 rightSideExp = collateralExp;
+
+        uint32 exp = 0;
+        bool isSafe = false;
+
+        if(rightSideExp < leftSideExp) {
+            exp = uint32(leftSideExp - rightSideExp);
+            isSafe = leftSideVal.mul(10**exp) <= rightSideVal;
+        } else {
+            exp = uint32(rightSideExp - leftSideExp);
+            isSafe = leftSideVal <= rightSideVal.mul(10 ** exp);
+        }
+        //TODO: remove after debugging.
+        emit safe(leftSideVal, rightSideVal, leftSideExp, rightSideExp, isSafe);
+        return isSafe;
+    }
+
+    /* Liquidator comes with _oTokens. They get _oTokens * strikePrice * (incentive + fee) 
+    amount of collateral out. They can get a max of liquidationFactor * collateral out 
+    in one function call. 
+    */ 
+    // function liquidate(uint256 repoNum, uint256 _oTokens) public {
+    //     // can only be called before the options contract expired
+    //     require(now < expiry, "Options contract expired");
+
+    //     Repo storage repo = repos[repoNum];
+
+    //     // cannot liquidate a safe repo.
+    //     require(isUnsafe(repoNum), "Repo is safe");
+
+    //     // Owner can't liquidate themselves
+    //     require(msg.sender != repo.owner, "Owner can't liquidate themselves");
+
+    //     // TODO: Price oracle + decimal conversions for liqFee etc. 
+    //     // Get price from oracle
+    //     uint256 ethToCollateralPrice = getPrice(address(collateral));
+    //     uint256 ethToStrikePrice = getPrice(address(strikeAsset));
+    //     uint256 strikeToCollateralPrice = ethToCollateralPrice.div(ethToStrikePrice); 
+
+    //     // calculate how much should be paid out
+        
+    //     uint256 amtFees = _oTokens.mul(strikePrice).mul(liquidationFee).mul(strikeToCollateralPrice);
+    //     uint256 amtCollateralToPay = _oTokens.mul(strikePrice).mul(liquidationIncentive).mul(strikeToCollateralPrice);
+    //     require(amtCollateralToPay.add(amtFees) <= repo.collateral.mul(liquidationFactor), 
+    //     "Can only liquidate liquidation factor at any given time");
+
+    //     // deduct the collateral and putsOutstanding
+    //     repo.collateral = repo.collateral.sub(amtCollateralToPay.add(amtFees));
+    //     repo.putsOutstanding = repo.putsOutstanding.sub(_oTokens);
+
+    //     // transfer the collateral and burn the _oTokens
+    //      _burnFrom(msg.sender, _oTokens);
+    //      transferCollateral(msg.sender, amtCollateralToPay);
+    //      // TODO: What happens to fees? 
+
+    //      // TODO: emit event and return something
+    // }
 
     function transferCollateral(address payable _addr, uint256 _amt) internal {
         if (isETH(collateral)){
@@ -422,9 +492,12 @@ contract OptionsContract is OptionsUtils, ERC20 {
     }
 
     function getPrice(address asset) internal view returns (uint256) {
-        return 527557000000000;
-        // TODO: fix Oracle for testnet testing
-        // return COMPOUND_ORACLE.getPrice(asset);
+
+        if(asset == address(0)) {
+            return (10 ** 18);
+        } else {
+            return COMPOUND_ORACLE.getPrice(asset);
+        }
     }
 
     function() external payable {
