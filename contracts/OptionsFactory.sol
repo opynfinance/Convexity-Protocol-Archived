@@ -36,11 +36,14 @@ contract OptionsFactory is Ownable {
 
     function createOptionsContract(
         string memory _collateralType,
+        int32 _collateralExp,
         string memory _underlyingType,
+        int32 _oTokenExchangeExp,
         uint256 _strikePrice,
+        int32 _strikeExp,
         string memory _strikeAsset,
-        string memory _payoutType,
-        uint256 _expiry
+        uint256 _expiry,
+        uint256 _windowSize
     )
         public
         returns (address)
@@ -48,16 +51,18 @@ contract OptionsFactory is Ownable {
         require(supportsAsset(_collateralType), "Collateral type not supported");
         require(supportsAsset(_underlyingType), "Underlying type not supported");
         require(supportsAsset(_strikeAsset), "Strike asset type not supported");
-        require(supportsAsset(_payoutType), "Payout type not supported");
 
         OptionsContract optionsContract = new OptionsContract(
             tokens[_collateralType],
+            _collateralExp,
             tokens[_underlyingType],
+            _oTokenExchangeExp,
             _strikePrice,
+            _strikeExp,
             tokens[_strikeAsset],
-            tokens[_payoutType],
             _expiry,
-            optionsExchange
+            optionsExchange,
+            _windowSize
         );
 
         optionsContracts.push(address(optionsContract));
