@@ -83,12 +83,14 @@ contract('OptionsContract', (accounts) => {
       // Create the unexpired options contract
       var optionsContractResult = await optionsFactory.createOptionsContract(
         "ETH",
+        -"18",
         "DAI",
+        -"17",
         "90",
-        "ETH",
+        -"18",
         "ETH",
         "1577836800",
-        optionsExchange
+        "1577836800"
       );
 
       var optionsContractAddr = optionsContractResult.logs[0].args[0];
@@ -97,12 +99,14 @@ contract('OptionsContract', (accounts) => {
       // create the expired options contract
       optionsContractResult = await optionsFactory.createOptionsContract(
         "ETH",
+        -"18",
         "DAI",
+        -"17",
         "90",
-        "ETH",
+        -"18",
         "ETH",
         "1",
-        optionsExchange
+        "1"
       );
 
       const expiredOptionsAddr = optionsContractResult.logs[0].args[0];
@@ -111,12 +115,14 @@ contract('OptionsContract', (accounts) => {
 
       optionsContractResult = await optionsFactory.createOptionsContract(
         "DAI",
+        -"18",
         "ETH",
+        -"17",
         "90",
-        "ETH",
+        -"18",
         "ETH",
         "1577836800",
-        optionsExchange
+        "1577836800"
       );
 
       optionsContractAddr = optionsContractResult.logs[0].args[0];
@@ -129,59 +135,6 @@ contract('OptionsContract', (accounts) => {
     }
 
   });
-
-
-
-  describe('#constructor', () => {
-    it("should open a contract correctly with ERC20 as collateral", async () => {
-      // collateral is ERC20
-      var optionsContractResult = await optionsFactory.createOptionsContract(
-        "DAI",
-        "ETH",
-        "96",
-        "ETH",
-        "ETH",
-        "1577836800",
-        optionsExchange
-      );
-    })
-
-  //   it("should open a contract correctly with ERC20 as underlying", async () => {
-  //          var optionsContractResult = await optionsFactory.createOptionsContract(
-  //           "ETH",
-  //           "DAI",
-  //           "96",
-  //           "ETH",
-  //           "ETH",
-  //           "1577836800",
-  //           optionsExchange
-  //         );
-  //     })
-
-  //     it("should open a contract correctly with ERC20 as strike asset", async () => {
-  //       var optionsContractResult = await optionsFactory.createOptionsContract(
-  //         "ETH",
-  //         "ETH",
-  //         "96",
-  //         "DAI",
-  //         "ETH",
-  //         "1577836800",
-  //         optionsExchange
-  //       );
-  //     })
-
-  //     it("should open a contract correctly with ERC20 as payout asset", async () => {
-  //       var optionsContractResult = await optionsFactory.createOptionsContract(
-  //         "ETH",
-  //         "ETH",
-  //         "96",
-  //         "ETH",
-  //         "DAI",
-  //         "1577836800",
-  //         optionsExchange
-  //       );
-  //     })
-  })
 
   describe("#openRepo()", () => {
     it("should open first repo correctly", async () => {

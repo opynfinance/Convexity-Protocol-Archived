@@ -201,12 +201,15 @@ contract('OptionsFactory', (accounts) => {
   describe("#createOptionsContract()", () => {
     it("should create a new options contract correctly", async () => {
       const result = await optionsFactory.createOptionsContract(
-          "ETH",
-          "ETH",
-          "95",
-          "ETH",
-          "ETH",
-          "109182389"
+        "ETH",
+        -"18",
+        "ETH",
+        -"17",
+        "90",
+        -"18",
+        "ETH",
+        "1577836800",
+        "1577836800"
         );
 
         // Test that the Factory stores addresses of any new options contract added.
@@ -219,12 +222,15 @@ contract('OptionsFactory', (accounts) => {
     })
     it("anyone else should be able to create a second options contract correctly", async () => {
       const result = await optionsFactory.createOptionsContract(
-          "ETH",
-          "ETH",
-          "97",
-          "ETH",
-          "ETH",
-          "109182389", {from: firstOwnerAddress}
+        "ETH",
+        -"18",
+        "ETH",
+        -"17",
+        "90",
+        -"18",
+        "ETH",
+        "1577836800",
+        "1577836800", {from: firstOwnerAddress}
         );
 
         // Test that the Factory stores addresses of any new options contract added.

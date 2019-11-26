@@ -82,12 +82,14 @@ contract('OptionsContract', (accounts) => {
       // Create the unexpired options contract
       var optionsContractResult = await optionsFactory.createOptionsContract(
         "ETH",
+        -"18",
         "DAI",
+        -"17",
         "90",
-        "USDC",
+        -"18",
         "USDC",
         "1577836800",
-        optionsExchange
+        "1577836800"
       );
 
       var optionsContractAddr = optionsContractResult.logs[0].args[0];
@@ -348,6 +350,42 @@ contract('OptionsContract', (accounts) => {
           // TODO: how to check that collateral has increased? 
           
       })
+
+      it("should be able to liquidate if still undercollateralized", async() => {
+        const repoIndex = "1"
+        //Liquidator first needs oTokens
+        await promisify(cb => optionsContracts[0].methods.transfer(firstOwnerAddress, "1000").send({from: creatorAddress, gas: '100000'}, cb));
+        var amtPTokens = await promisify(cb => optionsContracts[0].methods.balanceOf(firstOwnerAddress).call(cb));
+        expect(amtPTokens).toBe("1010");
+
+        // Approve before burn
+        await promisify(cb => optionsContracts[0].methods.approve(optionsContracts[0].options.address, "10000000000000000").send({from: firstOwnerAddress}, cb));
+
+        // Try to liquidate the repo
+        await promisify(cb => optionsContracts[0].methods.liquidate(repoIndex, "1000").send({from: firstOwnerAddress, gas: '100000'}, cb));
+
+        // Check that the correct liquidate events are emitted
+        var returnValues = (await optionsContracts[0].getPastEvents( 'Liquidate', { fromBlock: 0, toBlock: 'latest' } ));
+        expect(returnValues[1].returnValues.amtCollateralToPay).toBe('909');
+
+        // check that the repo balances have changed
+        var repo = await promisify(cb => optionsContracts[0].methods.getRepoByIndex(repoIndex).call(cb));
+        const expectedRepo = {
+          '0': '9999092',
+          '1': '16775667',
+          '2': creatorAddress }
+        expect(repo).toMatchObject(expectedRepo);
+
+        // check that the liquidator balances have changed 
+        var amtPTokens = await promisify(cb => optionsContracts[0].methods.balanceOf(firstOwnerAddress).call(cb));
+        expect(amtPTokens).toBe("10");
+        // TODO: how to check that collateral has increased? 
+        
+      })
+
+    //   it("should not be able to liquidate if safe", async () => {
+
+    //   })
 
 
   })
