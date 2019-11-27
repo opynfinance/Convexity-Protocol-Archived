@@ -196,7 +196,7 @@ contract('OptionsContract', (accounts) => {
         const repoNum = 2;
         var msgValue = "10000000";
         var result = await promisify(cb =>  optionsContracts[0].methods.addETHCollateral(repoNum).send({from: secondOwnerAddress, gas: '100000', value: msgValue}, cb))
-  
+
         // test that the repo's balances have been updated.
         var repo = await promisify(cb => optionsContracts[0].methods.getRepoByIndex(repoNum).call(cb));
         const expectedRepo = {
@@ -204,7 +204,7 @@ contract('OptionsContract', (accounts) => {
           '1': '0',
           '2': firstOwnerAddress }
         expect(repo).toMatchObject(expectedRepo);
-  
+
       })
 
   });
@@ -224,7 +224,7 @@ contract('OptionsContract', (accounts) => {
 
         const repoIndex = "2";
         const numTokens = "10000";
-  
+
         var result = await promisify(cb =>  optionsContracts[0].methods.issueOptionTokens(repoIndex, numTokens).send({from: firstOwnerAddress, gas: '100000'}, cb));
         var amtPTokens = await promisify(cb => optionsContracts[0].methods.balanceOf(firstOwnerAddress).call(cb));
         expect(amtPTokens).toBe(numTokens);
@@ -239,10 +239,10 @@ contract('OptionsContract', (accounts) => {
 // //   describe("#beforeExpriyWindow", {
 
 // //   })
-  describe("#duringExpriyWindow", () => {
+  describe("#duringExpiryWindow", () => {
     it("should be able to call exercise", async () => {
         var amtToExercise = "10";
-        
+
         // ensure the person has enough oTokens
         await promisify(cb => optionsContracts[0].methods.transfer(secondOwnerAddress, amtToExercise).send({from: creatorAddress, gas: '100000'}, cb));
         var amtPTokens = await promisify(cb => optionsContracts[0].methods.balanceOf(secondOwnerAddress).call(cb));
@@ -281,7 +281,7 @@ contract('OptionsContract', (accounts) => {
         var contractDaiBal = await dai.balanceOf(optionsContracts[0].options.address);
         expect(contractDaiBal.toString()).toBe("100000")
 
-        // check the supply of oTokens has changed 
+        // check the supply of oTokens has changed
         var totalSupply = await promisify(cb => optionsContracts[0].methods.totalSupply().call(cb));
         expect(totalSupply).toBe("34990");
 
@@ -293,7 +293,7 @@ contract('OptionsContract', (accounts) => {
       it("first person should be able to collect their share of collateral", async () => {
           const repoIndex = "1"
           await promisify(cb => optionsContracts[0].methods.claimCollateral(repoIndex).send({from: creatorAddress, gas: '1000000'}, cb));
-          
+
           // check the calculations on amount of collateral paid out and underlying transferred is correct
           var returnValues = (await optionsContracts[0].getPastEvents( 'ClaimedCollateral', { fromBlock: 0, toBlock: 'latest' } ));
           var amtCollateral = returnValues[0].returnValues.amtCollateralClaimed;
@@ -321,14 +321,14 @@ contract('OptionsContract', (accounts) => {
         truffleAssert.fails("should throw err");
       })
 
-    //   it ("once collateral has been collected, should not be able to collect again", async () => {
+      it.skip ("once collateral has been collected, should not be able to collect again", async () => {
 
-    //   })
+      })
 
       it ("the second person should be able to collect their share of collateral", async () => {
         const repoIndex = "2"
         await promisify(cb => optionsContracts[0].methods.claimCollateral(repoIndex).send({from: firstOwnerAddress, gas: '1000000'}, cb));
-        
+
         // check the calculations on amount of collateral paid out and underlying transferred is correct
         var returnValues = (await optionsContracts[0].getPastEvents( 'ClaimedCollateral', { fromBlock: 0, toBlock: 'latest' } ));
         var amtCollateral = returnValues[1].returnValues.amtCollateralClaimed;
