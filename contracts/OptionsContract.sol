@@ -7,6 +7,7 @@ import "./lib/UniswapFactoryInterface.sol";
 import "./lib/UniswapExchangeInterface.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/ownership/Ownable.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 
 /**
@@ -98,12 +99,15 @@ contract OptionsContract is OptionsUtils, ERC20 {
 
     /* @notice: constructor
         @param _collateral: The collateral asset
+        @param _collExp: The precision of the collateral (-18 if ETH)
         @param _underlying: The asset that is being protected
+        @param _oTokenExchangeExp: The precision of the `amount of underlying` that 1 oToken protects
         @param _strikePrice: The amount of strike asset that will be paid out
-        @param _strike: The asset in which i
-        @param _payout: The asset in which insurance is paid out
+        @param _strikeExp: The precision of the strike asset (-18 if ETH)
+        @param _strike: The asset in which the 
         @param _expiry: The time at which the insurance expires
-        @param OptionsExchange: The contract which interfaces with the exchange */
+        @param OptionsExchange: The contract which interfaces with the exchange + oracle 
+        @param _windowSize: UNIX time. Exercise window is from `expiry - _windowSize` to `expiry`. */
     constructor(
         IERC20 _collateral,
         int32 _collExp,

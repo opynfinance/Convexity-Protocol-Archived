@@ -67,6 +67,10 @@ contract OptionsFactory is Ownable {
 
         optionsContracts.push(address(optionsContract));
         emit ContractCreated(address(optionsContract));
+
+        // Set the owner for the options contract. 
+        // optionsContract.transferOwnership(owner());
+
         return address(optionsContract);
     }
 
