@@ -27,6 +27,11 @@ contract OptionsFactory is Ownable {
 
     constructor() public {
     }
+    
+    // TODO: need to remove this instead and replace with a constructor. 	       
+    function setOptionsExchange(address _optionsExchange) public {	       
+        optionsExchange = OptionsExchange(_optionsExchange);	       
+    }
 
     /* @notice: creates a new options contract (series) as per the below parameters 
         @param _collateralType: The collateral asset (eg. ETH, USDC, etc.) 
