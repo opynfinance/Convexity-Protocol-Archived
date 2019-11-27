@@ -15,7 +15,7 @@ contract OptionsFactory is Ownable {
 
     OptionsExchange public optionsExchange;
 
-    event ContractCreated(address addr); //imo this is vague, maybe OptionsFactoryCreated? 
+    event OptionsFactoryCreated(address addr); 
     event AssetAdded(string indexed asset, address indexed addr); 
     event AssetChanged(string indexed asset, address indexed addr);
     event AssetDeleted(string indexed asset);
@@ -63,7 +63,7 @@ contract OptionsFactory is Ownable {
         );
 
         optionsContracts.push(address(optionsContract));
-        emit ContractCreated(address(optionsContract));
+        emit OptionsFactoryCreated(address(optionsContract));
         return address(optionsContract);
     }
 
