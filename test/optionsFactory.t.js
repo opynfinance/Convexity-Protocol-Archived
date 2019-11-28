@@ -6,6 +6,17 @@
  *  #> truffle test <path/to/this/test.js>
  *
  * */
+
+const promisify = (inner) =>
+new Promise((resolve, reject) =>
+  inner((err, res) => {
+    if (err) { reject(err) }
+
+    resolve(res);
+  })
+);
+
+
 const Util = require('./util.js');
 const Web3 = require('web3');
 const web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'))
@@ -15,6 +26,8 @@ var OptionsFactory = artifacts.require("../contracts/OptionsFactory.sol");
 var OptionsExchange = artifacts.require("../contracts/OptionsExchange.sol");
 var CompoundOracle = artifacts.require("../contracts/lib/MockCompoundOracle.sol");
 var UniswapFactory = artifacts.require("../contracts/lib/MockUniswapFactory.sol");
+var OptionsContractJSON = require("../build/contracts/OptionsContract.json");
+var OptionsContractABI = OptionsContractJSON.abi;
 var { AssetAdded }= require('./utils/FactoryEvents.js')
 const truffleAssert = require('truffle-assertions');
 
@@ -240,6 +253,10 @@ contract('OptionsFactory', (accounts) => {
         truffleAssert.eventEmitted(result, 'ContractCreated', (ev) => {
           return ev.addr === lastAdded;
         });
+
+        // Check the ownership
+        var ownerFactory = await optionsFactory.owner();
+        expect(ownerFactory).toBe(creatorAddress);
     })
 
 
