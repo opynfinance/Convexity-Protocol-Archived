@@ -16,11 +16,6 @@ const promisify = (inner) =>
     })
   );
 
-const Util = require('./util.js');
-const Web3 = require('web3');
-const web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'))
-const util = new Util(web3);
-
 var expect = require('expect');
 var OptionsContract = artifacts.require("../contracts/OptionsContract.sol");
 var OptionsFactory = artifacts.require("../contracts/OptionsFactory.sol");
@@ -28,8 +23,6 @@ var OptionsExchange = artifacts.require("../contracts/OptionsExchange.sol");
 var CompoundOracle = artifacts.require("../contracts/lib/MockCompoundOracle.sol");
 var UniswapFactory = artifacts.require("../contracts/lib/MockUniswapFactory.sol");
 var daiMock = artifacts.require("../contracts/lib/simpleERC20.sol");
-var OptionsContractJSON = require("../build/contracts/OptionsContract.json");
-var OptionsContractABI = OptionsContractJSON.abi;
 var { ContractCreated }= require('./utils/FactoryEvents.js')
 const BN = require('bignumber.js');
 
@@ -50,7 +43,6 @@ contract('OptionsContract', (accounts) => {
   let dai;
 
   before(async () => {
-    try {
       // 1. Deploy mock contracts
       // 1.1 Compound Oracle
       var compoundOracle = await CompoundOracle.deployed();
@@ -94,7 +86,7 @@ contract('OptionsContract', (accounts) => {
       );
 
       var optionsContractAddr = optionsContractResult.logs[0].args[0];
-      optionsContracts = [new web3.eth.Contract(OptionsContractABI,optionsContractAddr, {from: creatorAddress, gasPrice: '20000000000'})]
+      optionsContracts = [await OptionsContract.at(optionsContractAddr)];
 
       // create the expired options contract
       optionsContractResult = await optionsFactory.createOptionsContract(
@@ -110,7 +102,7 @@ contract('OptionsContract', (accounts) => {
       );
 
       const expiredOptionsAddr = optionsContractResult.logs[0].args[0];
-      const expiredOptionsContract = new web3.eth.Contract(OptionsContractABI, expiredOptionsAddr, {from: creatorAddress, gasPrice: '20000000000'})
+      const expiredOptionsContract = await OptionsContract.at(expiredOptionsAddr);
       optionsContracts.push(expiredOptionsContract);
 
       optionsContractResult = await optionsFactory.createOptionsContract(
@@ -126,34 +118,26 @@ contract('OptionsContract', (accounts) => {
       );
 
       optionsContractAddr = optionsContractResult.logs[0].args[0];
-      const ERC20collateralOptContract = new web3.eth.Contract(OptionsContractABI, optionsContractAddr, {from: creatorAddress, gasPrice: '20000000000'})
+      const ERC20collateralOptContract = await OptionsContract.at(optionsContractAddr);
       optionsContracts.push(ERC20collateralOptContract);
-
-
-    } catch (err) {
-      console.error(err);
-    }
 
   });
 
   describe("#openRepo()", () => {
     it("should open first repo correctly", async () => {
-      var result = await promisify(cb =>  optionsContracts[0].methods.openRepo().send({from: creatorAddress, gas: '100000'}, cb))
+      var result = await optionsContracts[0].openRepo({from: creatorAddress, gas: '100000'})
       var repoIndex = "0";
 
       // test getReposByOwner
-      var repos = await promisify(cb => optionsContracts[0].methods.getReposByOwner(creatorAddress).call(cb));
-      const expectedRepos =[ '0' ]
-      expect(repos).toMatchObject(expectedRepos);
+      var repos = await  optionsContracts[0].getReposByOwner(creatorAddress);
+      expect(repos).toHaveLength(1);
+      expect(repos[0].toNumber()).toEqual(0);
 
       // test getRepoByIndex
-      var repo = await promisify(cb => optionsContracts[0].methods.getRepoByIndex(repoIndex).call(cb));
-      const expectedRepo = {
-        '0': '0',
-        '1': '0',
-        '2': creatorAddress }
-      expect(repo).toMatchObject(expectedRepo);
-
+      var repo = await optionsContracts[0].getRepoByIndex(repoIndex);
+      expect(repo['0'].toNumber()).toEqual(0);
+      expect(repo['1'].toNumber()).toEqual(0);
+      expect(repo['2']).toEqual(creatorAddress);
     })
 
     it("should open second repo correctly", async () => {
@@ -437,7 +421,7 @@ contract('OptionsContract', (accounts) => {
       const numTokens = "1000";
 
       var result = await promisify(cb =>  optionsContracts[0].methods.removeCollateral(repoIndex, numTokens).send({from: creatorAddress, gas: '100000'}, cb));
-      
+
       // Check the contract correctly updated the repo
       var repo = await promisify(cb => optionsContracts[0].methods.getRepoByIndex(repoIndex).call(cb));
       const expectedRepo = {
@@ -456,7 +440,7 @@ contract('OptionsContract', (accounts) => {
         } catch (err) {
           return;
         }
-  
+
         truffleAssert.fails("should throw error");
     })
 
@@ -465,7 +449,7 @@ contract('OptionsContract', (accounts) => {
       const numTokens = "500";
 
       var result = await promisify(cb =>  optionsContracts[0].methods.removeCollateral(repoIndex, numTokens).send({from: creatorAddress, gas: '100000'}, cb));
-      
+
       // Check the contract correctly updated the repo
       var repo = await promisify(cb => optionsContracts[0].methods.getRepoByIndex(repoIndex).call(cb));
       const expectedRepo = {
@@ -481,10 +465,10 @@ contract('OptionsContract', (accounts) => {
         } catch (err) {
           return;
         }
-  
+
         truffleAssert.fails("should throw error");
 
-        // check that the collateral in the repo remains the same 
+        // check that the collateral in the repo remains the same
         var repo = await promisify(cb => optionsContracts[0].methods.getRepoByIndex(repoIndex).call(cb));
         const expectedRepo = {
           '0': '19999000',

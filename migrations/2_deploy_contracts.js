@@ -6,7 +6,6 @@ var OptionsExchange = artifacts.require('./OptionsExchange.sol');
 var daiMock = artifacts.require('./lib/simpleERC20.sol');
 
 var Metadata = require("../ethpm.json");
-//var semver = require('semver');
 
 module.exports = async function(deployer, network, accounts) {
   deployer.deploy(StringComparator);
