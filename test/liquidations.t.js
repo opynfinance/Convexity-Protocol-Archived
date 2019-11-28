@@ -16,11 +16,6 @@ const promisify = (inner) =>
     })
   );
 
-const Util = require('./util.js');
-const Web3 = require('web3');
-const web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'))
-const util = new Util(web3);
-
 var expect = require('expect');
 var OptionsContract = artifacts.require("../contracts/OptionsContract.sol");
 var OptionsFactory = artifacts.require("../contracts/OptionsFactory.sol");
@@ -28,10 +23,6 @@ var OptionsExchange = artifacts.require("../contracts/OptionsExchange.sol");
 var CompoundOracle = artifacts.require("../contracts/lib/MockCompoundOracle.sol");
 var UniswapFactory = artifacts.require("../contracts/lib/MockUniswapFactory.sol");
 var daiMock = artifacts.require("../contracts/lib/simpleERC20.sol");
-var OptionsContractJSON = require("../build/contracts/OptionsContract.json");
-var OptionsContractABI = OptionsContractJSON.abi;
-var { ContractCreated }= require('./utils/FactoryEvents.js')
-const BN = require('bignumber.js');
 
 const truffleAssert = require('truffle-assertions');
 
@@ -93,7 +84,7 @@ contract('OptionsContract', (accounts) => {
       );
 
       var optionsContractAddr = optionsContractResult.logs[0].args[0];
-      optionsContracts = [new web3.eth.Contract(OptionsContractABI,optionsContractAddr, {from: creatorAddress, gasPrice: '20000000000'})]
+      optionsContracts = [await OptionsContract.at(optionsContractAddr)]
 
     } catch (err) {
       console.error(err);
