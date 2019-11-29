@@ -1,5 +1,5 @@
 const expect = require('expect');
-const BigNumber = require('bignumber.js')
+
 class Util {
   constructor(web3) {
     this.web3 = web3;
