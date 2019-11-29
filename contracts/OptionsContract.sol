@@ -7,8 +7,13 @@ import "./lib/UniswapFactoryInterface.sol";
 import "./lib/UniswapExchangeInterface.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/ownership/Ownable.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 
+/**
+ * @title Opyn's Options Contract
+ * @author Opyn
+ */
 contract OptionsContract is OptionsUtils, ERC20 {
     using SafeMath for uint256;
 
@@ -17,47 +22,98 @@ contract OptionsContract is OptionsUtils, ERC20 {
         int32 exponent; 
     }
 
+    // Keeps track of the collateral, debt for each repo. 
     struct Repo {
-        uint256 collateral; // 10 ^ -18
+        uint256 collateral;
         uint256 putsOutstanding;
         address payable owner;
     }
 
-    OptionsExchange public optionsExchange;
+    OptionsExchange public optionsExchange; 
 
-    Repo[] public repos;
+    Repo[] public repos; 
 
-    uint256 totalCollateral; // denominated in collateralType, depending on underlying type need to be able to handle decimal places
-    Number liquidationIncentive = Number(1010, -3); // need 3 decimal places → egs. 1.054 is 5.4% needs to be storable
-    Number transactionFee; // needs 2 decimal places -> egs. 10.02%
-    Number liquidationFactor = Number(500, -3); // need 2 decimal places → egs. 500 is 50.0% needs to be storable. Max amt a repo can be liquidated by i.e. max collateral that can be taken in a time period. 
-    Number liquidationFee = Number(1000, -3); // need 3 decimal places → egs. 1.054 is 5.4% needs to be storable. The fees paid to our protocol every time a liquidation happens
-    Number numRepos; 
-    uint256 windowSize; // amt of seconds before expiry tht a person has to exercise
-    uint256 totalExercised; // total collateral withdrawn from contract balance
-    uint256 totalStrikePool; // total amount of strikeAssets, gets incremented on liquidations
-    uint256 totalUnderlying = 0; // total amount of underlying that there ever was in the contract. 
+    // 1010 is 1.010. i.e. 1% incentive. 
+    Number liquidationIncentive = Number(10, -3);
+    // 10 is 0.01 i.e. 1% incentive. 
 
-    Number public collateralizationRatio = Number(16, -1); //(scaled by 10). 16 means 1.6
+    // 100 is egs. 0.1 i.e. 10%. 
+    Number transactionFee = Number(0, -3);
 
+    /* 500 is 0.5. Max amount that a repo can be liquidated by i.e. 
+    max collateral that can be taken in one function call */
+    Number liquidationFactor = Number(500, -3); 
+
+    /* 1054 is 1.054 i.e. 5.4% liqFee. 
+    The fees paid to our protocol every time a liquidation happens */
+    Number liquidationFee = Number(0, -3);
+
+    /* UNIX time. 
+    Exercise period starts at `(expiry - windowSize)` and ends at `expiry` */ 
+    uint256 windowSize; 
+    
+    /* The total collateral withdrawn from the Options Contract every time 
+    the exercise function is called */
+    uint256 totalExercised;
+
+    /* The total fees accumulated in the contract any time liquidate or exercise is called */
+    uint256 totalFee;
+
+    /* The total amount of underlying that is added to the contract during the exercise window. 
+    This number can only increase and is only incremented in the exercise function. After expiry, 
+    this value is used to calculate the proportion of underlying paid out to the respective repo 
+    owners in the claim collateral function */
+    uint256 totalUnderlying; 
+
+    /* The totalCollateral is only updated on add, remove, liquidate. After expiry, 
+    this value is used to calculate the proportion of underlying paid out to the respective repo 
+    owner in the claim collateral function. The amount of collateral any repo owner gets back is 
+    caluculated as below:
+    repo.collateral / totalCollateral * (totalCollateral - totalExercised) */
+    uint256 totalCollateral;
+
+    /* 16 means 1.6. The minimum ratio of a repo's collateral to insurance promised. 
+    The ratio is calculated as below:
+    repo.collateral / (repo.putsOutstanding * strikePrice) */
+    Number public collateralizationRatio = Number(16, -1); 
+
+    // The collateral asset
     IERC20 public collateral;
-    int32 collateralExp = -18;
-    IERC20 public underlying;
-    Number public strikePrice; // number of strike tokens given out per oToken. 
-    IERC20 public strikeAsset;
-    uint256 public expiry;
-    Number public oTokenExchangeRate = Number(1, -18); // The amount of underlying that 1 oToken protects. 
 
-    // TODO: include windowsize, 
-    // TODO: how to change collateralizationRatio, liquidationFactor, liquidationFee, liquidationIncentive 
-    /* @notice: constructor
-        @param _collateral: The collateral asset
-        @param _underlying: The asset that is being protected
-        @param _strikePrice: The amount of strike asset that will be paid out
-        @param _strikeAsset: The asset in which i
-        @param _payout: The asset in which insurance is paid out
-        @param _expiry: The time at which the insurance expires
-        @param OptionsExchange: The contract which interfaces with the exchange */
+    // The precision of the collateral
+    int32 collateralExp = -18;
+
+    // The asset being protected by the insurance
+    IERC20 public underlying;
+
+    // The amount of insurance promised per oToken
+    Number public strikePrice;
+
+    // The asset in which insurance is denominated in.
+    IERC20 public strike;
+
+    // The time of expiry of the options contract
+    uint256 public expiry;
+
+    // The amount of underlying that 1 oToken protects. 
+    Number public oTokenExchangeRate = Number(1, -18);
+
+    // The admin address
+    address admin; 
+
+    /**
+    * @notice: constructor
+    * @param _collateral: The collateral asset
+    * @param _collExp: The precision of the collateral (-18 if ETH)
+    * @param _underlying: The asset that is being protected
+    * @param _oTokenExchangeExp: The precision of the `amount of underlying` that 1 oToken protects
+    * @param _strikePrice: The amount of strike asset that will be paid out
+    * @param _strikeExp: The precision of the strike asset (-18 if ETH)
+    * @param _strike: The asset in which the 
+    * @param _expiry: The time at which the insurance expires
+    * @param OptionsExchange: The contract which interfaces with the exchange + oracle 
+    * @param _windowSize: UNIX time. Exercise window is from `expiry - _windowSize` to `expiry`. 
+    */ 
     constructor(
         IERC20 _collateral,
         int32 _collExp,
@@ -65,16 +121,17 @@ contract OptionsContract is OptionsUtils, ERC20 {
         int32 _oTokenExchangeExp,
         uint256 _strikePrice,
         int32 _strikeExp,
-        IERC20 _strikeAsset,
+        IERC20 _strike,
         uint256 _expiry,
         OptionsExchange _optionsExchange,
-        uint256 _windowSize
+        uint256 _windowSize,
+        address _admin
 
     )
-        OptionsUtils(
-            //  address(_optionsExchange.UNISWAP_FACTORY())
-            // address(_optionsExchange.UNISWAP_FACTORY()), address(_optionsExchange.COMPOUND_ORACLE())
-        )
+        // OptionsUtils(
+        //     //  address(_optionsExchange.UNISWAP_FACTORY())
+        //     // address(_optionsExchange.UNISWAP_FACTORY()), address(_optionsExchange.COMPOUND_ORACLE())
+        // )
         public
     {
         collateral = _collateral;
@@ -84,11 +141,13 @@ contract OptionsContract is OptionsUtils, ERC20 {
         oTokenExchangeRate = Number(1, _oTokenExchangeExp);
 
         strikePrice = Number(_strikePrice, _strikeExp);
-        strikeAsset = _strikeAsset;
+        strike = _strike;
 
         expiry = _expiry;
         optionsExchange = _optionsExchange;
         windowSize = _windowSize;
+
+        admin = _admin;
 
         // TODO: remove this later. 
         setUniswapAndCompound(address(_optionsExchange.UNISWAP_FACTORY()), address(_optionsExchange.COMPOUND_ORACLE()));
@@ -105,6 +164,44 @@ contract OptionsContract is OptionsUtils, ERC20 {
     event Exercise (uint256 amtUnderlyingToPay, uint256 amtCollateralToPay);
     event ClaimedCollateral(uint256 amtCollateralClaimed, uint256 amtUnderlyingClaimed);
 
+    /**
+     * @dev Throws if called by any account other than the owner.
+     */
+    modifier onlyOwner() {
+        require(isOwner(), "Ownable: caller is not the owner");
+        _;
+    }
+
+    /**
+     * @dev Returns true if the caller is the current owner.
+     */
+    function isOwner() public view returns (bool) {
+        return msg.sender == admin;
+    }
+
+    function updateParameters(
+        uint256 _liquidationIncentive, 
+        uint256 _liquidationFactor, 
+        uint256 _liquidationFee, 
+        uint256 _transactionFee, 
+        uint256 _collateralizationRatio) 
+        public onlyOwner {
+            liquidationIncentive.value = _liquidationIncentive;
+            liquidationFactor.value = _liquidationFactor;
+            liquidationFee.value = _liquidationFee;
+            transactionFee.value = _transactionFee;
+            collateralizationRatio.value = _collateralizationRatio;
+    }
+
+    function trasnferFee(address payable _address) public onlyOwner {
+        totalFee = 0;
+        transferCollateral(_address, totalFee);
+    }
+
+    function numRepos() public returns (uint256) {
+        return repos.length; 
+    }
+
     function openRepo() public returns (uint) {
         require(now < expiry, "Options contract expired");
         repos.push(Repo(0, 0, msg.sender));
@@ -114,8 +211,6 @@ contract OptionsContract is OptionsUtils, ERC20 {
     }
 
     function addETHCollateral(uint256 _repoNum) public payable returns (uint256) {
-        //TODO: do we need to have require checks? do we need require msg.value > 0 ?
-        //TODO: does it make sense to have the event emitted here or should it be in the helper function?
         require(isETH(collateral), "ETH is not the specified collateral type");
         emit ETHCollateralAdded(_repoNum, msg.value);
         return _addCollateral(_repoNum, msg.value);
@@ -168,24 +263,15 @@ contract OptionsContract is OptionsUtils, ERC20 {
         // 2.3 transfer in oTokens
         _burn(msg.sender, _oTokens);
 
-        /// 2.4 payout enough collateral to get strikePrice * pTokens amount of collateral
-        // Get price from oracle
-        uint256 ethToCollateralPrice = getPrice(address(collateral));
-        uint256 ethToStrikePrice = getPrice(address(strikeAsset));
- 
-        // calculate how much should be paid out        
-        uint256 amtCollateralToPayNum = _oTokens.mul(strikePrice.value).mul(ethToCollateralPrice);
-        int32 amtCollateralToPayExp = strikePrice.exponent - collateralExp;
-        uint256 amtCollateralToPay = 0;
-        if(amtCollateralToPayExp > 0) {
-            uint32 exp = uint32(amtCollateralToPayExp);
-            amtCollateralToPay = amtCollateralToPayNum.mul(10 ** exp).div(ethToStrikePrice);
-        } else {
-            uint32 exp = uint32(-1 * amtCollateralToPayExp);
-            amtCollateralToPay = (amtCollateralToPayNum.div(10 ** exp)).div(ethToStrikePrice);
-        }
+        // 2.4 payout enough collateral to get (strikePrice * pTokens  + fees) amount of collateral
+        uint256 amtCollateralToPay = calculateCollateralToPay(_oTokens, Number(1, 0));
 
-        totalExercised = totalExercised.add(amtCollateralToPay);
+        // Fees
+        uint256 amtFee = calculateCollateralToPay(_oTokens, transactionFee);
+        totalFee = totalFee.add(amtFee);
+
+        totalExercised = totalExercised.add(amtCollateralToPay).add(amtFee);
+
 
         emit Exercise(amtUnderlyingToPay, amtCollateralToPay);
 
@@ -384,11 +470,10 @@ contract OptionsContract is OptionsUtils, ERC20 {
     function isSafe(uint256 collateralAmt, uint256 putsOutstanding) internal returns (bool) {
         // get price from Oracle
         uint256 ethToCollateralPrice = getPrice(address(collateral));
-        uint256 ethToStrikePrice = getPrice(address(strikeAsset));
+        uint256 ethToStrikePrice = getPrice(address(strike));
   
         /* putsOutstanding * collateralizationRatio * strikePrice <= collAmt * collateralToStrikePrice 
          collateralToStrikePrice = ethToStrikePrice.div(ethToCollateralPrice);  */ 
-
         uint256 leftSideVal = putsOutstanding.mul(collateralizationRatio.value).mul(strikePrice.value);
         int32 leftSideExp = collateralizationRatio.exponent + strikePrice.exponent;
 
@@ -426,35 +511,13 @@ contract OptionsContract is OptionsUtils, ERC20 {
         // Owner can't liquidate themselves
         require(msg.sender != repo.owner, "Owner can't liquidate themselves");
 
-        // TODO: Price oracle + decimal conversions for liqFee etc. 
-        // Get price from oracle
-        uint256 ethToCollateralPrice = getPrice(address(collateral));
-        uint256 ethToStrikePrice = getPrice(address(strikeAsset));
- 
-        // calculate how much should be paid out        
-        uint256 amtCollateralToPayNum = _oTokens.mul(strikePrice.value).mul(liquidationIncentive.value).mul(ethToCollateralPrice);
-        int32 amtCollateralToPayExp = strikePrice.exponent + liquidationIncentive.exponent - collateralExp;
-        uint256 amtCollateralToPay = 0;
-        if(amtCollateralToPayExp > 0) {
-            uint32 exp = uint32(amtCollateralToPayExp);
-            amtCollateralToPay = amtCollateralToPayNum.mul(10 ** exp).div(ethToStrikePrice);
-        } else {
-            uint32 exp = uint32(-1 * amtCollateralToPayExp);
-            amtCollateralToPay = (amtCollateralToPayNum.div(10 ** exp)).div(ethToStrikePrice);
-        }
+        uint256 amtCollateral = calculateCollateralToPay(_oTokens, Number(1, 0));
+        uint256 amtIncentive = calculateCollateralToPay(_oTokens, liquidationIncentive);
+        uint256 amtCollateralToPay = amtCollateral + amtIncentive;
 
-        // calculate our protocol fees
-        // uint256 amtCollateralFeeNum = _oTokens.mul(strikePrice.value).mul(liquidationFee.value).mul(ethToCollateralPrice);
-        // int32 amtCollateralFeeExp = strikePrice.exponent + liquidationFee.exponent - collateralExp;
-        // if(amtCollateralToPayExp > 0) {
-        //     uint32 exp = uint32(amtCollateralFeeExp);
-        //     amtCollateralFeeNum = amtCollateralFeeNum.mul(10 ** exp).div(ethToStrikePrice);
-        // } else {
-        //     uint32 exp = uint32(-1 * amtCollateralFeeExp);
-        //     amtCollateralFeeNum = (amtCollateralFeeNum.div(10 ** exp)).div(ethToStrikePrice);
-        // }
-
-        emit Liquidate(amtCollateralToPay);
+        // Fees 
+        uint256 protocolFee = calculateCollateralToPay(_oTokens, liquidationFee);
+        totalFee = totalFee.add(protocolFee);
 
         // calculate the maximum amount of collateral that can be liquidated
         uint256 maxCollateralLiquidatable = repo.collateral.mul(liquidationFactor.value);
@@ -464,19 +527,47 @@ contract OptionsContract is OptionsUtils, ERC20 {
             maxCollateralLiquidatable = maxCollateralLiquidatable.div(10 ** uint32(-1 * liquidationFactor.exponent));
         }
 
-        require(amtCollateralToPay <= maxCollateralLiquidatable, 
+        require(amtCollateralToPay.add(protocolFee) <= maxCollateralLiquidatable, 
         "Can only liquidate liquidation factor at any given time");
+
+        emit Liquidate(amtCollateralToPay);
 
         // deduct the collateral and putsOutstanding
         repo.collateral = repo.collateral.sub(amtCollateralToPay);
         repo.putsOutstanding = repo.putsOutstanding.sub(_oTokens);
 
-        // // transfer the collateral and burn the _oTokens
+        // transfer the collateral and burn the _oTokens
          _burn(msg.sender, _oTokens);
          transferCollateral(msg.sender, amtCollateralToPay);
-         // TODO: What happens to fees? 
 
          // TODO: emit event and return something
+    }
+
+    /* 
+    * @dev: This function retruns proportion * strikePrice * oTokens amount of collateral. 
+    * @param _oTokens: The number of oTokens.
+    * @param proportion: The proportion of the collateral to pay out. If 100% of collateral 
+    * should be paid out, pass in Number(1, 0). 
+    */
+    function calculateCollateralToPay(uint256 _oTokens, Number memory proportion) internal returns (uint256) {
+        // Get price from oracle
+        uint256 ethToCollateralPrice = getPrice(address(collateral));
+        uint256 ethToStrikePrice = getPrice(address(strike));
+ 
+        // calculate how much should be paid out        
+        uint256 amtCollateralToPayNum = _oTokens.mul(strikePrice.value).mul(proportion.value).mul(ethToCollateralPrice);
+        int32 amtCollateralToPayExp = strikePrice.exponent + proportion.exponent - collateralExp;
+        uint256 amtCollateralToPay = 0;
+        if(amtCollateralToPayExp > 0) {
+            uint32 exp = uint32(amtCollateralToPayExp);
+            amtCollateralToPay = amtCollateralToPayNum.mul(10 ** exp).div(ethToStrikePrice);
+        } else {
+            uint32 exp = uint32(-1 * amtCollateralToPayExp);
+            amtCollateralToPay = (amtCollateralToPayNum.div(10 ** exp)).div(ethToStrikePrice);
+        }
+
+        return amtCollateralToPay;
+
     }
 
     function transferCollateral(address payable _addr, uint256 _amt) internal {
