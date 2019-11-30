@@ -3,8 +3,8 @@ const expect = require('./chai-expect');
 const OptionsContract = artifacts.require('OptionsContract');
 const OptionsFactory = artifacts.require('OptionsFactory');
 const OptionsExchange = artifacts.require('OptionsExchange');
-const CompoundOracle = artifacts.require('MockCompoundOracle');
-const UniswapFactory = artifacts.require('MockUniswapFactory');
+const MockCompoundOracle = artifacts.require('MockCompoundOracle');
+const MockUniswapFactory = artifacts.require('MockUniswapFactory');
 const MintableToken = artifacts.require('ERC20Mintable');
 
 const truffleAssert = require('truffle-assertions');
@@ -36,9 +36,9 @@ contract('OptionsContract', (accounts) => {
   before('set up contracts', async () => {
     // 1. Deploy mock contracts
     // 1.1 Compound Oracle
-    const compoundOracle = await CompoundOracle.deployed();
+    const compoundOracle = await MockCompoundOracle.new();
     // 1.2 Uniswap Factory
-    const uniswapFactory = await UniswapFactory.deployed();
+    const uniswapFactory = await MockUniswapFactory.new();
     // 1.3 Mock Dai contract
     dai = await MintableToken.new();
     await dai.mint(creatorAddress, '10000000');

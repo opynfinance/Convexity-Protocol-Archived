@@ -3,8 +3,8 @@ const expect = require('./chai-expect');
 const Web3Utils = require('web3-utils');
 const OptionsFactory = artifacts.require('OptionsFactory');
 const OptionsExchange = artifacts.require('OptionsExchange');
-const CompoundOracle = artifacts.require('MockCompoundOracle');
-const UniswapFactory = artifacts.require('MockUniswapFactory');
+const MockCompoundOracle = artifacts.require('MockCompoundOracle');
+const MockUniswapFactory = artifacts.require('MockUniswapFactory');
 
 const truffleAssert = require('truffle-assertions');
 
@@ -18,9 +18,9 @@ contract('OptionsFactory', (accounts) => {
     optionsFactory = await OptionsFactory.deployed();
     // 1. Deploy mock contracts
     // 1.1 Compound Oracle
-    const compoundOracle = await CompoundOracle.deployed();
+    const compoundOracle = await MockCompoundOracle.new();
     // 1.2 Uniswap Factory
-    const uniswapFactory = await UniswapFactory.deployed();
+    const uniswapFactory = await MockUniswapFactory.new();
     // 2. Deploy our contracts
     // deploys the Options Exhange contract
     optionsExchange = await OptionsExchange.deployed();
