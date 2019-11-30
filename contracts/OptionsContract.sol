@@ -102,7 +102,6 @@ contract OptionsContract is OptionsUtils, ERC20 {
     address admin; 
 
     /**
-    * @notice: constructor
     * @param _collateral: The collateral asset
     * @param _collExp: The precision of the collateral (-18 if ETH)
     * @param _underlying: The asset that is being protected
@@ -111,8 +110,8 @@ contract OptionsContract is OptionsUtils, ERC20 {
     * @param _strikeExp: The precision of the strike asset (-18 if ETH)
     * @param _strike: The asset in which the 
     * @param _expiry: The time at which the insurance expires
-    * @param OptionsExchange: The contract which interfaces with the exchange + oracle 
-    * @param _windowSize: UNIX time. Exercise window is from `expiry - _windowSize` to `expiry`. 
+    * @param _optionsExchange: The contract which interfaces with the exchange + oracle
+    * @param _windowSize: UNIX time. Exercise window is from `expiry - _windowSize` to `expiry`.
     */ 
     constructor(
         IERC20 _collateral,
