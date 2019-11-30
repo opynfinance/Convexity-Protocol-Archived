@@ -1,4 +1,3 @@
-
 const Web3Utils = require('web3-utils');
 var expect  = require('expect');
 var OptionsFactory = artifacts.require("../contracts/OptionsFactory.sol");
