@@ -12,8 +12,7 @@
   },
   "scripts": {
     "build": "truffle compile",
-    "test": "truffle test",
-    "flatten": "./flatten.sh"
+    "test": "truffle test"
   },
   "repository": {
     "type": "git",
