@@ -1,13 +1,13 @@
-var OptionsFactory = artifacts.require('./OptionsFactory.sol');
-var StringComparator = artifacts.require('./lib/StringComparator.sol');
-var mockUniswapFactory = artifacts.require('./lib/MockUniswapFactory.sol');
-var mockCompoundOracle = artifacts.require('./lib/MockCompoundOracle.sol');
-var OptionsExchange = artifacts.require('./OptionsExchange.sol');
-var daiMock = artifacts.require('./lib/simpleERC20.sol');
+const OptionsFactory = artifacts.require('./OptionsFactory.sol');
+const StringComparator = artifacts.require('./lib/StringComparator.sol');
+const mockUniswapFactory = artifacts.require('./lib/MockUniswapFactory.sol');
+const mockCompoundOracle = artifacts.require('./lib/MockCompoundOracle.sol');
+const OptionsExchange = artifacts.require('./OptionsExchange.sol');
+const daiMock = artifacts.require('./lib/simpleERC20.sol');
 
-var Metadata = require("../ethpm.json");
+const Metadata = require('../ethpm.json');
 
-module.exports = async function(deployer, network, accounts) {
+module.exports = async function (deployer, network, accounts) {
   deployer.deploy(StringComparator);
   deployer.link(StringComparator, OptionsFactory);
   deployer.deploy(OptionsFactory);

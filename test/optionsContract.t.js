@@ -648,7 +648,10 @@ contract('OptionsContract', (accounts) => {
     it('repo should be unsafe when the price drops', async () => {
       // Make sure Repo is safe before price drop
       await optionsContracts[0].isUnsafe('1');
-      const returnValues1 = (await optionsContracts[0].getPastEvents('unsafeCalled', { fromBlock: 0, toBlock: 'latest' }));
+      const returnValues1 = (await optionsContracts[0].getPastEvents('unsafeCalled', {
+        fromBlock: 0,
+        toBlock: 'latest'
+      }));
       expect(returnValues1[0].returnValues.isUnsafe).to.be.false;
 
       // change the oracle price:
@@ -656,7 +659,10 @@ contract('OptionsContract', (accounts) => {
 
       // Make sure repo is unsafe after price drop
       const unsafeAgain = await optionsContracts[0].isUnsafe('1');
-      const returnValues2 = (await optionsContracts[0].getPastEvents('unsafeCalled', { fromBlock: 0, toBlock: 'latest' }));
+      const returnValues2 = (await optionsContracts[0].getPastEvents('unsafeCalled', {
+        fromBlock: 0,
+        toBlock: 'latest'
+      }));
       expect(returnValues2[1].returnValues.isUnsafe).to.be.true;
     });
 

@@ -6,7 +6,7 @@ module.exports = {
         asset: params.asset,
         addr: params.addr,
       }
-    }
+    };
   },
 
   ContractCreated(params) {
@@ -15,7 +15,7 @@ module.exports = {
       args: {
         addr: params.addr,
       }
-    }
+    };
   },
 
   Approval(params) {
@@ -28,6 +28,6 @@ module.exports = {
         value: params.value,
         blockNumber: params.blockNumber
       }
-    }
+    };
   }
-}
+};
