@@ -1,18 +1,16 @@
 const expect = require('./chai-expect');
 
 const Web3Utils = require('web3-utils');
-const OptionsFactory = artifacts.require('../contracts/OptionsFactory.sol');
-const OptionsExchange = artifacts.require('../contracts/OptionsExchange.sol');
-const CompoundOracle = artifacts.require('../contracts/lib/MockCompoundOracle.sol');
-const UniswapFactory = artifacts.require('../contracts/lib/MockUniswapFactory.sol');
+const OptionsFactory = artifacts.require('OptionsFactory');
+const OptionsExchange = artifacts.require('OptionsExchange');
+const CompoundOracle = artifacts.require('MockCompoundOracle');
+const UniswapFactory = artifacts.require('MockUniswapFactory');
 
 const truffleAssert = require('truffle-assertions');
 
 contract('OptionsFactory', (accounts) => {
   const creatorAddress = accounts[0];
   const firstOwnerAddress = accounts[1];
-
-  /* create named accounts for contract roles */
 
   let optionsFactory;
 

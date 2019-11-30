@@ -1,11 +1,11 @@
 const expect = require('./chai-expect');
 
-const OptionsContract = artifacts.require('../contracts/OptionsContract.sol');
-const OptionsFactory = artifacts.require('../contracts/OptionsFactory.sol');
-const OptionsExchange = artifacts.require('../contracts/OptionsExchange.sol');
-const CompoundOracle = artifacts.require('../contracts/lib/MockCompoundOracle.sol');
-const UniswapFactory = artifacts.require('../contracts/lib/MockUniswapFactory.sol');
-const daiMock = artifacts.require('../contracts/lib/simpleERC20.sol');
+const OptionsContract = artifacts.require('OptionsContract');
+const OptionsFactory = artifacts.require('OptionsFactory');
+const OptionsExchange = artifacts.require('OptionsExchange');
+const CompoundOracle = artifacts.require('MockCompoundOracle');
+const UniswapFactory = artifacts.require('MockUniswapFactory');
+const MintableToken = artifacts.require('ERC20Mintable');
 
 const truffleAssert = require('truffle-assertions');
 
@@ -28,9 +28,7 @@ contract('OptionsContract', (accounts) => {
   const firstOwnerAddress = accounts[1];
   const secondOwnerAddress = accounts[2];
 
-  /* create named accounts for contract roles */
-
-  let optionsContracts;
+  const optionsContracts = [];
   let optionsFactory;
   let optionsExchange;
   let dai;
@@ -42,8 +40,8 @@ contract('OptionsContract', (accounts) => {
     // 1.2 Uniswap Factory
     const uniswapFactory = await UniswapFactory.deployed();
     // 1.3 Mock Dai contract
-    dai = await daiMock.deployed();
-    await dai.mint('10000000');
+    dai = await MintableToken.new();
+    await dai.mint(creatorAddress, '10000000');
     // 2. Deploy our contracts
     // deploys the Options Exhange contract
     optionsExchange = await OptionsExchange.deployed();
@@ -79,7 +77,7 @@ contract('OptionsContract', (accounts) => {
     );
 
     let optionsContractAddr = optionsContractResult.logs[0].args[0];
-    optionsContracts = [await OptionsContract.at(optionsContractAddr)];
+    optionsContracts.push(await OptionsContract.at(optionsContractAddr));
 
     // create the expired options contract
     optionsContractResult = await optionsFactory.createOptionsContract(
@@ -549,7 +547,7 @@ contract('OptionsContract', (accounts) => {
         // ensure the person has enough underyling
         const ownerDaiBal = await dai.balanceOf(secondOwnerAddress);
         expect(ownerDaiBal.toString()).to.bignumber.equal('0');
-        await dai.mint('100000', { from: secondOwnerAddress });
+        await dai.mint(secondOwnerAddress, '100000', { from: creatorAddress });
         await dai.approve(optionsContracts[0].address, '10000000000000000000000', { from: secondOwnerAddress });
 
         // call exercise
