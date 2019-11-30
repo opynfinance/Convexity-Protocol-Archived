@@ -35,8 +35,6 @@ contract('OptionsFactory', (accounts) => {
     await optionsFactory.setOptionsExchange(optionsExchange.address);
   });
 
-  let optionsContractAddr;
-
   describe('#addAsset()', () => {
     it('should add an asset correctly', async () => {
       // Add the asset
