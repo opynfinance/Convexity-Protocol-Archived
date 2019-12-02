@@ -1,4 +1,5 @@
-const expect = require('./chai-expect');
+import { expect } from 'chai';
+import { OptionsExchangeInstance, OptionsFactoryInstance } from '../build/types/truffle-types';
 
 const Web3Utils = require('web3-utils');
 const OptionsFactory = artifacts.require('OptionsFactory');
@@ -9,10 +10,11 @@ const MockUniswapFactory = artifacts.require('MockUniswapFactory');
 const truffleAssert = require('truffle-assertions');
 
 contract('OptionsFactory', (accounts) => {
-  const creatorAddress = accounts[0];
-  const firstOwnerAddress = accounts[1];
+  const creatorAddress = accounts[ 0 ];
+  const firstOwnerAddress = accounts[ 1 ];
 
-  let optionsFactory;
+  let optionsFactory: OptionsFactoryInstance;
+  let optionsExchange: OptionsExchangeInstance;
 
   before(async () => {
     optionsFactory = await OptionsFactory.deployed();
@@ -41,7 +43,7 @@ contract('OptionsFactory', (accounts) => {
         '0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359'
       );
       // check for proper event emitted
-      truffleAssert.eventEmitted(result, 'AssetAdded', (ev) => {
+      truffleAssert.eventEmitted(result, 'AssetAdded', (ev: any) => {
         return ev.asset === Web3Utils.keccak256('DAI') && ev.addr === '0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359';
       });
       // check the supports Asset function
@@ -97,7 +99,7 @@ contract('OptionsFactory', (accounts) => {
         '0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359'
       );
       // check for proper event emitted
-      truffleAssert.eventEmitted(result, 'AssetAdded', (ev) => {
+      truffleAssert.eventEmitted(result, 'AssetAdded', (ev: any) => {
         return ev.asset === Web3Utils.keccak256('BAT') && ev.addr === '0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359';
       });
       // check the supports Asset function
@@ -114,7 +116,7 @@ contract('OptionsFactory', (accounts) => {
         '0xEd1af8c036fcAEbc5be8FcbF4a85d08F67Ce5Fa1'
       );
       // check for proper event emitted
-      truffleAssert.eventEmitted(result, 'AssetChanged', (ev) => {
+      truffleAssert.eventEmitted(result, 'AssetChanged', (ev: any) => {
         return ev.asset === Web3Utils.keccak256('BAT') && ev.addr === '0xEd1af8c036fcAEbc5be8FcbF4a85d08F67Ce5Fa1';
       });
     });
@@ -152,7 +154,7 @@ contract('OptionsFactory', (accounts) => {
         'BAT'
       );
       // check for proper event emitted
-      truffleAssert.eventEmitted(result, 'AssetDeleted', (ev) => {
+      truffleAssert.eventEmitted(result, 'AssetDeleted', (ev: any) => {
         return ev.asset === Web3Utils.keccak256('BAT');
       });
     });
@@ -200,7 +202,7 @@ contract('OptionsFactory', (accounts) => {
       const index = (await optionsFactory.getNumberOfOptionsContracts()).toNumber();
       const lastAdded = await optionsFactory.optionsContracts(index - 1);
 
-      truffleAssert.eventEmitted(result, 'ContractCreated', (ev) => {
+      truffleAssert.eventEmitted(result, 'ContractCreated', (ev: any) => {
         return ev.addr === lastAdded;
       });
     });
@@ -221,7 +223,7 @@ contract('OptionsFactory', (accounts) => {
       const index = (await optionsFactory.getNumberOfOptionsContracts()).toNumber();
       const lastAdded = await optionsFactory.optionsContracts(index - 1);
 
-      truffleAssert.eventEmitted(result, 'ContractCreated', (ev) => {
+      truffleAssert.eventEmitted(result, 'ContractCreated', (ev: any) => {
         return ev.addr === lastAdded;
       });
 

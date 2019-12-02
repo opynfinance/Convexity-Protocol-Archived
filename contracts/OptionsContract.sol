@@ -156,9 +156,6 @@ contract OptionsContract is OptionsUtils, ERC20 {
     event ETHCollateralAdded(uint256 repoIndex, uint256 amount);
     event ERC20CollateralAdded(uint256 repoIndex, uint256 amount);
     event IssuedOptionTokens(address issuedTo);
-    // TODO: remove safe + unsafe called once testing is done
-    event safe(uint256 leftVal, uint256 rightVal, int32 leftExp, int32 rightExp, bool isSafe);
-    event unsafeCalled(bool isUnsafe);
     event Liquidate (uint256 amtCollateralToPay);
     event Exercise (uint256 amtUnderlyingToPay, uint256 amtCollateralToPay);
     event ClaimedCollateral(uint256 amtCollateralClaimed, uint256 amtUnderlyingClaimed);
@@ -453,12 +450,10 @@ contract OptionsContract is OptionsUtils, ERC20 {
     /* @notice: checks if a repo is unsafe. If so, it can be liquidated 
     @param repoIndex: The number of the repo to check 
     @return: true or false */
-    function isUnsafe(uint256 repoIndex) public returns (bool) {
+    function isUnsafe(uint256 repoIndex) public view returns (bool) {
         Repo storage repo = repos[repoIndex];
 
         bool isUnsafe = !isSafe(repo.collateral, repo.putsOutstanding);
-
-        emit unsafeCalled(isUnsafe);
 
         return isUnsafe;
     }
@@ -466,7 +461,7 @@ contract OptionsContract is OptionsUtils, ERC20 {
     /* @notice: checks if a repo is unsafe. If so, it can be liquidated 
     @param repoNum: The number of the repo to check 
     @return: true or false */
-    function isSafe(uint256 collateralAmt, uint256 putsOutstanding) internal returns (bool) {
+    function isSafe(uint256 collateralAmt, uint256 putsOutstanding) internal view returns (bool) {
         // get price from Oracle
         uint256 ethToCollateralPrice = getPrice(address(collateral));
         uint256 ethToStrikePrice = getPrice(address(strike));
@@ -489,8 +484,6 @@ contract OptionsContract is OptionsUtils, ERC20 {
             exp = uint32(rightSideExp - leftSideExp);
             isSafe = leftSideVal <= rightSideVal.mul(10 ** exp);
         }
-        //TODO: remove after debugging.
-        emit safe(leftSideVal, rightSideVal, leftSideExp, rightSideExp, isSafe);
         return isSafe;
     }
 
@@ -586,7 +579,6 @@ contract OptionsContract is OptionsUtils, ERC20 {
     }
 
     function getPrice(address asset) internal view returns (uint256) {
-
         if(asset == address(0)) {
             return (10 ** 18);
         } else {
