@@ -4,13 +4,12 @@ import {
   OptionsFactoryInstance
 } from '../build/types/truffle-types';
 
-import Web3Utils = require('web3-utils');
+const Web3Utils = require('web3-utils');
 const OptionsFactory = artifacts.require('OptionsFactory');
 const OptionsExchange = artifacts.require('OptionsExchange');
 const MockCompoundOracle = artifacts.require('MockCompoundOracle');
 const MockUniswapFactory = artifacts.require('MockUniswapFactory');
-
-import truffleAssert = require('truffle-assertions');
+const truffleAssert = require('truffle-assertions');
 
 contract('OptionsFactory', accounts => {
   const creatorAddress = accounts[0];

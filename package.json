@@ -34,9 +34,9 @@
     "compile:types": "typechain --target=truffle --outDir build/types/truffle-types \"build/contracts/*.json\"",
     "build": "npm run compile:contracts && npm run compile:types",
     "pretest": "npm run build",
-    "test": "truffle test",
+    "test": "truffle test /Users/lisandro/Protofire/Opyn/OptionsProtocol/test/miltiple-exercise.test.ts",
     "lint:contracts": "solhint 'contracts/**/*.sol'",
-    "lint:tests": "eslint 'test/**'",
+    "lint:tests": "eslint 'test/**/*.ts'",
     "lint:tests:fix": "npm run lint:tests -- --fix"
   },
   "prettier": {
@@ -54,6 +54,9 @@
     "parserOptions": {
       "ecmaVersion": 2018,
       "sourceType":  "module"
+    },
+    "rules": {
+      "@typescript-eslint/no-var-requires": "off"
     }
   },
   "husky": {
@@ -62,11 +65,7 @@
     }
   },
   "lint-staged": {
-    "test/**/*.ts": [
-      "eslint --fix",
-      "git add"
-    ],
-    "test/**/*.test.ts": [
+    "test/**": [
       "eslint --fix",
       "git add"
     ]

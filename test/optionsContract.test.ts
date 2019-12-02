@@ -14,7 +14,7 @@ const MockCompoundOracle = artifacts.require('MockCompoundOracle');
 const MockUniswapFactory = artifacts.require('MockUniswapFactory');
 const MintableToken = artifacts.require('ERC20Mintable');
 
-import truffleAssert = require('truffle-assertions');
+const truffleAssert = require('truffle-assertions');
 
 function checkRepo(
   repo: any,
