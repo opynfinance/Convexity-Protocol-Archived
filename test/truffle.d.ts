@@ -1,1 +1,1 @@
-declare module "truffle-assertions";
+declare module 'truffle-assertions';

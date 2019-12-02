@@ -1,6 +1,6 @@
 export function RepoOpened(params: { addr: string }) {
   return {
-    event: "RepoOpened",
+    event: 'RepoOpened',
     args: {
       addr: params.addr
     }
@@ -15,7 +15,7 @@ export function Approval(params: {
   blockNumber: number;
 }) {
   return {
-    event: "Approval",
+    event: 'Approval',
     args: {
       uuid: params.uuid,
       owner: params.owner,

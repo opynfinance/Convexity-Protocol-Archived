@@ -39,6 +39,9 @@
     "lint:tests": "eslint 'test/**'",
     "lint:tests:fix": "npm run lint:tests -- --fix"
   },
+  "prettier": {
+    "singleQuote":  true
+  },
   "eslintConfig": {
     "parser":  "@typescript-eslint/parser",
     "extends": [
