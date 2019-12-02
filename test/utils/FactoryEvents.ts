@@ -1,6 +1,6 @@
-export function AssetAdded(params: { asset: string; addr: string; }) {
+export function AssetAdded(params: { asset: string; addr: string }) {
   return {
-    event: 'AssetAdded',
+    event: "AssetAdded",
     args: {
       asset: params.asset,
       addr: params.addr
@@ -8,18 +8,24 @@ export function AssetAdded(params: { asset: string; addr: string; }) {
   };
 }
 
-export function ContractCreated(params: { addr: string; }) {
+export function ContractCreated(params: { addr: string }) {
   return {
-    event: 'ContractCreated',
+    event: "ContractCreated",
     args: {
       addr: params.addr
     }
   };
 }
 
-export function Approval(params: { uuid: string; owner: string; spender: string; value: string; blockNumber: string; }) {
+export function Approval(params: {
+  uuid: string;
+  owner: string;
+  spender: string;
+  value: string;
+  blockNumber: string;
+}) {
   return {
-    event: 'Approval',
+    event: "Approval",
     args: {
       uuid: params.uuid,
       owner: params.owner,
@@ -29,4 +35,3 @@ export function Approval(params: { uuid: string; owner: string; spender: string;
     }
   };
 }
-
