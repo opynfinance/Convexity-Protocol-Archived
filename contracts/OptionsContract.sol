@@ -33,9 +33,9 @@ contract OptionsContract is OptionsUtils, ERC20 {
 
     Repo[] public repos; 
 
-    // 1010 is 1.010. i.e. 1% incentive. 
-    Number liquidationIncentive = Number(10, -3);
     // 10 is 0.01 i.e. 1% incentive. 
+    Number liquidationIncentive = Number(10, -3);
+
 
     // 100 is egs. 0.1 i.e. 10%. 
     Number transactionFee = Number(0, -3);
@@ -47,6 +47,17 @@ contract OptionsContract is OptionsUtils, ERC20 {
     /* 1054 is 1.054 i.e. 5.4% liqFee. 
     The fees paid to our protocol every time a liquidation happens */
     Number liquidationFee = Number(0, -3);
+
+    /* 16 means 1.6. The minimum ratio of a repo's collateral to insurance promised. 
+    The ratio is calculated as below:
+    repo.collateral / (repo.putsOutstanding * strikePrice) */
+    Number public collateralizationRatio = Number(16, -1); 
+
+    // The amount of insurance promised per oToken
+    Number public strikePrice;
+
+    // The amount of underlying that 1 oToken protects. 
+    Number public oTokenExchangeRate = Number(1, -18);
 
     /* UNIX time. 
     Exercise period starts at `(expiry - windowSize)` and ends at `expiry` */ 
@@ -72,37 +83,26 @@ contract OptionsContract is OptionsUtils, ERC20 {
     repo.collateral / totalCollateral * (totalCollateral - totalExercised) */
     uint256 totalCollateral;
 
-    /* 16 means 1.6. The minimum ratio of a repo's collateral to insurance promised. 
-    The ratio is calculated as below:
-    repo.collateral / (repo.putsOutstanding * strikePrice) */
-    Number public collateralizationRatio = Number(16, -1); 
-
-    // The collateral asset
-    IERC20 public collateral;
+    // The time of expiry of the options contract
+    uint256 public expiry;
 
     // The precision of the collateral
     int32 collateralExp = -18;
 
+    // The collateral asset
+    IERC20 public collateral;
+
     // The asset being protected by the insurance
     IERC20 public underlying;
 
-    // The amount of insurance promised per oToken
-    Number public strikePrice;
 
     // The asset in which insurance is denominated in.
     IERC20 public strike;
-
-    // The time of expiry of the options contract
-    uint256 public expiry;
-
-    // The amount of underlying that 1 oToken protects. 
-    Number public oTokenExchangeRate = Number(1, -18);
 
     // The admin address
     address admin; 
 
     /**
-    * @notice: constructor
     * @param _collateral: The collateral asset
     * @param _collExp: The precision of the collateral (-18 if ETH)
     * @param _underlying: The asset that is being protected
@@ -111,7 +111,7 @@ contract OptionsContract is OptionsUtils, ERC20 {
     * @param _strikeExp: The precision of the strike asset (-18 if ETH)
     * @param _strike: The asset in which the 
     * @param _expiry: The time at which the insurance expires
-    * @param OptionsExchange: The contract which interfaces with the exchange + oracle 
+    * @param _optionsExchange: The contract which interfaces with the exchange + oracle 
     * @param _windowSize: UNIX time. Exercise window is from `expiry - _windowSize` to `expiry`. 
     */ 
     constructor(
@@ -152,6 +152,7 @@ contract OptionsContract is OptionsUtils, ERC20 {
         // TODO: remove this later. 
         setUniswapAndCompound(address(_optionsExchange.UNISWAP_FACTORY()), address(_optionsExchange.COMPOUND_ORACLE()));
     }
+    /*** Events ***/
 
     event RepoOpened(uint256 repoIndex);
     event ETHCollateralAdded(uint256 repoIndex, uint256 amount);
@@ -165,7 +166,7 @@ contract OptionsContract is OptionsUtils, ERC20 {
     event ClaimedCollateral(uint256 amtCollateralClaimed, uint256 amtUnderlyingClaimed);
 
     /**
-     * @dev Throws if called by any account other than the owner.
+     * @notice Throws if called by any account other than the owner.
      */
     modifier onlyOwner() {
         require(isOwner(), "Ownable: caller is not the owner");
@@ -173,12 +174,15 @@ contract OptionsContract is OptionsUtils, ERC20 {
     }
 
     /**
-     * @dev Returns true if the caller is the current owner.
+     * @notice Returns true if the caller is the current owner.
      */
     function isOwner() public view returns (bool) {
         return msg.sender == admin;
     }
 
+    /**
+    * @notice Can only be called by owner. Used to update the fees, minCollateralizationRatio, etc
+    */
     function updateParameters(
         uint256 _liquidationIncentive, 
         uint256 _liquidationFactor, 
@@ -193,15 +197,25 @@ contract OptionsContract is OptionsUtils, ERC20 {
             collateralizationRatio.value = _collateralizationRatio;
     }
 
+    /**
+    * @notice Can only be called by owner. Used to take out the protocol fees from the contract. 
+    */
     function trasnferFee(address payable _address) public onlyOwner {
+        uint256 fees = totalFee;
         totalFee = 0;
-        transferCollateral(_address, totalFee);
+        transferCollateral(_address, fees);
     }
 
+    /**
+    * @notice Returns the number of repos in the options contract. 
+    */
     function numRepos() public returns (uint256) {
         return repos.length; 
     }
 
+    /**
+    * @notice Creates a new empty repo and sets the owner of the repo to be the msg.sender. 
+    */
     function openRepo() public returns (uint) {
         require(now < expiry, "Options contract expired");
         repos.push(Repo(0, 0, msg.sender));
@@ -210,23 +224,36 @@ contract OptionsContract is OptionsUtils, ERC20 {
         return repoIndex;
     }
 
-    function addETHCollateral(uint256 _repoNum) public payable returns (uint256) {
+    /**
+    * @notice If the collateral type is ETH, anyone can call this function any time before 
+    * expiry to increase the amount of collateral in a repo. Will fail if ETH is not the 
+    * collateral asset. 
+    * @param repoIndex the index of the repo to which collateral will be added.
+    */
+    function addETHCollateral(uint256 repoIndex) public payable returns (uint256) {
         require(isETH(collateral), "ETH is not the specified collateral type");
-        emit ETHCollateralAdded(_repoNum, msg.value);
-        return _addCollateral(_repoNum, msg.value);
+        emit ETHCollateralAdded(repoIndex, msg.value);
+        return _addCollateral(repoIndex, msg.value);
     }
 
-    function addERC20Collateral(uint256 _repoNum, uint256 _amt) public returns (uint256) {
+    /**
+    *  If the collateral type is any ERC20, anyone can call this function any time before 
+    * expiry to increase the amount of collateral in a repo. Can only transfer in the collateral asset. 
+    * Will fail if ETH is the collateral asset. 
+    * @param repoIndex the index of the repo to which collateral will be added.
+    * @param amt the amount of collateral to be transferred in.
+    */
+    function addERC20Collateral(uint256 repoIndex, uint256 amt) public returns (uint256) {
         require(
-            collateral.transferFrom(msg.sender, address(this), _amt),
+            collateral.transferFrom(msg.sender, address(this), amt),
             "Could not transfer in collateral tokens"
         );
 
-        emit ERC20CollateralAdded(_repoNum, _amt);
-        return _addCollateral(_repoNum, _amt);
+        emit ERC20CollateralAdded(repoIndex, amt);
+        return _addCollateral(repoIndex, amt);
     }
 
-    /* @notice this function returns the exponential that the underlying token is. 
+    /*  this function returns the exponential that the underlying token is. 
     If the underlying has a precision of 18 digits and the oTokenExchange is 14 digits 
     of precision, the underlyingExp is 4. 
     */
@@ -235,9 +262,8 @@ contract OptionsContract is OptionsUtils, ERC20 {
         return uint32(oTokenExchangeRate.exponent - (-18));
     }
 
-/// TODO: look up pToken to underlying ratio. rn 1:1.
-/// TODO: add fees
-/* @dev: 1 oToken protects against 10 * lowest precision of underlying. */
+
+/* : 1 oToken protects against 10 * lowest precision of underlying. */
     function exercise(uint256 _oTokens) public payable {
         // 1. before exercise window: revert
         require(now >= expiry - windowSize, "Too early to exercise");
@@ -329,12 +355,12 @@ contract OptionsContract is OptionsUtils, ERC20 {
         return repo.collateral;
     }
 
-    /*
-    @notice: This function is called to issue the option tokens
-    @dev: The owner of a repo should only be able to have a max of 
-    floor(Collateral * collateralToStrike / (minCollateralizationRatio * strikePrice)) tokens issued. 
-    @param repoIndex : The index of the repo to issue tokens from
-    @param numTokens : The number of tokens to issue
+    /** 
+    * : This function is called to issue the option tokens
+    * : The owner of a repo should only be able to have a max of 
+    * floor(Collateral * collateralToStrike / (minCollateralizationRatio * strikePrice)) tokens issued. 
+    * @param repoIndex : The index of the repo to issue tokens from
+    * @param numTokens : The number of tokens to issue
     */
     function issueOptionTokens (uint256 repoIndex, uint256 numTokens) public {
         //check that we're properly collateralized to mint this number, then call _mint(address account, uint256 amount)
@@ -392,10 +418,10 @@ contract OptionsContract is OptionsUtils, ERC20 {
     //     //TODO: write this
     // }
 
-    /* @notice: allows the owner to burn their put Tokens
+    /* : allows the owner to burn their put Tokens
     @param repoIndex: Index of the repo to burn putTokens
     @param amtToBurn: number of pTokens to burn
-    @dev: only want to call this function before expiry. After expiry, 
+    : only want to call this function before expiry. After expiry, 
     no benefit to calling it.
     */
     function burnPutTokens(uint256 repoIndex, uint256 amtToBurn) public {
@@ -410,7 +436,7 @@ contract OptionsContract is OptionsUtils, ERC20 {
         repos[repoIndex].owner = newOwner;
     }
 
-    /* @notice: allows the owner to remove excess collateral from the repo before expiry. 
+    /* : allows the owner to remove excess collateral from the repo before expiry. 
     @param repoIndex: Index of the repo to burn putTokens
     @param amtToRemove: Amount of collateral to remove in 10^-18. 
     */ 
@@ -429,8 +455,8 @@ contract OptionsContract is OptionsUtils, ERC20 {
         transferCollateral(msg.sender, amtToRemove);
         totalCollateral = totalCollateral.sub(amtToRemove);
     }
-    /* @notice: post expiry, each repo holder can get back their proportional share of collateral 
-    @dev: repo.collateral / totalCollateral * (totalCollateral - totalExercised) */
+    /* : post expiry, each repo holder can get back their proportional share of collateral 
+    : repo.collateral / totalCollateral * (totalCollateral - totalExercised) */
     function claimCollateral (uint256 repoIndex) public {
         // TODO: uncomment and test with expiry
         // require(now >= expiry, "Can't collect collateral until expiry");
@@ -451,7 +477,7 @@ contract OptionsContract is OptionsUtils, ERC20 {
 
     }
 
-    /* @notice: checks if a repo is unsafe. If so, it can be liquidated 
+    /* : checks if a repo is unsafe. If so, it can be liquidated 
     @param repoIndex: The number of the repo to check 
     @return: true or false */
     function isUnsafe(uint256 repoIndex) public returns (bool) {
@@ -464,7 +490,7 @@ contract OptionsContract is OptionsUtils, ERC20 {
         return isUnsafe;
     }
 
-    /* @notice: checks if a repo is unsafe. If so, it can be liquidated 
+    /* : checks if a repo is unsafe. If so, it can be liquidated 
     @param repoNum: The number of the repo to check 
     @return: true or false */
     function isSafe(uint256 collateralAmt, uint256 putsOutstanding) internal returns (bool) {
@@ -544,7 +570,7 @@ contract OptionsContract is OptionsUtils, ERC20 {
     }
 
     /* 
-    * @dev: This function retruns proportion * strikePrice * oTokens amount of collateral. 
+    * : This function retruns proportion * strikePrice * oTokens amount of collateral. 
     * @param _oTokens: The number of oTokens.
     * @param proportion: The proportion of the collateral to pay out. If 100% of collateral 
     * should be paid out, pass in Number(1, 0). 
