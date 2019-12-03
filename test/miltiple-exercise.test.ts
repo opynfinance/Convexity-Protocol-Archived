@@ -137,7 +137,7 @@ contract('OptionsContract', accounts => {
     });
   });
 
-  describe('Scenario: Exerxise + Claim collateral', () => {
+  describe('Scenario: Exercise + Claim collateral', () => {
     it('firstExerciser should be able to exercise 10 oTokens', async () => {
       const underlyingToPay = new BN(100000);
       const collateralToPay = new BN(450);
@@ -176,6 +176,8 @@ contract('OptionsContract', accounts => {
       expect(initialDaiBalance.sub(underlyingToPay).toString()).to.equal(
         finalDaiBalance.toString()
       );
+
+      // TODO: is there a way to check the collateral moved from the options contract to the firstExerciser?
     });
 
     it('repo 1 should be unsafe after Compund Oracle drops price', async () => {
@@ -238,6 +240,8 @@ contract('OptionsContract', accounts => {
       expect(initialDaiBalance.sub(underlyingToPay).toString()).to.equal(
         finalDaiBalance.toString()
       );
+
+      // TODO: is there a way to check the collateral moved from the options contract to the firstExerciser?
     });
 
     it('secondRepoOwnerAddress should be able to claim after expiry', async () => {
@@ -289,7 +293,8 @@ contract('OptionsContract', accounts => {
         (await dai.balanceOf(firstRepoOwnerAddress)).toString()
       );
 
-      await time.increaseTo(1577836800);
+      // TODO: make the time increase dynamic
+      await time.increaseTo(1577836802);
 
       const txInfo = await optionsContracts[0].claimCollateral(0, {
         from: firstRepoOwnerAddress,
