@@ -287,7 +287,7 @@ contract('OptionsContract', accounts => {
         (await dai.balanceOf(secondRepoOwnerAddress)).toString()
       );
 
-      await time.increaseTo(1577836800);
+      await time.increaseTo(windowSize + 2);
 
       const txInfo = await optionsContracts[0].claimCollateral(1, {
         from: secondRepoOwnerAddress,
@@ -311,19 +311,12 @@ contract('OptionsContract', accounts => {
     });
 
     it('firstRepoOwnerAddress should be able to claim after expiry', async () => {
-      await compoundOracle.updatePrice(200, {
-        from: creatorAddress,
-        gas: '1000000'
-      });
-
       const collateralClaimed = new BN(19999100);
       const underlyingClaimed = new BN(133333);
 
       const initialDaiBalance = new BN(
         (await dai.balanceOf(firstRepoOwnerAddress)).toString()
       );
-
-      await time.increaseTo(windowSize + 2);
 
       const txInfo = await optionsContracts[0].claimCollateral(0, {
         from: firstRepoOwnerAddress,
