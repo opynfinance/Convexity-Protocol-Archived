@@ -1,4 +1,4 @@
-export function RepoOpened(params: { addr: string; }) {
+export function RepoOpened(params: { addr: string }) {
   return {
     event: 'RepoOpened',
     args: {
@@ -7,7 +7,13 @@ export function RepoOpened(params: { addr: string; }) {
   };
 }
 
-export function Approval(params: { uuid: string; owner: string; spender: string; value: string; blockNumber: number; }) {
+export function Approval(params: {
+  uuid: string;
+  owner: string;
+  spender: string;
+  value: string;
+  blockNumber: number;
+}) {
   return {
     event: 'Approval',
     args: {

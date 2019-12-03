@@ -1,4 +1,4 @@
-export function AssetAdded(params: { asset: string; addr: string; }) {
+export function AssetAdded(params: { asset: string; addr: string }) {
   return {
     event: 'AssetAdded',
     args: {
@@ -8,7 +8,7 @@ export function AssetAdded(params: { asset: string; addr: string; }) {
   };
 }
 
-export function ContractCreated(params: { addr: string; }) {
+export function ContractCreated(params: { addr: string }) {
   return {
     event: 'ContractCreated',
     args: {
@@ -17,7 +17,13 @@ export function ContractCreated(params: { addr: string; }) {
   };
 }
 
-export function Approval(params: { uuid: string; owner: string; spender: string; value: string; blockNumber: string; }) {
+export function Approval(params: {
+  uuid: string;
+  owner: string;
+  spender: string;
+  value: string;
+  blockNumber: string;
+}) {
   return {
     event: 'Approval',
     args: {
@@ -29,4 +35,3 @@ export function Approval(params: { uuid: string; owner: string; spender: string;
     }
   };
 }
-

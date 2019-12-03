@@ -4,8 +4,19 @@
   "description": "Options smart contracts for any EVM compatible chain",
   "devDependencies": {
     "@openzeppelin/contracts": "2.4.0",
+    "@openzeppelin/test-helpers": "^0.5.4",
     "@types/chai": "4.2.5",
+    "@typescript-eslint/eslint-plugin": "^2.9.0",
+    "@typescript-eslint/parser": "^2.9.0",
     "chai": "4.2.0",
+    "eslint": "^6.7.2",
+    "eslint-config-prettier": "^6.7.0",
+    "eslint-plugin-import": "^2.18.2",
+    "eslint-plugin-prettier": "^3.1.1",
+    "husky": "^3.1.0",
+    "lint-staged": "^9.5.0",
+    "prettier": "^1.19.1",
+    "solhint": "^2.3.0",
     "truffle": "5.1.1",
     "truffle-assertions": "0.9.2",
     "truffle-typings": "^1.0.8",
@@ -23,7 +34,41 @@
     "compile:types": "typechain --target=truffle --outDir build/types/truffle-types \"build/contracts/*.json\"",
     "build": "npm run compile:contracts && npm run compile:types",
     "pretest": "npm run build",
-    "test": "truffle test"
+    "test": "truffle test /Users/lisandro/Protofire/Opyn/OptionsProtocol/test/miltiple-exercise.test.ts",
+    "lint:contracts": "solhint 'contracts/**/*.sol'",
+    "lint:tests": "eslint 'test/**/*.ts'",
+    "lint:tests:fix": "npm run lint:tests -- --fix"
+  },
+  "prettier": {
+    "singleQuote": true
+  },
+  "eslintConfig": {
+    "parser": "@typescript-eslint/parser",
+    "extends": [
+      "plugin:@typescript-eslint/recommended",
+      "plugin:prettier/recommended"
+    ],
+    "env": {
+      "es6": true
+    },
+    "parserOptions": {
+      "ecmaVersion": 2018,
+      "sourceType": "module"
+    },
+    "rules": {
+      "@typescript-eslint/no-var-requires": "off"
+    }
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
+  },
+  "lint-staged": {
+    "test/**": [
+      "eslint --fix",
+      "git add"
+    ]
   },
   "repository": {
     "type": "git",
