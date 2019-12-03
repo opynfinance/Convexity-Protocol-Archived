@@ -18,6 +18,7 @@ const {
   BN,
   constants,
   balance,
+  time,
   expectEvent,
   expectRevert
 } = require('@openzeppelin/test-helpers');
@@ -138,9 +139,12 @@ contract('OptionsContract', accounts => {
 
   describe('Scenario: Exerxise + Claim collateral', () => {
     it('firstExerciser should be able to exercise 10 oTokens', async () => {
+      const underlyingToPay = new BN(100000);
+      const collateralToPay = new BN(450);
       const amtToExercise = '10';
-      const initialEth = await balance.current(firstExerciser);
-      console.log(initialEth.toString());
+      const initialDaiBalance = new BN(
+        (await dai.balanceOf(firstExerciser)).toString()
+      );
 
       await dai.approve(
         optionsContracts[0].address,
@@ -161,12 +165,151 @@ contract('OptionsContract', accounts => {
       });
 
       expectEvent(txInfo, 'Exercise', {
-        amtUnderlyingToPay: new BN(100000),
-        amtCollateralToPay: new BN(450)
+        amtUnderlyingToPay: underlyingToPay,
+        amtCollateralToPay: collateralToPay
       });
 
       const oTokenBalance = await optionsContracts[0].balanceOf(firstExerciser);
       expect(oTokenBalance.toString()).to.equal('0');
+
+      const finalDaiBalance = await dai.balanceOf(firstExerciser);
+      expect(initialDaiBalance.sub(underlyingToPay).toString()).to.equal(
+        finalDaiBalance.toString()
+      );
+    });
+
+    it('repo 1 should be unsafe after Compund Oracle drops price', async () => {
+      await compoundOracle.updatePrice(100, {
+        from: creatorAddress,
+        gas: '1000000'
+      });
+
+      const unsafe = await optionsContracts[0].isUnsafe(0);
+      expect(unsafe).to.be.true;
+    });
+
+    xit('repo 2 should be safe after Compund Oracle drops price', async () => {
+      compoundOracle.updatePrice(100, {
+        from: creatorAddress,
+        gas: '1000000'
+      });
+
+      const unsafe = await optionsContracts[0].isUnsafe(1);
+      expect(unsafe).to.be.false;
+    });
+
+    it('secondExerciser should be able to exercise 10 oTokens', async () => {
+      const underlyingToPay = new BN(100000);
+      const collateralToPay = new BN(900);
+      const amtToExercise = '10';
+      const initialDaiBalance = new BN(
+        (await dai.balanceOf(secondExerciser)).toString()
+      );
+
+      await dai.approve(
+        optionsContracts[0].address,
+        '10000000000000000000000',
+        { from: secondExerciser }
+      );
+
+      // call exercise
+      // ensure you approve before burn
+      await optionsContracts[0].approve(
+        optionsContracts[0].address,
+        '10000000000000000',
+        { from: secondExerciser }
+      );
+      const txInfo = await optionsContracts[0].exercise(amtToExercise, {
+        from: secondExerciser,
+        gas: '1000000'
+      });
+
+      expectEvent(txInfo, 'Exercise', {
+        amtUnderlyingToPay: underlyingToPay,
+        amtCollateralToPay: collateralToPay
+      });
+
+      const oTokenBalance = await optionsContracts[0].balanceOf(
+        secondExerciser
+      );
+      expect(oTokenBalance.toString()).to.equal('0');
+
+      const finalDaiBalance = await dai.balanceOf(secondExerciser);
+      expect(initialDaiBalance.sub(underlyingToPay).toString()).to.equal(
+        finalDaiBalance.toString()
+      );
+    });
+
+    it('secondRepoOwnerAddress should be able to claim after expiry', async () => {
+      await compoundOracle.updatePrice(200, {
+        from: creatorAddress,
+        gas: '1000000'
+      });
+
+      const collateralClaimed = new BN(9999550);
+      const underlyingClaimed = new BN(66666);
+
+      const initialDaiBalance = new BN(
+        (await dai.balanceOf(secondRepoOwnerAddress)).toString()
+      );
+
+      await time.increaseTo(1577836800);
+
+      const txInfo = await optionsContracts[0].claimCollateral(1, {
+        from: secondRepoOwnerAddress,
+        gas: '1000000'
+      });
+
+      expectEvent(txInfo, 'ClaimedCollateral', {
+        amtCollateralClaimed: collateralClaimed,
+        amtUnderlyingClaimed: underlyingClaimed
+      });
+
+      const finalDaiBalance = new BN(
+        (await dai.balanceOf(secondRepoOwnerAddress)).toString()
+      );
+      expect(initialDaiBalance.add(underlyingClaimed).toString()).to.equal(
+        finalDaiBalance.toString()
+      );
+
+      const repo = await optionsContracts[0].getRepoByIndex(1);
+      expect(repo['0'].toString()).to.equal('0');
+    });
+
+    it('firstRepoOwnerAddress should be able to claim after expiry', async () => {
+      await compoundOracle.updatePrice(200, {
+        from: creatorAddress,
+        gas: '1000000'
+      });
+
+      const collateralClaimed = new BN(19999100);
+      const underlyingClaimed = new BN(133333);
+
+      const initialDaiBalance = new BN(
+        (await dai.balanceOf(firstRepoOwnerAddress)).toString()
+      );
+
+      await time.increaseTo(1577836800);
+
+      const txInfo = await optionsContracts[0].claimCollateral(0, {
+        from: firstRepoOwnerAddress,
+        gas: '1000000'
+      });
+
+      expectEvent(txInfo, 'ClaimedCollateral', {
+        amtCollateralClaimed: collateralClaimed,
+        amtUnderlyingClaimed: underlyingClaimed
+      });
+
+      const finalDaiBalance = new BN(
+        (await dai.balanceOf(firstRepoOwnerAddress)).toString()
+      );
+      expect(initialDaiBalance.add(underlyingClaimed).toString()).to.equal(
+        finalDaiBalance.toString()
+      );
+
+      const repo = await optionsContracts[0].getRepoByIndex(0);
+      expect(repo['0'].toString()).to.equal('0');
     });
   });
 });

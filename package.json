@@ -40,10 +40,10 @@
     "lint:tests:fix": "npm run lint:tests -- --fix"
   },
   "prettier": {
-    "singleQuote":  true
+    "singleQuote": true
   },
   "eslintConfig": {
-    "parser":  "@typescript-eslint/parser",
+    "parser": "@typescript-eslint/parser",
     "extends": [
       "plugin:@typescript-eslint/recommended",
       "plugin:prettier/recommended"
@@ -53,7 +53,7 @@
     },
     "parserOptions": {
       "ecmaVersion": 2018,
-      "sourceType":  "module"
+      "sourceType": "module"
     },
     "rules": {
       "@typescript-eslint/no-var-requires": "off"
