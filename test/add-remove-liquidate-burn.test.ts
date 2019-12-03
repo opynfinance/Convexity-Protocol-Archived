@@ -28,8 +28,7 @@ contract('OptionsContract', accounts => {
   const firstRepoOwnerAddress = accounts[1];
   const secondRepoOwnerAddress = accounts[2];
 
-  const firstExerciser = accounts[3];
-  const secondExerciser = accounts[4];
+  const tokenHolder = accounts[3];
 
   const optionsContracts: OptionsContractInstance[] = [];
   let optionsFactory: OptionsFactoryInstance;
@@ -53,8 +52,7 @@ contract('OptionsContract', accounts => {
     // 1.3 Mock Dai contract
     dai = await MintableToken.new();
     await dai.mint(creatorAddress, '10000000');
-    await dai.mint(firstExerciser, '100000', { from: creatorAddress });
-    await dai.mint(secondExerciser, '100000', { from: creatorAddress });
+    await dai.mint(tokenHolder, '100000', { from: creatorAddress });
     // 1.4 Mock Dai contract
     usdc = await MintableToken.new();
     await usdc.mint(creatorAddress, '10000000');
@@ -109,7 +107,7 @@ contract('OptionsContract', accounts => {
       gas: '100000'
     });
 
-    await optionsContracts[0].transfer(firstExerciser, '10', {
+    await optionsContracts[0].transfer(tokenHolder, '101010', {
       from: firstRepoOwnerAddress,
       gas: '100000'
     });
@@ -131,7 +129,7 @@ contract('OptionsContract', accounts => {
       gas: '100000'
     });
 
-    await optionsContracts[0].transfer(secondExerciser, '10', {
+    await optionsContracts[0].transfer(tokenHolder, '1000', {
       from: secondRepoOwnerAddress,
       gas: '100000'
     });
@@ -228,13 +226,60 @@ contract('OptionsContract', accounts => {
     });
 
     it('repo 2 should be unsafe after Compund Oracle drops price', async () => {
-      compoundOracle.updatePrice(100, {
+      const unsafe = await optionsContracts[0].isUnsafe(1);
+      expect(unsafe).to.be.true;
+    });
+
+    it('should be able to liquidate some collateral from Repo 1', async () => {
+      const tx = await optionsContracts[0].liquidate('0', '101010', {
+        from: tokenHolder,
+        gas: '100000'
+      });
+
+      expectEvent(tx, 'Liquidate', {
+        amtCollateralToPay: new BN(9181809)
+      });
+    });
+
+    it('repo 1 should remain unsafe after Compund Oracle reices price', async () => {
+      await compoundOracle.updatePrice(150, {
         from: creatorAddress,
         gas: '1000000'
       });
 
-      const unsafe = await optionsContracts[0].isUnsafe(1);
+      const unsafe = await optionsContracts[0].isUnsafe(0);
       expect(unsafe).to.be.true;
+    });
+
+    it('repo 2 should be safe after Compund Oracle reices price', async () => {
+      const unsafe = await optionsContracts[0].isUnsafe(1);
+      expect(unsafe).to.be.false;
+    });
+
+    it('should be able to liquidate some more collateral from Repo 1', async () => {
+      const tx = await optionsContracts[0].liquidate('0', '100', {
+        from: tokenHolder,
+        gas: '100000'
+      });
+
+      expectEvent(tx, 'Liquidate', {
+        amtCollateralToPay: new BN(6060)
+      });
+    });
+
+    it('repo 1 should remain unsafe after liquidation', async () => {
+      const unsafe = await optionsContracts[0].isUnsafe(0);
+      expect(unsafe).to.be.true;
+    });
+
+    it('firstRepoOwner should be able to burn some put tokens to turn the repo safe', async () => {
+      await optionsContracts[0].burnPutTokens('0', '100000', {
+        from: firstRepoOwnerAddress,
+        gas: '100000'
+      });
+
+      const unsafe = await optionsContracts[0].isUnsafe(0);
+      expect(unsafe).to.be.false;
     });
   });
 });
