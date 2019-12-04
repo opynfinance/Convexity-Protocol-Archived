@@ -234,7 +234,6 @@ contract('OptionsContract', accounts => {
       expect(result.logs[1].args.isUnsafe).to.be.true;
     });
 
-    // add repo 2
     it('anyone should be able to add ETH collateral to Repo 2', async () => {
       let repoState = await optionsContracts[0].getRepoByIndex(1);
       const initialCollateral = new BN(repoState['0'].toString());
@@ -260,8 +259,6 @@ contract('OptionsContract', accounts => {
       expect(result.logs[1].args.isUnsafe).to.be.false;
     });
 
-    // increase price 200
-    // repo 1 safe
     it('repo 1 should be safe after Compund Oracle increases price', async () => {
       await compoundOracle.updatePrice(200, {
         from: creatorAddress,
@@ -274,7 +271,6 @@ contract('OptionsContract', accounts => {
       expect(result.logs[1].args.isUnsafe).to.be.false;
     });
 
-    //remove repo 2
     it('secondRepoOwnerAddress should be able to remove collateral', async () => {
       let repoState = await optionsContracts[0].getRepoByIndex(1);
       const initialCollateral = new BN(repoState['0'].toString());
@@ -306,7 +302,6 @@ contract('OptionsContract', accounts => {
       expect(finalETH.toString()).to.equal(expectedEndETHBalance.toString());
     });
 
-    //remove repo 1 fail
     it("firstRepoOwnerAddress shouldn't be able to remove collateral", async () => {
       await expectRevert(
         optionsContracts[0].removeCollateral(0, repo2Collateral, {
@@ -317,8 +312,6 @@ contract('OptionsContract', accounts => {
       );
     });
 
-    // drop 100
-    // repo 1 repo2 unsaef
     it('repo 1 should be unsafe after Compund Oracle drops price', async () => {
       await compoundOracle.updatePrice(100, {
         from: creatorAddress,
@@ -337,14 +330,13 @@ contract('OptionsContract', accounts => {
       expect(result.logs[1].args.isUnsafe).to.be.true;
     });
 
-    // liquidate repo1
     it('should be able to liquidate some collateral from Repo 1', async () => {
       const expectedCollateralToPay = new BN(9181809);
       const initialETH = await balance.current(tokenHolder);
 
       const txInfo = await optionsContracts[0].liquidate('0', '101010', {
         from: tokenHolder,
-        gas: '100000'
+        gas: '200000'
       });
 
       const tx = await web3.eth.getTransaction(txInfo.tx);
@@ -362,9 +354,6 @@ contract('OptionsContract', accounts => {
       expect(finalETH.toString()).to.equal(expectedEndETHBalance.toString());
     });
 
-    // increase price 150
-    // repo 1 unsafe
-    // repo2 safe
     it('repo 1 should remain unsafe after Compund Oracle reices price', async () => {
       await compoundOracle.updatePrice(150, {
         from: creatorAddress,
@@ -384,15 +373,13 @@ contract('OptionsContract', accounts => {
       expect(result.logs[1].args.isUnsafe).to.be.false;
     });
 
-    // liquidate repo 1
-    // repo 1 unsafe
     it('should be able to liquidate some more collateral from Repo 1', async () => {
       const expectedCollateralToPay = new BN(6060);
       const initialETH = await balance.current(tokenHolder);
 
       const txInfo = await optionsContracts[0].liquidate('0', '100', {
         from: tokenHolder,
-        gas: '100000'
+        gas: '200000'
       });
 
       const tx = await web3.eth.getTransaction(txInfo.tx);
@@ -417,8 +404,6 @@ contract('OptionsContract', accounts => {
       expect(result.logs[1].args.isUnsafe).to.be.true;
     });
 
-    // burn repo 1
-    // repo 1 safe
     it('firstRepoOwner should be able to burn some put tokens to turn the repo safe', async () => {
       await optionsContracts[0].burnPutTokens('0', '100000', {
         from: firstRepoOwnerAddress,
@@ -497,8 +482,8 @@ contract('OptionsContract', accounts => {
         gas: '1000000'
       });
 
-      const collateralClaimed = new BN(9999550);
-      const underlyingClaimed = new BN(66666);
+      const collateralClaimed = new BN(9999351);
+      const underlyingClaimed = new BN(96097);
 
       const initialDaiBalance = new BN(
         (await dai.balanceOf(secondRepoOwnerAddress)).toString()
@@ -506,18 +491,10 @@ contract('OptionsContract', accounts => {
 
       await time.increaseTo(windowSize + 2);
 
-      const before = await balance.current(optionsContracts[0].address);
-
       const txInfo = await optionsContracts[0].claimCollateral(1, {
         from: secondRepoOwnerAddress,
         gas: '1000000'
       });
-
-      const after = await balance.current(optionsContracts[0].address);
-
-      console.log(before.toString(), after.toString());
-
-      // console.log(txInfo.logs[0].args[0].toString(),txInfo.logs[0].args[1].toString(),txInfo.logs[0].args[2].toString())
 
       expectEvent(txInfo, 'ClaimedCollateral', {
         amtCollateralClaimed: collateralClaimed,
@@ -535,40 +512,33 @@ contract('OptionsContract', accounts => {
       expect(repo['0'].toString()).to.equal('0');
     });
 
-    // it('firstRepoOwnerAddress should be able to claim after expiry', async () => {
-    //   await compoundOracle.updatePrice(200, {
-    //     from: creatorAddress,
-    //     gas: '1000000'
-    //   });
+    it('firstRepoOwnerAddress should be able to claim after expiry', async () => {
+      const collateralClaimed = new BN(10811429);
+      const underlyingClaimed = new BN(103902);
 
-    //   const collateralClaimed = new BN(10811644);
-    //   const underlyingClaimed = new BN(72080);
+      const initialDaiBalance = new BN(
+        (await dai.balanceOf(firstRepoOwnerAddress)).toString()
+      );
 
-    //   const initialDaiBalance = new BN(
-    //     (await dai.balanceOf(firstRepoOwnerAddress)).toString()
-    //   );
+      const txInfo = await optionsContracts[0].claimCollateral(0, {
+        from: firstRepoOwnerAddress,
+        gas: '1000000'
+      });
 
-    //   const txInfo = await optionsContracts[0].claimCollateral(0, {
-    //     from: firstRepoOwnerAddress,
-    //     gas: '1000000'
-    //   });
+      expectEvent(txInfo, 'ClaimedCollateral', {
+        amtCollateralClaimed: collateralClaimed,
+        amtUnderlyingClaimed: underlyingClaimed
+      });
 
-    //   console.log(txInfo.logs[0].args[0].toString(),txInfo.logs[0].args[1].toString(),txInfo.logs[0].args[2].toString())
+      const finalDaiBalance = new BN(
+        (await dai.balanceOf(firstRepoOwnerAddress)).toString()
+      );
+      expect(initialDaiBalance.add(underlyingClaimed).toString()).to.equal(
+        finalDaiBalance.toString()
+      );
 
-    //   expectEvent(txInfo, 'ClaimedCollateral', {
-    //     amtCollateralClaimed: collateralClaimed,
-    //     amtUnderlyingClaimed: underlyingClaimed
-    //   });
-
-    //   const finalDaiBalance = new BN(
-    //     (await dai.balanceOf(firstRepoOwnerAddress)).toString()
-    //   );
-    //   expect(initialDaiBalance.add(underlyingClaimed).toString()).to.equal(
-    //     finalDaiBalance.toString()
-    //   );
-
-    //   const repo = await optionsContracts[0].getRepoByIndex(0);
-    //   expect(repo['0'].toString()).to.equal('0');
-    // });
+      const repo = await optionsContracts[0].getRepoByIndex(0);
+      expect(repo['0'].toString()).to.equal('0');
+    });
   });
 });
