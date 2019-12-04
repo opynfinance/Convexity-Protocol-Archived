@@ -14,6 +14,8 @@ const MockCompoundOracle = artifacts.require('MockCompoundOracle');
 const MockUniswapFactory = artifacts.require('MockUniswapFactory');
 const MintableToken = artifacts.require('ERC20Mintable');
 
+import Reverter from './utils/reverter';
+
 const {
   BN,
   constants,
@@ -24,6 +26,8 @@ const {
 } = require('@openzeppelin/test-helpers');
 
 contract('OptionsContract', accounts => {
+  const reverter = new Reverter(web3);
+
   const creatorAddress = accounts[0];
   const firstRepoOwnerAddress = accounts[1];
   const secondRepoOwnerAddress = accounts[2];
@@ -43,6 +47,8 @@ contract('OptionsContract', accounts => {
 
   const repo2Collateral = '10000000';
   const repo2PutsOutstanding = '100000';
+
+  const windowSize = 1577836800;
 
   before('set up contracts', async () => {
     // 1. Deploy mock contracts
@@ -86,7 +92,7 @@ contract('OptionsContract', accounts => {
       -'15',
       'USDC',
       '1577836800',
-      '1577836800'
+      windowSize
     );
 
     const optionsContractAddr = optionsContractResult.logs[0].args[0];
@@ -135,9 +141,11 @@ contract('OptionsContract', accounts => {
       from: secondRepoOwnerAddress,
       gas: '100000'
     });
+
+    await reverter.snapshot();
   });
 
-  describe('Scenario: Exerxise + Claim collateral', () => {
+  describe('Scenario: Exercise + Claim collateral', () => {
     it('firstExerciser should be able to exercise 10 oTokens', async () => {
       const underlyingToPay = new BN(100000);
       const collateralToPay = new BN(450);
@@ -159,10 +167,16 @@ contract('OptionsContract', accounts => {
         '10000000000000000',
         { from: firstExerciser }
       );
+
+      const initialETH = await balance.current(firstExerciser);
+
       const txInfo = await optionsContracts[0].exercise(amtToExercise, {
         from: firstExerciser,
         gas: '1000000'
       });
+
+      const tx = await web3.eth.getTransaction(txInfo.tx);
+      const finalETH = await balance.current(firstExerciser);
 
       expectEvent(txInfo, 'Exercise', {
         amtUnderlyingToPay: underlyingToPay,
@@ -176,6 +190,13 @@ contract('OptionsContract', accounts => {
       expect(initialDaiBalance.sub(underlyingToPay).toString()).to.equal(
         finalDaiBalance.toString()
       );
+
+      const gasUsed = new BN(txInfo.receipt.gasUsed);
+      const gasPrice = new BN(tx.gasPrice);
+      const expectedEndETHBalance = initialETH
+        .sub(gasUsed.mul(gasPrice))
+        .add(collateralToPay);
+      expect(finalETH.toString()).to.equal(expectedEndETHBalance.toString());
     });
 
     it('repo 1 should be unsafe after Compund Oracle drops price', async () => {
@@ -221,10 +242,16 @@ contract('OptionsContract', accounts => {
         '10000000000000000',
         { from: secondExerciser }
       );
+
+      const initialETH = await balance.current(secondExerciser);
+
       const txInfo = await optionsContracts[0].exercise(amtToExercise, {
         from: secondExerciser,
         gas: '1000000'
       });
+
+      const tx = await web3.eth.getTransaction(txInfo.tx);
+      const finalETH = await balance.current(secondExerciser);
 
       expectEvent(txInfo, 'Exercise', {
         amtUnderlyingToPay: underlyingToPay,
@@ -240,6 +267,13 @@ contract('OptionsContract', accounts => {
       expect(initialDaiBalance.sub(underlyingToPay).toString()).to.equal(
         finalDaiBalance.toString()
       );
+
+      const gasUsed = new BN(txInfo.receipt.gasUsed);
+      const gasPrice = new BN(tx.gasPrice);
+      const expectedEndETHBalance = initialETH
+        .sub(gasUsed.mul(gasPrice))
+        .add(collateralToPay);
+      expect(finalETH.toString()).to.equal(expectedEndETHBalance.toString());
     });
 
     it('secondRepoOwnerAddress should be able to claim after expiry', async () => {
@@ -255,7 +289,7 @@ contract('OptionsContract', accounts => {
         (await dai.balanceOf(secondRepoOwnerAddress)).toString()
       );
 
-      await time.increaseTo(1577836800);
+      await time.increaseTo(windowSize + 2);
 
       const txInfo = await optionsContracts[0].claimCollateral(1, {
         from: secondRepoOwnerAddress,
@@ -279,20 +313,13 @@ contract('OptionsContract', accounts => {
     });
 
     it('firstRepoOwnerAddress should be able to claim after expiry', async () => {
-      await compoundOracle.updatePrice(200, {
-        from: creatorAddress,
-        gas: '1000000'
-      });
-
       const collateralClaimed = new BN(19999100);
       const underlyingClaimed = new BN(133333);
 
       const initialDaiBalance = new BN(
         (await dai.balanceOf(firstRepoOwnerAddress)).toString()
       );
-
-      await time.increaseTo(1577836802);
-
+      //       await time.increaseTo(1577836802);
       const txInfo = await optionsContracts[0].claimCollateral(0, {
         from: firstRepoOwnerAddress,
         gas: '1000000'
@@ -312,6 +339,18 @@ contract('OptionsContract', accounts => {
 
       const repo = await optionsContracts[0].getRepoByIndex(0);
       expect(repo['0'].toString()).to.equal('0');
+    });
+
+    it('should rever everything', async () => {
+      await reverter.revert();
+
+      let repo = await optionsContracts[0].getRepoByIndex(0);
+      expect(repo['0'].toString()).to.equal(repo1Collateral);
+      expect(repo['1'].toString()).to.equal(repo1PutsOutstanding);
+
+      repo = await optionsContracts[0].getRepoByIndex(1);
+      expect(repo['0'].toString()).to.equal(repo2Collateral);
+      expect(repo['1'].toString()).to.equal(repo2PutsOutstanding);
     });
   });
 });

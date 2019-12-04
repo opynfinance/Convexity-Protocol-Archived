@@ -193,8 +193,8 @@ contract('OptionsContract', accounts => {
     it('secondRepoOwnerAddress should be able to remove collateral', async () => {
       let repoState = await optionsContracts[0].getRepoByIndex(1);
       const initialCollateral = new BN(repoState['0'].toString());
-
-      const result = await optionsContracts[0].removeCollateral(
+      const initialETH = await balance.current(secondRepoOwnerAddress);
+      const txInfo = await optionsContracts[0].removeCollateral(
         1,
         repo2Collateral,
         {
@@ -203,12 +203,22 @@ contract('OptionsContract', accounts => {
         }
       );
 
+      const tx = await web3.eth.getTransaction(txInfo.tx);
+      const finalETH = await balance.current(secondRepoOwnerAddress);
+
       repoState = await optionsContracts[0].getRepoByIndex(1);
       const finalCollateral = new BN(repoState['0'].toString());
 
       expect(finalCollateral.toString()).to.equal(
         initialCollateral.sub(new BN(repo2Collateral)).toString()
       );
+
+      const gasUsed = new BN(txInfo.receipt.gasUsed);
+      const gasPrice = new BN(tx.gasPrice);
+      const expectedEndETHBalance = initialETH
+        .sub(gasUsed.mul(gasPrice))
+        .add(new BN(repo2Collateral));
+      expect(finalETH.toString()).to.equal(expectedEndETHBalance.toString());
     });
 
     it("firstRepoOwnerAddress shouldn't be able to remove collateral", async () => {
@@ -226,7 +236,6 @@ contract('OptionsContract', accounts => {
         from: creatorAddress,
         gas: '1000000'
       });
-
       const result = await optionsContracts[0].isUnsafe(0);
 
       expect(result.logs[1].event).to.equal('unsafeCalled');
@@ -241,14 +250,27 @@ contract('OptionsContract', accounts => {
     });
 
     it('should be able to liquidate some collateral from Repo 1', async () => {
-      const tx = await optionsContracts[0].liquidate('0', '101010', {
+      const expectedCollateralToPay = new BN(9181809);
+      const initialETH = await balance.current(tokenHolder);
+
+      const txInfo = await optionsContracts[0].liquidate('0', '101010', {
         from: tokenHolder,
         gas: '100000'
       });
 
-      expectEvent(tx, 'Liquidate', {
-        amtCollateralToPay: new BN(9181809)
+      const tx = await web3.eth.getTransaction(txInfo.tx);
+      const finalETH = await balance.current(tokenHolder);
+
+      expectEvent(txInfo, 'Liquidate', {
+        amtCollateralToPay: expectedCollateralToPay
       });
+
+      const gasUsed = new BN(txInfo.receipt.gasUsed);
+      const gasPrice = new BN(tx.gasPrice);
+      const expectedEndETHBalance = initialETH
+        .sub(gasUsed.mul(gasPrice))
+        .add(expectedCollateralToPay);
+      expect(finalETH.toString()).to.equal(expectedEndETHBalance.toString());
     });
 
     it('repo 1 should remain unsafe after Compund Oracle reices price', async () => {
@@ -271,14 +293,27 @@ contract('OptionsContract', accounts => {
     });
 
     it('should be able to liquidate some more collateral from Repo 1', async () => {
-      const tx = await optionsContracts[0].liquidate('0', '100', {
+      const expectedCollateralToPay = new BN(6060);
+      const initialETH = await balance.current(tokenHolder);
+
+      const txInfo = await optionsContracts[0].liquidate('0', '100', {
         from: tokenHolder,
         gas: '100000'
       });
 
-      expectEvent(tx, 'Liquidate', {
-        amtCollateralToPay: new BN(6060)
+      const tx = await web3.eth.getTransaction(txInfo.tx);
+      const finalETH = await balance.current(tokenHolder);
+
+      expectEvent(txInfo, 'Liquidate', {
+        amtCollateralToPay: expectedCollateralToPay
       });
+
+      const gasUsed = new BN(txInfo.receipt.gasUsed);
+      const gasPrice = new BN(tx.gasPrice);
+      const expectedEndETHBalance = initialETH
+        .sub(gasUsed.mul(gasPrice))
+        .add(expectedCollateralToPay);
+      expect(finalETH.toString()).to.equal(expectedEndETHBalance.toString());
     });
 
     it('repo 1 should remain unsafe after liquidation', async () => {
