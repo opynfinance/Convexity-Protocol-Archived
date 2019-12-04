@@ -71,7 +71,6 @@ contract('OptionsContract', accounts => {
 
     // Deploy the Options Factory contract and add assets to it
     optionsFactory = await OptionsFactory.deployed();
-    await optionsFactory.setOptionsExchange(optionsExchange.address);
 
     await optionsFactory.addAsset('DAI', dai.address);
     // TODO: deploy a mock USDC and get its address

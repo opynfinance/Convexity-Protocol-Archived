@@ -166,11 +166,6 @@ contract('OptionsContract', accounts => {
     });
 
     it('repo 2 should be safe after Compund Oracle drops price', async () => {
-      compoundOracle.updatePrice(100, {
-        from: creatorAddress,
-        gas: '1000000'
-      });
-
       const result = await optionsContracts[0].isUnsafe(1);
 
       expect(result.logs[1].event).to.equal('unsafeCalled');
