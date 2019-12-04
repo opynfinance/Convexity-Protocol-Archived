@@ -1,6 +1,7 @@
 import { expect } from 'chai';
 import {
   OptionsExchangeInstance,
+  OptionsContractInstance,
   OptionsFactoryInstance
 } from '../build/types/truffle-types';
 
@@ -9,6 +10,7 @@ const OptionsFactory = artifacts.require('OptionsFactory');
 const OptionsExchange = artifacts.require('OptionsExchange');
 const MockCompoundOracle = artifacts.require('MockCompoundOracle');
 const MockUniswapFactory = artifacts.require('MockUniswapFactory');
+const OptionsContract = artifacts.require('OptionsContract');
 const truffleAssert = require('truffle-assertions');
 
 contract('OptionsFactory', accounts => {
@@ -237,6 +239,8 @@ contract('OptionsFactory', accounts => {
       // Check the ownership
       const ownerFactory = await optionsFactory.owner();
       expect(ownerFactory).to.equal(creatorAddress);
+
+      // TODO: check that the ownership of the options contract is the creator address
     });
   });
 });

@@ -313,9 +313,9 @@ contract('OptionsContract', accounts => {
       );
 
       // Adding ETH should emit an event correctly
-      expect(result.logs[0].event).to.equal('ERC20CollateralAdded');
-      expect(result.logs[0].args.repoIndex.toString()).to.equal('0');
-      expect(result.logs[0].args.amount.toString()).to.equal(msgValue);
+      expect(result.logs[2].event).to.equal('ERC20CollateralAdded');
+      expect(result.logs[2].args.repoIndex.toString()).to.equal('0');
+      expect(result.logs[2].args.amount.toString()).to.equal(msgValue);
 
       // test that the repo's balances have been updated.
       const repo = await optionsContracts[2].getRepoByIndex('0');
