@@ -89,10 +89,11 @@ contract('OptionsContract', accounts => {
       -'18',
       'ETH',
       '1577836800',
-      '1577836800'
+      '1577836800',
+      { from: creatorAddress, gas: '4000000' }
     );
 
-    let optionsContractAddr = optionsContractResult.logs[0].args[0];
+    let optionsContractAddr = optionsContractResult.logs[1].args[0];
     optionsContracts.push(await OptionsContract.at(optionsContractAddr));
 
     // create the expired options contract
@@ -105,10 +106,11 @@ contract('OptionsContract', accounts => {
       -'18',
       'ETH',
       '1',
-      '1'
+      '1',
+      { from: creatorAddress, gas: '4000000' }
     );
 
-    const expiredOptionsAddr = optionsContractResult.logs[0].args[0];
+    const expiredOptionsAddr = optionsContractResult.logs[1].args[0];
     const expiredOptionsContract = await OptionsContract.at(expiredOptionsAddr);
     optionsContracts.push(expiredOptionsContract);
 
@@ -121,10 +123,11 @@ contract('OptionsContract', accounts => {
       -'18',
       'ETH',
       '1577836800',
-      '1577836800'
+      '1577836800',
+      { from: creatorAddress, gas: '4000000' }
     );
 
-    optionsContractAddr = optionsContractResult.logs[0].args[0];
+    optionsContractAddr = optionsContractResult.logs[1].args[0];
     const ERC20collateralOptContract = await OptionsContract.at(
       optionsContractAddr
     );

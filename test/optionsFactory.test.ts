@@ -37,7 +37,6 @@ contract('OptionsFactory', accounts => {
 
     // Deploy the Options Factory contract and add assets to it
     optionsFactory = await OptionsFactory.deployed();
-    await optionsFactory.setOptionsExchange(optionsExchange.address);
   });
 
   describe('#addAsset()', () => {
@@ -197,7 +196,8 @@ contract('OptionsFactory', accounts => {
         -'18',
         'ETH',
         '1577836800',
-        '1577836800'
+        '1577836800',
+        { from: creatorAddress, gas: '4000000' }
       );
 
       // Test that the Factory stores addresses of any new options contract added.
@@ -221,7 +221,7 @@ contract('OptionsFactory', accounts => {
         'ETH',
         '1577836800',
         '1577836800',
-        { from: firstOwnerAddress }
+        { from: firstOwnerAddress, gas: '4000000' }
       );
 
       // Test that the Factory stores addresses of any new options contract added.

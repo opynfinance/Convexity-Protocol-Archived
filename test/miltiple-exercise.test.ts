@@ -91,10 +91,11 @@ contract('OptionsContract', accounts => {
       -'15',
       'USDC',
       '1577836800',
-      windowSize
+      windowSize,
+      { from: creatorAddress, gas: '4000000' }
     );
 
-    const optionsContractAddr = optionsContractResult.logs[0].args[0];
+    const optionsContractAddr = optionsContractResult.logs[1].args[0];
     optionsContracts.push(await OptionsContract.at(optionsContractAddr));
 
     // Open Repo1, add Collateral and Mint oTokens
