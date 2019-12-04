@@ -15,8 +15,8 @@ contract OptionsUtils {
         0x02557a5E05DeFeFFD4cAe6D83eA3d173B272c904
     );
 
-    // // TODO: accept this in constructor and remove the setter method.
-    // constructor(address _uniswapFactory, address _compoundOracle) public {
+    // // // TODO: accept this in constructor and remove the setter method.
+    // constructor (address _uniswapFactory, address _compoundOracle) public {
     //     UNISWAP_FACTORY =  UniswapFactoryInterface(_uniswapFactory);
     //     COMPOUND_ORACLE = CompoundOracleInterface(_compoundOracle);
     // }

@@ -20,18 +20,8 @@ contract OptionsFactory is Ownable {
     event AssetChanged(string indexed asset, address indexed addr);
     event AssetDeleted(string indexed asset);
 
-    //TODO: need this as the constructor.
-    // constructor(OptionsExchange _optionsExchange) public {
-    //     optionsExchange = _optionsExchange;
-    // }
-
-    constructor() public {
-    }
-
-
-    // TODO: need to remove this instead and replace with a constructor. 
-    function setOptionsExchange(address _optionsExchange) public {
-        optionsExchange = OptionsExchange(_optionsExchange);
+    constructor(OptionsExchange _optionsExchangeAddr) public {
+        optionsExchange = OptionsExchange(_optionsExchangeAddr);
     }
 
     function createOptionsContract(

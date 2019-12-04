@@ -129,8 +129,7 @@ contract OptionsContract is OptionsUtils, ERC20 {
 
     )
         // OptionsUtils(
-        //     //  address(_optionsExchange.UNISWAP_FACTORY())
-        //     // address(_optionsExchange.UNISWAP_FACTORY()), address(_optionsExchange.COMPOUND_ORACLE())
+        //     address(_optionsExchange.UNISWAP_FACTORY()), address(_optionsExchange.COMPOUND_ORACLE())
         // )
         public
     {
@@ -438,10 +437,6 @@ contract OptionsContract is OptionsUtils, ERC20 {
     //     require(repos[repoIndex].owner == msg.sender, "trying to createOption on a repo that is not yours");
     //     addERC20Collateral(repoIndex, amtCollateral);
     //     issueOptionTokens(repoIndex, amtToCreate);
-    // }
-
-    // function createAndSellOption(uint256 repoIndex, uint256 amtToBurn) public {
-    //     //TODO: write this
     // }
 
     /** 
