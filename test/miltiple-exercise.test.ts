@@ -184,8 +184,10 @@ contract('OptionsContract', accounts => {
         gas: '1000000'
       });
 
-      const unsafe = await optionsContracts[0].isUnsafe(0);
-      expect(unsafe).to.be.true;
+      const result = await optionsContracts[0].isUnsafe(0);
+
+      expect(result.logs[1].event).to.equal('unsafeCalled');
+      expect(result.logs[1].args.isUnsafe).to.be.true;
     });
 
     xit('repo 2 should be safe after Compund Oracle drops price', async () => {
@@ -289,7 +291,7 @@ contract('OptionsContract', accounts => {
         (await dai.balanceOf(firstRepoOwnerAddress)).toString()
       );
 
-      await time.increaseTo(1577836800);
+      await time.increaseTo(1577836802);
 
       const txInfo = await optionsContracts[0].claimCollateral(0, {
         from: firstRepoOwnerAddress,
