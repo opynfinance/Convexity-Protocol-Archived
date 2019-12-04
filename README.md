@@ -16,13 +16,18 @@ The main functionality offered by the convexity protocol is as below:
 
 ## Contracts 
 ### Options Factory
-The Options Factory contract instantiates and keeps track of all the Options Contracts that exist. 
+The Options Factory contract instantiates and keeps track of all the Options Contracts that exist. Within each options contract, the ERC20 oTokens are fungible. 
 ![image info](./images/createOptions.png)
 ### Options Contract
 The Options Contract has all the functionality mentioned above built into it. Each Options contract takes in the parameters of `underlying`, `strikePrice`, `expiry`, `collateral` and `windowSize`. Anyone can create an Options Contract. 
 
-##### Create oTokens
-oTokens are created by first calling `openRepo()` which instantiates a new repo and sets the owner of that repo to. 
+#### Create oTokens
+oTokens are created by first calling `openRepo ()` which instantiates a new repo and sets the owner of that repo to be the `msg.sender`.
+![image info](./images/openRepo.png)
+Once a repo is opened, anyone can add collateral to the repo by calling `addETHCollateral (repoIndex)`  or  `addERC20Collateral (repoIndex)` depending on what the collateral of that contract is. 
+![image info](./images/addCollateral.png)
+The owner can then mint oTokens by calling `issueOptionTokens (repoIndex, numTokens)`.
+![image info](./images/issueOptions.png)
 # Installing dependencies
 
 Run `npm install` to install all dependencies.
