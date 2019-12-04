@@ -11,7 +11,7 @@ Before diving into the codebase, please read:
 The main functionality offered by the convexity protocol is as below: 
 1. Create oTokens
 2. Keep the oToken repos sufficiently collateralized
-3. Liquidate the oToken repos is they get undercollateralized
+3. Liquidate the undercollateralized repos
 4. Exercise the oTokens during the expiry window
 
 ## Contracts 
@@ -22,12 +22,34 @@ The Options Factory contract instantiates and keeps track of all the Options Con
 The Options Contract has all the functionality mentioned above built into it. Each Options contract takes in the parameters of `underlying`, `strikePrice`, `expiry`, `collateral` and `windowSize`. Anyone can create an Options Contract. 
 
 #### Create oTokens
+##### Open Repo
 oTokens are created by first calling `openRepo ()` which instantiates a new repo and sets the owner of that repo to be the `msg.sender`.
+
 ![image info](./images/openRepo.png)
+##### Add Collateral
 Once a repo is opened, anyone can add collateral to the repo by calling `addETHCollateral (repoIndex)`  or  `addERC20Collateral (repoIndex)` depending on what the collateral of that contract is. 
+
 ![image info](./images/addCollateral.png)
+##### Issue Option Tokens
 The owner can then mint oTokens by calling `issueOptionTokens (repoIndex, numTokens)`.
 ![image info](./images/issueOptions.png)
+
+#### Keep the oToken repos sufficiently collateralized
+Repo owners can ensure their repos are sufficiently collateralized in 2 ways.
+
+##### Add Collateral
+The first way is adding more collateral by calling `addETHCollateral (repoIndex)`  or  `addERC20Collateral (repoIndex)`. See the section on [addCollateral](#addCollateral) above.
+
+##### Burn Tokens
+Repo owners can also burn oTokens to increase the collateralization ratio by buying back oTokens from the market and then calling `burnPutTokens (repoIndex, amtToBurn)`. 
+![image info](./images/burnPutTokens.png)
+
+#### Liquidate the undercollateralized repos
+
+Liquidation happens by calling `liquidate(repoIndex, _oTokens)`. All repos need `collateralizationRatio * strikePrice * puts <= collateral * collateralToStrikePrice` to be safe. 
+
+If that condition fails, a liquidator can come with `_oTokens`. The liquidator gets `_oTokens * strikePrice * (incentive + fee)` amount of collateral out. They can liquidate a max of `liquidationFactor * repo.collateral` in one function call i.e. partial liquidations.
+![image info](./images/liquidate.png)
 # Installing dependencies
 
 Run `npm install` to install all dependencies.
