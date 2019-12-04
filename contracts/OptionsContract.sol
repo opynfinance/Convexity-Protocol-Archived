@@ -124,9 +124,9 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
         uint256 _windowSize
 
     )
-        // OptionsUtils(
-        //     address(_optionsExchange.UNISWAP_FACTORY()), address(_optionsExchange.COMPOUND_ORACLE())
-        // )
+        OptionsUtils(
+            address(_optionsExchange.UNISWAP_FACTORY()), address(_optionsExchange.COMPOUND_ORACLE())
+        )
         public
     {
         collateral = _collateral;
@@ -141,12 +141,9 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
         expiry = _expiry;
         optionsExchange = _optionsExchange;
         windowSize = _windowSize;
-
-        // TODO: remove this later.
-        setUniswapAndCompound(address(_optionsExchange.UNISWAP_FACTORY()), address(_optionsExchange.COMPOUND_ORACLE()));
     }
-    /*** Events ***/
 
+    /*** Events ***/
     event RepoOpened(uint256 repoIndex);
     event ETHCollateralAdded(uint256 repoIndex, uint256 amount);
     event ERC20CollateralAdded(uint256 repoIndex, uint256 amount);

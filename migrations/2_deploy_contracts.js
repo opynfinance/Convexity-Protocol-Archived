@@ -4,21 +4,16 @@ const OptionsExchange = artifacts.require('OptionsExchange.sol');
 const MockCompoundOracle = artifacts.require('MockCompoundOracle');
 const MockUniswapFactory = artifacts.require('MockUniswapFactory');
 
-module.exports = async function (deployer, network, accounts) {
-  deployer.deploy(StringComparator);
-  deployer.link(StringComparator, OptionsFactory);
+module.exports = function (deployer) {
+  deployer.then(async () => {
+    await deployer.deploy(StringComparator);
+    await deployer.link(StringComparator, OptionsFactory);
 
-  // deployer.deploy(MockCompoundOracle).then(async () => {
-  //   // await deployer.deploy(MockUniswapFactory);
-  //   return  deployer.deploy(OptionsExchange, MockCompoundOracle.address, MockCompoundOracle.address).then(()=> {
-  //     return deployer.deploy(OptionsFactory, OptionsExchange.address);
-  //   });
-  // })
-  deployer.deploy(OptionsExchange).then(()=> {
-    return deployer.deploy(OptionsFactory, OptionsExchange.address);
-  });
-  // deployer.deploy(OptionsFactory);
+    const uniswapFactory = await deployer.deploy(MockUniswapFactory);
+    const compoundOracle = await deployer.deploy(MockCompoundOracle)
 
-  // TODO: figure out how to get this to deploy
-  // deployer.deploy(OptionsExchange, mockUniswapFactory.address, mockCompoundOracle.address);
+    const optionsExchange = await deployer.deploy(OptionsExchange, uniswapFactory.address, compoundOracle.address)
+
+    await deployer.deploy(OptionsFactory, optionsExchange.address);
+  })
 };

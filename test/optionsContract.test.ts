@@ -3,13 +3,11 @@ import {
   ERC20MintableInstance,
   MockCompoundOracleInstance,
   OptionsContractInstance,
-  OptionsExchangeInstance,
   OptionsFactoryInstance
 } from '../build/types/truffle-types';
 
 const OptionsContract = artifacts.require('OptionsContract');
 const OptionsFactory = artifacts.require('OptionsFactory');
-const OptionsExchange = artifacts.require('OptionsExchange');
 const MockCompoundOracle = artifacts.require('MockCompoundOracle');
 const MockUniswapFactory = artifacts.require('MockUniswapFactory');
 const MintableToken = artifacts.require('ERC20Mintable');
@@ -46,28 +44,20 @@ contract('OptionsContract', accounts => {
 
   const optionsContracts: OptionsContractInstance[] = [];
   let optionsFactory: OptionsFactoryInstance;
-  let optionsExchange: OptionsExchangeInstance;
   let compoundOracle: MockCompoundOracleInstance;
   let dai: ERC20MintableInstance;
 
   before('set up contracts', async () => {
     // 1. Deploy mock contracts
     // 1.1 Compound Oracle
-    compoundOracle = await MockCompoundOracle.new();
-    // 1.2 Uniswap Factory
-    const uniswapFactory = await MockUniswapFactory.new();
-    // 1.3 Mock Dai contract
+    compoundOracle = await MockCompoundOracle.deployed();
+
+    // 1.2 Mock Dai contract
     dai = await MintableToken.new();
     await dai.mint(creatorAddress, '10000000');
+
     // 2. Deploy our contracts
     // deploys the Options Exhange contract
-    optionsExchange = await OptionsExchange.deployed();
-
-    // TODO: remove this later. For now, set the compound Oracle and uniswap Factory addresses here.
-    await optionsExchange.setUniswapAndCompound(
-      uniswapFactory.address,
-      compoundOracle.address
-    );
 
     // Deploy the Options Factory contract and add assets to it
     optionsFactory = await OptionsFactory.deployed();
