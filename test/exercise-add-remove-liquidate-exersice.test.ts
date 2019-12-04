@@ -354,7 +354,7 @@ contract('OptionsContract', accounts => {
       expect(finalETH.toString()).to.equal(expectedEndETHBalance.toString());
     });
 
-    it('repo 1 should remain unsafe after Compund Oracle reices price', async () => {
+    it('repo 1 should remain unsafe after Compund Oracle increases price', async () => {
       await compoundOracle.updatePrice(150, {
         from: creatorAddress,
         gas: '1000000'
@@ -366,7 +366,7 @@ contract('OptionsContract', accounts => {
       expect(result.logs[1].args.isUnsafe).to.be.true;
     });
 
-    it('repo 2 should be safe after Compund Oracle reices price', async () => {
+    it('repo 2 should be safe after Compund Oracle increases price', async () => {
       const result = await optionsContracts[0].isUnsafe(1);
 
       expect(result.logs[1].event).to.equal('unsafeCalled');

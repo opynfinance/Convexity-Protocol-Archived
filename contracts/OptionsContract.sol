@@ -651,9 +651,9 @@ contract OptionsContract is OptionsUtils, ERC20 {
      */
     function transferCollateral(address payable _addr, uint256 _amt) internal {
         if (isETH(collateral)){
-            msg.sender.transfer(_amt);
+            _addr.transfer(_amt);
         } else {
-            collateral.transfer(msg.sender, _amt);
+            collateral.transfer(_addr, _amt);
         }
     }
 
@@ -664,9 +664,9 @@ contract OptionsContract is OptionsUtils, ERC20 {
      */
     function transferUnderlying(address payable _addr, uint256 _amt) internal {
         if (isETH(underlying)){
-            msg.sender.transfer(_amt);
+            _addr.transfer(_amt);
         } else {
-            underlying.transfer(msg.sender, _amt);
+            underlying.transfer(_addr, _amt);
         }
     }
 
