@@ -1,13 +1,11 @@
 import { expect } from 'chai';
 import {
-  OptionsExchangeInstance,
-  OptionsContractInstance,
-  OptionsFactoryInstance
+  OptionsFactoryInstance,
+  MockCompoundOracleInstance
 } from '../build/types/truffle-types';
 
 const Web3Utils = require('web3-utils');
 const OptionsFactory = artifacts.require('OptionsFactory');
-const OptionsExchange = artifacts.require('OptionsExchange');
 const MockCompoundOracle = artifacts.require('MockCompoundOracle');
 const MockUniswapFactory = artifacts.require('MockUniswapFactory');
 const OptionsContract = artifacts.require('OptionsContract');
@@ -18,24 +16,16 @@ contract('OptionsFactory', accounts => {
   const firstOwnerAddress = accounts[1];
 
   let optionsFactory: OptionsFactoryInstance;
-  let optionsExchange: OptionsExchangeInstance;
+  let compoundOracle: MockCompoundOracleInstance;
 
   before(async () => {
     optionsFactory = await OptionsFactory.deployed();
     // 1. Deploy mock contracts
     // 1.1 Compound Oracle
-    const compoundOracle = await MockCompoundOracle.new();
-    // 1.2 Uniswap Factory
-    const uniswapFactory = await MockUniswapFactory.new();
+    compoundOracle = await MockCompoundOracle.deployed();
+
     // 2. Deploy our contracts
     // deploys the Options Exhange contract
-    optionsExchange = await OptionsExchange.deployed();
-
-    // TODO: remove this later. For now, set the compound Oracle and uniswap Factory addresses here.
-    await optionsExchange.setUniswapAndCompound(
-      uniswapFactory.address,
-      compoundOracle.address
-    );
 
     // Deploy the Options Factory contract and add assets to it
     optionsFactory = await OptionsFactory.deployed();

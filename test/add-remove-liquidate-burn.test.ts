@@ -46,7 +46,7 @@ contract('OptionsContract', accounts => {
   before('set up contracts', async () => {
     // 1. Deploy mock contracts
     // 1.1 Compound Oracle
-    compoundOracle = await MockCompoundOracle.new();
+    compoundOracle = await MockCompoundOracle.deployed();
     // 1.2 Uniswap Factory
     const uniswapFactory = await MockUniswapFactory.new();
     // 1.3 Mock Dai contract
@@ -59,12 +59,6 @@ contract('OptionsContract', accounts => {
     // 2. Deploy our contracts
     // deploys the Options Exhange contract
     optionsExchange = await OptionsExchange.deployed();
-
-    // TODO: remove this later. For now, set the compound Oracle and uniswap Factory addresses here.
-    await optionsExchange.setUniswapAndCompound(
-      uniswapFactory.address,
-      compoundOracle.address
-    );
 
     // Deploy the Options Factory contract and add assets to it
     optionsFactory = await OptionsFactory.deployed();
