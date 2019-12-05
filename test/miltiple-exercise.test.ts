@@ -196,8 +196,7 @@ contract('OptionsContract', accounts => {
 
       const result = await optionsContracts[0].isUnsafe(0);
 
-      expect(result.logs[1].event).to.equal('unsafeCalled');
-      expect(result.logs[1].args.isUnsafe).to.be.true;
+      expect(result).to.be.true;
     });
 
     it('repo 2 should be unsafe after Compund Oracle drops price', async () => {
@@ -208,8 +207,7 @@ contract('OptionsContract', accounts => {
 
       const result = await optionsContracts[0].isUnsafe(1);
 
-      expect(result.logs[1].event).to.equal('unsafeCalled');
-      expect(result.logs[1].args.isUnsafe).to.be.true;
+      expect(result).to.be.true;
     });
 
     it('secondExerciser should be able to exercise 10 oTokens', async () => {

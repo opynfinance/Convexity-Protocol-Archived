@@ -14,6 +14,10 @@ const MintableToken = artifacts.require('ERC20Mintable');
 
 const truffleAssert = require('truffle-assertions');
 
+import Reverter from './utils/reverter';
+
+const { BN, balance, expectEvent } = require('@openzeppelin/test-helpers');
+
 function checkRepo(
   repo: any,
   {
@@ -38,6 +42,7 @@ function checkRepoOwners(repos: any, expected: string[]) {
 
 // Initialize the Options Factory, Options Exchange and other mock contracts
 contract('OptionsContract', accounts => {
+  const reverter = new Reverter(web3);
   const creatorAddress = accounts[0];
   const firstOwnerAddress = accounts[1];
   const secondOwnerAddress = accounts[2];
@@ -231,18 +236,33 @@ contract('OptionsContract', accounts => {
     it('anyone should be able to add ETH collateral to any repo', async () => {
       const repoNum = 1;
       const msgValue = '10000000';
-      const result = await optionsContracts[0].addETHCollateral(repoNum, {
+      let result = await optionsContracts[0].addETHCollateral(repoNum, {
         from: firstOwnerAddress,
         gas: '100000',
         value: msgValue
       });
 
       // test that the repo's balances have been updated.
-      const repo = await optionsContracts[0].getRepoByIndex(repoNum);
-      const expectedRepo = {
+      let repo = await optionsContracts[0].getRepoByIndex(repoNum);
+      let expectedRepo = {
         '0': '20000000',
         '1': '0',
         '2': creatorAddress
+      };
+      checkRepo(repo, expectedRepo);
+
+      result = await optionsContracts[0].addETHCollateral(2, {
+        from: creatorAddress,
+        gas: '100000',
+        value: msgValue
+      });
+
+      // test that the repo's balances have been updated.
+      repo = await optionsContracts[0].getRepoByIndex(2);
+      expectedRepo = {
+        '0': '10000000',
+        '1': '0',
+        '2': firstOwnerAddress
       };
       checkRepo(repo, expectedRepo);
     });
@@ -570,6 +590,12 @@ contract('OptionsContract', accounts => {
 
   describe('#exercise', () => {
     describe('during expiry window', () => {
+      let initialETH: BN;
+      let finalETH: BN;
+      let gasUsed: BN;
+      let gasPrice: BN;
+      let txInfo: any;
+
       it('should be able to call exercise', async () => {
         const amtToExercise = '10';
 
@@ -600,14 +626,28 @@ contract('OptionsContract', accounts => {
           '10000000000000000',
           { from: secondOwnerAddress }
         );
-        await optionsContracts[0].exercise(amtToExercise, {
+
+        initialETH = await balance.current(secondOwnerAddress);
+
+        txInfo = await optionsContracts[0].exercise(amtToExercise, {
           from: secondOwnerAddress,
           gas: '1000000'
         });
+
+        const tx = await web3.eth.getTransaction(txInfo.tx);
+        finalETH = await balance.current(secondOwnerAddress);
+
+        gasUsed = new BN(txInfo.receipt.gasUsed);
+        gasPrice = new BN(tx.gasPrice);
       });
 
       // TODO: Check tx.logs for the events emitted by a transaction
-      it('check the calculations for the events emitted');
+      it('check the calculations for the events emitted', async () => {
+        expectEvent(txInfo, 'Exercise', {
+          amtUnderlyingToPay: new BN(100),
+          amtCollateralToPay: new BN(900)
+        });
+      });
 
       it('check that the underlying and oTokens were transferred', async () => {
         // The balances of the person should be 0
@@ -615,43 +655,60 @@ contract('OptionsContract', accounts => {
           secondOwnerAddress
         );
         expect(amtPTokens.toString()).to.equal('0');
+
         const ownerDaiBal = await dai.balanceOf(secondOwnerAddress);
-        expect(ownerDaiBal.toString()).to.equal('0');
+        expect(ownerDaiBal.toString()).to.equal('99900');
 
         // The underlying balances of the contract should have increased
         const contractDaiBal = await dai.balanceOf(optionsContracts[0].address);
-        expect(contractDaiBal.toString()).to.equal('100000');
+        expect(contractDaiBal.toString()).to.equal('100');
 
         // check the supply of oTokens has changed
         const totalSupply = await optionsContracts[0].totalSupply();
-        expect(totalSupply.toString()).to.equal('34990');
+        expect(totalSupply.toString()).to.equal('138868');
 
-        // TODO: check that the person gets the right amount of ETH back
+        const expectedEndETHBalance = initialETH
+          .sub(gasUsed.mul(gasPrice))
+          .add(new BN(900));
+        expect(finalETH.toString()).to.equal(expectedEndETHBalance.toString());
       });
     });
 
     describe('after expiry window', () => {
       it('first person should be able to collect their share of collateral', async () => {
+        await reverter.snapshot();
+
         const repoIndex = '1';
-        const tx = await optionsContracts[0].claimCollateral(repoIndex, {
+
+        const initialETH = await balance.current(creatorAddress);
+
+        const txInfo = await optionsContracts[0].claimCollateral(repoIndex, {
           from: creatorAddress,
           gas: '1000000'
         });
 
+        const tx = await web3.eth.getTransaction(txInfo.tx);
+        const finalETH = await balance.current(creatorAddress);
+
         // check the calculations on amount of collateral paid out and underlying transferred is correct
-        expect(tx.logs[0].event).to.equal('ClaimedCollateral');
-        expect(tx.logs[0].args.amtCollateralClaimed.toString()).to.equal(
-          '19999700'
+        expect(txInfo.logs[0].event).to.equal('ClaimedCollateral');
+        expect(txInfo.logs[0].args.amtCollateralClaimed.toString()).to.equal(
+          '19997900'
         );
-        expect(tx.logs[0].args.amtUnderlyingClaimed.toString()).to.equal(
-          '66666'
+        expect(txInfo.logs[0].args.amtUnderlyingClaimed.toString()).to.equal(
+          '66'
         );
 
-        // TODO: check the person's collateral balance went up
+        const gasUsed = new BN(txInfo.receipt.gasUsed);
+        const gasPrice = new BN(tx.gasPrice);
+        const expectedEndETHBalance = initialETH
+          .sub(gasUsed.mul(gasPrice))
+          .add(new BN(19997900));
+        expect(finalETH.toString()).to.equal(expectedEndETHBalance.toString());
 
         // check the person's underlying balance increased
         const ownerDaiBal = await dai.balanceOf(creatorAddress);
-        expect(ownerDaiBal.toString()).to.equal('66666');
+        expect(ownerDaiBal.toString()).to.equal('66');
       });
 
       it('only the owner of the repo should be able to collect collateral', async () => {
@@ -683,133 +740,12 @@ contract('OptionsContract', accounts => {
         // check the calculations on amount of collateral paid out and underlying transferred is correct
         expect(tx.logs[0].event).to.equal('ClaimedCollateral');
         expect(tx.logs[0].args.amtCollateralClaimed.toString()).to.equal(
-          '9999850'
+          '9999699'
         );
 
         const ownerDaiBal = await dai.balanceOf(firstOwnerAddress);
-        expect(ownerDaiBal.toString()).to.equal('33333');
+        expect(ownerDaiBal.toString()).to.equal('33');
       });
     });
-  });
-
-  describe('#liquidate()', () => {
-    it('repo should be unsafe when the price drops', async () => {
-      // Make sure Repo is safe before price drop
-      const isUnsafe = await optionsContracts[0].isUnsafe('1');
-      expect(isUnsafe).to.be.false;
-
-      // change the oracle price:
-      await compoundOracle.updatePrice('100');
-
-      // Make sure repo is unsafe after price drop
-      const isUnsafeAfterPriceDrop = await optionsContracts[0].isUnsafe('1');
-      expect(isUnsafeAfterPriceDrop).to.be.true;
-    });
-
-    it('should not be able to liquidate more than collateral factor when the price drops', async () => {
-      // Try to liquidate the repo
-      try {
-        await optionsContracts[0].liquidate('1', '11001105', {
-          from: firstOwnerAddress,
-          gas: '100000'
-        });
-      } catch (err) {
-        return;
-      }
-
-      truffleAssert.fails('should throw err');
-    });
-
-    it('should be able to liquidate when the price drops', async () => {
-      const repoIndex = '1';
-      //Liquidator first needs oTokens
-      await optionsContracts[0].transfer(firstOwnerAddress, '11001100', {
-        from: creatorAddress,
-        gas: '100000'
-      });
-      const amtPTokens1 = await optionsContracts[0].balanceOf(
-        firstOwnerAddress
-      );
-      expect(amtPTokens1.toString()).to.equal('11001110');
-
-      // Approve before burn
-      await optionsContracts[0].approve(
-        optionsContracts[0].address,
-        '10000000000000000',
-        { from: firstOwnerAddress }
-      );
-
-      // Try to liquidate the repo
-      const tx = await optionsContracts[0].liquidate(repoIndex, '11001100', {
-        from: firstOwnerAddress,
-        gas: '100000'
-      });
-
-      // Check that the correct liquidate events are emitted
-      expect(tx.logs[0].event).to.equal('Liquidate');
-      expect(tx.logs[0].args.amtCollateralToPay.toString()).to.equal('9999999');
-
-      // check that the repo balances have changed
-      const repo = await optionsContracts[0].getRepoByIndex(repoIndex);
-      const expectedRepo = {
-        '0': '10000001',
-        '1': '16776667',
-        '2': creatorAddress
-      };
-      checkRepo(repo, expectedRepo);
-
-      // check that the liquidator balances have changed
-      const amtPTokens2 = await optionsContracts[0].balanceOf(
-        firstOwnerAddress
-      );
-      expect(amtPTokens2.toString()).to.equal('10');
-      // TODO: how to check that collateral has increased?
-    });
-
-    it('should be able to liquidate if still undercollateralized', async () => {
-      const repoIndex = '1';
-      //Liquidator first needs oTokens
-      await optionsContracts[0].transfer(firstOwnerAddress, '1000', {
-        from: creatorAddress,
-        gas: '100000'
-      });
-      const amtPTokens1 = await optionsContracts[0].balanceOf(
-        firstOwnerAddress
-      );
-      expect(amtPTokens1.toString()).to.equal('1010');
-
-      // Approve before burn
-      await optionsContracts[0].approve(
-        optionsContracts[0].address,
-        '10000000000000000',
-        { from: firstOwnerAddress }
-      );
-
-      // Try to liquidate the repo
-      const tx = await optionsContracts[0].liquidate(repoIndex, '1000', {
-        from: firstOwnerAddress,
-        gas: '100000'
-      });
-
-      // Check that the correct liquidate events are emitted
-      expect(tx.logs[0].event).to.equal('Liquidate');
-      expect(tx.logs[0].args.amtCollateralToPay.toString()).to.equal('909');
-
-      // check that the repo balances have changed
-      const repo = await optionsContracts[0].getRepoByIndex(repoIndex);
-      const expectedRepo = {
-        '0': '9999092',
-        '1': '16775667',
-        '2': creatorAddress
-      };
-      checkRepo(repo, expectedRepo);
-
-      // check that the liquidator balances have changed
-      const amtPTokens = await optionsContracts[0].balanceOf(firstOwnerAddress);
-      expect(amtPTokens.toString()).to.equal('10');
-      // TODO: how to check that collateral has increased?
-    });
-
-    it('should not be able to liquidate if safe');
   });
 });

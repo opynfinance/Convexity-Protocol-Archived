@@ -155,16 +155,12 @@ contract('OptionsContract', accounts => {
       });
 
       const result = await optionsContracts[0].isUnsafe(0);
-
-      expect(result.logs[1].event).to.equal('unsafeCalled');
-      expect(result.logs[1].args.isUnsafe).to.be.true;
+      expect(result).to.be.true;
     });
 
     it('repo 2 should be safe after Compund Oracle drops price', async () => {
       const result = await optionsContracts[0].isUnsafe(1);
-
-      expect(result.logs[1].event).to.equal('unsafeCalled');
-      expect(result.logs[1].args.isUnsafe).to.be.false;
+      expect(result).to.be.false;
     });
 
     it('repo 1 should be safe after Compund Oracle increases price', async () => {
@@ -174,9 +170,7 @@ contract('OptionsContract', accounts => {
       });
 
       const result = await optionsContracts[0].isUnsafe(0);
-
-      expect(result.logs[1].event).to.equal('unsafeCalled');
-      expect(result.logs[1].args.isUnsafe).to.be.false;
+      expect(result).to.be.false;
     });
 
     it('secondRepoOwnerAddress should be able to remove collateral', async () => {
@@ -225,17 +219,15 @@ contract('OptionsContract', accounts => {
         from: creatorAddress,
         gas: '1000000'
       });
-      const result = await optionsContracts[0].isUnsafe(0);
 
-      expect(result.logs[1].event).to.equal('unsafeCalled');
-      expect(result.logs[1].args.isUnsafe).to.be.true;
+      const result = await optionsContracts[0].isUnsafe(0);
+      expect(result).to.be.true;
     });
 
     it('repo 2 should be unsafe after Compund Oracle drops price', async () => {
       const result = await optionsContracts[0].isUnsafe(1);
 
-      expect(result.logs[1].event).to.equal('unsafeCalled');
-      expect(result.logs[1].args.isUnsafe).to.be.true;
+      expect(result).to.be.true;
     });
 
     it('should be able to liquidate some collateral from Repo 1', async () => {
@@ -270,15 +262,13 @@ contract('OptionsContract', accounts => {
 
       const result = await optionsContracts[0].isUnsafe(0);
 
-      expect(result.logs[1].event).to.equal('unsafeCalled');
-      expect(result.logs[1].args.isUnsafe).to.be.true;
+      expect(result).to.be.true;
     });
 
     it('repo 2 should be safe after Compund Oracle reices price', async () => {
       const result = await optionsContracts[0].isUnsafe(1);
 
-      expect(result.logs[1].event).to.equal('unsafeCalled');
-      expect(result.logs[1].args.isUnsafe).to.be.false;
+      expect(result).to.be.false;
     });
 
     it('should be able to liquidate some more collateral from Repo 1', async () => {
@@ -308,8 +298,7 @@ contract('OptionsContract', accounts => {
     it('repo 1 should remain unsafe after liquidation', async () => {
       const result = await optionsContracts[0].isUnsafe(0);
 
-      expect(result.logs[1].event).to.equal('unsafeCalled');
-      expect(result.logs[1].args.isUnsafe).to.be.true;
+      expect(result).to.be.true;
     });
 
     it('firstRepoOwner should be able to burn some put tokens to turn the repo safe', async () => {
@@ -320,8 +309,7 @@ contract('OptionsContract', accounts => {
 
       const result = await optionsContracts[0].isUnsafe(0);
 
-      expect(result.logs[1].event).to.equal('unsafeCalled');
-      expect(result.logs[1].args.isUnsafe).to.be.false;
+      expect(result).to.be.false;
     });
   });
 });
