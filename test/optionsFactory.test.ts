@@ -1,14 +1,14 @@
 import { expect } from 'chai';
 import {
-  OptionsExchangeInstance,
-  OptionsFactoryInstance
+  OptionsFactoryInstance,
+  MockCompoundOracleInstance
 } from '../build/types/truffle-types';
 
 const Web3Utils = require('web3-utils');
 const OptionsFactory = artifacts.require('OptionsFactory');
-const OptionsExchange = artifacts.require('OptionsExchange');
 const MockCompoundOracle = artifacts.require('MockCompoundOracle');
 const MockUniswapFactory = artifacts.require('MockUniswapFactory');
+const OptionsContract = artifacts.require('OptionsContract');
 const truffleAssert = require('truffle-assertions');
 
 contract('OptionsFactory', accounts => {
@@ -16,28 +16,19 @@ contract('OptionsFactory', accounts => {
   const firstOwnerAddress = accounts[1];
 
   let optionsFactory: OptionsFactoryInstance;
-  let optionsExchange: OptionsExchangeInstance;
+  let compoundOracle: MockCompoundOracleInstance;
 
   before(async () => {
     optionsFactory = await OptionsFactory.deployed();
     // 1. Deploy mock contracts
     // 1.1 Compound Oracle
-    const compoundOracle = await MockCompoundOracle.new();
-    // 1.2 Uniswap Factory
-    const uniswapFactory = await MockUniswapFactory.new();
+    compoundOracle = await MockCompoundOracle.deployed();
+
     // 2. Deploy our contracts
     // deploys the Options Exhange contract
-    optionsExchange = await OptionsExchange.deployed();
-
-    // TODO: remove this later. For now, set the compound Oracle and uniswap Factory addresses here.
-    await optionsExchange.setUniswapAndCompound(
-      uniswapFactory.address,
-      compoundOracle.address
-    );
 
     // Deploy the Options Factory contract and add assets to it
     optionsFactory = await OptionsFactory.deployed();
-    await optionsFactory.setOptionsExchange(optionsExchange.address);
   });
 
   describe('#addAsset()', () => {
@@ -197,7 +188,8 @@ contract('OptionsFactory', accounts => {
         -'18',
         'ETH',
         '1577836800',
-        '1577836800'
+        '1577836800',
+        { from: creatorAddress, gas: '4000000' }
       );
 
       // Test that the Factory stores addresses of any new options contract added.
@@ -221,7 +213,7 @@ contract('OptionsFactory', accounts => {
         'ETH',
         '1577836800',
         '1577836800',
-        { from: firstOwnerAddress }
+        { from: firstOwnerAddress, gas: '4000000' }
       );
 
       // Test that the Factory stores addresses of any new options contract added.
@@ -237,6 +229,8 @@ contract('OptionsFactory', accounts => {
       // Check the ownership
       const ownerFactory = await optionsFactory.owner();
       expect(ownerFactory).to.equal(creatorAddress);
+
+      // TODO: check that the ownership of the options contract is the creator address
     });
   });
 });

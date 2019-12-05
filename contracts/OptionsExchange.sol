@@ -11,6 +11,12 @@ contract OptionsExchange is OptionsUtils {
 
     uint256 constant LARGE_BLOCK_SIZE = 1651753129000;
 
+    constructor (address _uniswapFactory, address _compoundOracle)
+        OptionsUtils(_uniswapFactory, _compoundOracle)
+        public
+    {
+    }
+
     function sellPTokens(uint256 _pTokens, address payoutTokenAddress) public {
         // TODO: first need to boot strap the uniswap exchange to get the address.
         // uniswap transfer input _pTokens to payoutTokens

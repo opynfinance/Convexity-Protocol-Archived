@@ -52,16 +52,14 @@ contract OptionsFactory is Ownable {
             tokens[_strikeAsset],
             _expiry,
             optionsExchange,
-            _windowSize,
-            owner()
+            _windowSize
         );
 
         optionsContracts.push(address(optionsContract));
         emit ContractCreated(address(optionsContract));
 
-        // TODO: Why is it not working with Ownable? 
-        // // Set the owner for the options contract. 
-        // optionsContract.transferOwnership(owner());
+        // // Set the owner for the options contract.
+        optionsContract.transferOwnership(owner());
 
         return address(optionsContract);
     }

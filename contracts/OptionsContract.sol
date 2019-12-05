@@ -14,7 +14,7 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
  * @title Opyn's Options Contract
  * @author Opyn
  */
-contract OptionsContract is OptionsUtils, ERC20 {
+contract OptionsContract is Ownable, OptionsUtils, ERC20 {
     using SafeMath for uint256;
 
     struct Number {
@@ -99,9 +99,6 @@ contract OptionsContract is OptionsUtils, ERC20 {
     // The asset in which insurance is denominated in.
     IERC20 public strike;
 
-    // The admin address
-    address admin;
-
     /**
     * @param _collateral: The collateral asset
     * @param _collExp: The precision of the collateral (-18 if ETH)
@@ -124,13 +121,12 @@ contract OptionsContract is OptionsUtils, ERC20 {
         IERC20 _strike,
         uint256 _expiry,
         OptionsExchange _optionsExchange,
-        uint256 _windowSize,
-        address _admin
+        uint256 _windowSize
 
     )
-        // OptionsUtils(
-        //     address(_optionsExchange.UNISWAP_FACTORY()), address(_optionsExchange.COMPOUND_ORACLE())
-        // )
+        OptionsUtils(
+            address(_optionsExchange.UNISWAP_FACTORY()), address(_optionsExchange.COMPOUND_ORACLE())
+        )
         public
     {
         collateral = _collateral;
@@ -145,14 +141,9 @@ contract OptionsContract is OptionsUtils, ERC20 {
         expiry = _expiry;
         optionsExchange = _optionsExchange;
         windowSize = _windowSize;
-
-        admin = _admin;
-
-        // TODO: remove this later.
-        setUniswapAndCompound(address(_optionsExchange.UNISWAP_FACTORY()), address(_optionsExchange.COMPOUND_ORACLE()));
     }
-    /*** Events ***/
 
+    /*** Events ***/
     event RepoOpened(uint256 repoIndex);
     event ETHCollateralAdded(uint256 repoIndex, uint256 amount);
     event ERC20CollateralAdded(uint256 repoIndex, uint256 amount);
@@ -163,21 +154,6 @@ contract OptionsContract is OptionsUtils, ERC20 {
     event Liquidate (uint256 amtCollateralToPay);
     event Exercise (uint256 amtUnderlyingToPay, uint256 amtCollateralToPay);
     event ClaimedCollateral(uint256 amtCollateralClaimed, uint256 amtUnderlyingClaimed);
-
-    /**
-     * @notice Throws if called by any account other than the owner.
-     */
-    modifier onlyOwner() {
-        require(isOwner(), "Ownable: caller is not the owner");
-        _;
-    }
-
-    /**
-     * @notice Returns true if the caller is the current owner.
-     */
-    function isOwner() public view returns (bool) {
-        return msg.sender == admin;
-    }
 
     /**
      * @notice Can only be called by owner. Used to update the fees, minCollateralizationRatio, etc
@@ -482,6 +458,8 @@ contract OptionsContract is OptionsUtils, ERC20 {
         repo.collateral = newRepoCollateralAmt;
         transferCollateral(msg.sender, amtToRemove);
         totalCollateral = totalCollateral.sub(amtToRemove);
+
+        // TODO: emit event
     }
 
     /**
@@ -493,7 +471,7 @@ contract OptionsContract is OptionsUtils, ERC20 {
      */
     function claimCollateral (uint256 repoIndex) public {
         // TODO: uncomment and test with expiry
-        // require(now >= expiry, "Can't collect collateral until expiry");
+        require(now >= expiry, "Can't collect collateral until expiry");
 
         // pay out people proportional
         Repo storage repo = repos[repoIndex];
