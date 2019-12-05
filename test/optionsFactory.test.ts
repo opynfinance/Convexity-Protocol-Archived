@@ -231,6 +231,11 @@ contract('OptionsFactory', accounts => {
       expect(ownerFactory).to.equal(creatorAddress);
 
       // TODO: check that the ownership of the options contract is the creator address
+      const optionsContractAddr = result.logs[1].args[0];
+      const optionContract = await OptionsContract.at(optionsContractAddr);
+
+      const optionContractOwner = await optionContract.owner();
+      expect(optionContractOwner).to.equal(creatorAddress);
     });
   });
 });
