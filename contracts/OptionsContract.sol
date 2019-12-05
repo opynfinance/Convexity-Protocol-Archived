@@ -475,13 +475,14 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
 
         require(msg.sender == repo.owner, "only owner can claim collatera");
 
-        uint256 collateralLeft = totalCollateral.sub(totalExercised);
+        uint256 collateralLeft = totalCollateral.sub(totalExercised.add(totalFee));
         uint256 collateralToTransfer = repo.collateral.mul(collateralLeft).div(totalCollateral);
         uint256 underlyingToTransfer = repo.collateral.mul(totalUnderlying).div(totalCollateral);
 
         repo.collateral = 0;
 
         emit ClaimedCollateral(collateralToTransfer, underlyingToTransfer);
+
         transferCollateral(msg.sender, collateralToTransfer);
         transferUnderlying(msg.sender, underlyingToTransfer);
     }
@@ -577,7 +578,7 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
         repo.collateral = repo.collateral.sub(amtCollateralToPay);
         repo.putsOutstanding = repo.putsOutstanding.sub(_oTokens);
 
-        totalCollateral = totalCollateral.sub(amtCollateralToPay.add(protocolFee));
+        totalCollateral = totalCollateral.sub(amtCollateralToPay);
 
         // transfer the collateral and burn the _oTokens
          _burn(msg.sender, _oTokens);
