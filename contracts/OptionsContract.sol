@@ -100,16 +100,16 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
     IERC20 public strike;
 
     /**
-    * @param _collateral: The collateral asset
-    * @param _collExp: The precision of the collateral (-18 if ETH)
-    * @param _underlying: The asset that is being protected
-    * @param _oTokenExchangeExp: The precision of the `amount of underlying` that 1 oToken protects
-    * @param _strikePrice: The amount of strike asset that will be paid out
-    * @param _strikeExp: The precision of the strike asset (-18 if ETH)
-    * @param _strike: The asset in which the
-    * @param _expiry: The time at which the insurance expires
-    * @param _optionsExchange: The contract which interfaces with the exchange + oracle
-    * @param _windowSize: UNIX time. Exercise window is from `expiry - _windowSize` to `expiry`.
+    * @param _collateral The collateral asset
+    * @param _collExp The precision of the collateral (-18 if ETH)
+    * @param _underlying The asset that is being protected
+    * @param _oTokenExchangeExp The precision of the `amount of underlying` that 1 oToken protects
+    * @param _strikePrice The amount of strike asset that will be paid out
+    * @param _strikeExp The precision of the strike asset (-18 if ETH)
+    * @param _strike The asset in which the insurance is calculated
+    * @param _expiry The time at which the insurance expires
+    * @param _optionsExchange The contract which interfaces with the exchange + oracle
+    * @param _windowSize UNIX time. Exercise window is from `expiry - _windowSize` to `expiry`.
     */
     constructor(
         IERC20 _collateral,

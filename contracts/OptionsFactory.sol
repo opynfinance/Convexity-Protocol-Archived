@@ -13,6 +13,7 @@ contract OptionsFactory is Ownable {
     mapping (string => IERC20) public tokens;
     address[] public optionsContracts;
 
+    // The contract which interfaces with the exchange + oracle
     OptionsExchange public optionsExchange;
 
     event ContractCreated(address addr);
@@ -20,10 +21,25 @@ contract OptionsFactory is Ownable {
     event AssetChanged(string indexed asset, address indexed addr);
     event AssetDeleted(string indexed asset);
 
+    /**
+     * @param _optionsExchangeAddr: The contract which interfaces with the exchange + oracle
+     */
     constructor(OptionsExchange _optionsExchangeAddr) public {
         optionsExchange = OptionsExchange(_optionsExchangeAddr);
     }
 
+    /**
+     * @notice creates a new Option Contract
+     * @param _collateralType The collateral asset. Eg. "ETH"
+     * @param _collateralExp The number of decimals the collateral asset has
+     * @param _underlyingType The underlying asset. Eg. "DAI"
+     * @param _oTokenExchangeExp Units of underlying that 1 oToken protects
+     * @param _strikePrice The amount of strike asset that will be paid out
+     * @param _strikeExp The precision of the strike asset (-18 if ETH)
+     * @param _strikeAsset The asset in which the insurance is calculated
+     * @param _expiry The time at which the insurance expires 
+     * @param _windowSize UNIX time. Exercise window is from `expiry - _windowSize` to `expiry`.
+     */
     function createOptionsContract(
         string memory _collateralType,
         int32 _collateralExp,
@@ -58,17 +74,25 @@ contract OptionsFactory is Ownable {
         optionsContracts.push(address(optionsContract));
         emit ContractCreated(address(optionsContract));
 
-        // // Set the owner for the options contract.
+        // Set the owner for the options contract.
         optionsContract.transferOwnership(owner());
 
         return address(optionsContract);
     }
 
+    /**
+     * @notice The number of Option Contracts that the Factory contract has stored
+     */
     function getNumberOfOptionsContracts() public view returns (uint256) {
         return optionsContracts.length;
     }
 
-    // @note: admin don't add ETH. ETH is set to 0x0.
+    /**
+     * @notice The owner of the Factory Contract can add a new asset to be supported
+     * @dev admin don't add ETH. ETH is set to 0x0.
+     * @param _asset The ticker symbol for the asset
+     * @param _addr The address of the asset
+     */
     function addAsset(string memory _asset, address _addr) public onlyOwner {
         require(!supportsAsset(_asset), "Asset already added");
         require(_addr != address(0), "Cannot set to address(0)");
@@ -77,6 +101,11 @@ contract OptionsFactory is Ownable {
         emit AssetAdded(_asset, _addr);
     }
 
+    /**
+     * @notice The owner of the Factory Contract can change an existing asset's address
+     * @param _asset The ticker symbol for the asset
+     * @param _addr The address of the asset
+     */
     function changeAsset(string memory _asset, address _addr) public onlyOwner {
         require(tokens[_asset] != IERC20(0), "Trying to replace a non-existent asset");
         require(_addr != address(0), "Cannot set to address(0)");
@@ -85,6 +114,10 @@ contract OptionsFactory is Ownable {
         emit AssetChanged(_asset, _addr);
     }
 
+    /**
+     * @notice The owner of the Factory Contract can delete an existing asset's address
+     * @param _asset The ticker symbol for the asset
+     */
     function deleteAsset(string memory _asset) public onlyOwner {
         require(tokens[_asset] != IERC20(0), "Trying to delete a non-existent asset");
 
@@ -92,11 +125,15 @@ contract OptionsFactory is Ownable {
         emit AssetDeleted(_asset);
     }
 
-    function supportsAsset(string memory _collateralType) public view returns (bool) {
-        if (_collateralType.compareStrings("ETH")) {
+    /**
+     * @notice Check if the Factory contract supports a specific asset
+     * @param _asset The ticker symbol for the asset
+     */
+    function supportsAsset(string memory _asset) public view returns (bool) {
+        if (_asset.compareStrings("ETH")) {
             return true;
         }
 
-        return tokens[_collateralType] != IERC20(0);
+        return tokens[_asset] != IERC20(0);
     }
 }
