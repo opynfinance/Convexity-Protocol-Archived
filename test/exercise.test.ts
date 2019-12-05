@@ -27,7 +27,7 @@ contract('OptionsContract', accounts => {
   before('set up contracts', async () => {
     // 1. Deploy mock contracts
     // 1.1 Compound Oracle
-    compoundOracle = await MockCompoundOracle.deployed();
+    await MockCompoundOracle.deployed();
 
     // 1.2 Mock Dai contract
     dai = await MintableToken.new();
