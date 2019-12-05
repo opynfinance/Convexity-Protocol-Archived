@@ -50,6 +50,15 @@ Liquidation happens by calling `liquidate(repoIndex, _oTokens)`. All repos need 
 
 If that condition fails, a liquidator can come with `_oTokens`. The liquidator gets `_oTokens * strikePrice * (incentive + fee)` amount of collateral out. They can liquidate a max of `liquidationFactor * repo.collateral` in one function call i.e. partial liquidations.
 ![image info](./images/liquidate.png)
+
+#### Exercise the oTokens during the expiry window
+##### Exercise
+Any oToken holder can call `exercise (oTokens)` during the exercise window and in return get out strike price amount of collateral. Note that since they are receiving the payment in the collateral asset, they should exchange it immediately for the strike asset to protect themselves against volatility.  If the oToken holder wants to exercise before the exercise window, they can sell their oTokens on any exchange like Uniswap etc. 
+![image info](./images/exercise.png)
+
+##### Claim Collateral
+After the contract expires, the insurance providers can collect their collateral back. The amount they receive is calculated as `repo.collateral / totalCollateral * (totalCollateral - totalExercised)`. The oTokens expire so don't have to be burned as they no longer have any value. Repos can't be unsafe after expiry because they no longer have a promised insurance amount. 
+![image info](./images/claim.png)
 # Installing dependencies
 
 Run `npm install` to install all dependencies.
