@@ -12,7 +12,12 @@ const MintableToken = artifacts.require('ERC20Mintable');
 
 const truffleAssert = require('truffle-assertions');
 
-const { BN, time } = require('@openzeppelin/test-helpers');
+const {
+  BN,
+  time,
+  expectEvent,
+  balance
+} = require('@openzeppelin/test-helpers');
 
 // Initialize the Options Factory, Options Exchange and other mock contracts
 contract('OptionsContract', accounts => {
@@ -98,6 +103,12 @@ contract('OptionsContract', accounts => {
   });
 
   describe('#exercise() during expiry window', () => {
+    let initialETH: BN;
+    let finalETH: BN;
+    let gasUsed: BN;
+    let gasPrice: BN;
+    let txInfo: any;
+
     it('should be able to call exercise', async () => {
       const amtToExercise = '10';
 
@@ -112,7 +123,6 @@ contract('OptionsContract', accounts => {
       // ensure the person has enough underyling
       const ownerDaiBal = await dai.balanceOf(secondOwnerAddress);
       expect(ownerDaiBal.toString()).to.equal('0');
-
       await dai.mint(secondOwnerAddress, '100000', { from: creatorAddress });
       await dai.approve(optionsContracts.address, '10000000000000000000000', {
         from: secondOwnerAddress
@@ -129,10 +139,25 @@ contract('OptionsContract', accounts => {
         '10000000000000000',
         { from: secondOwnerAddress }
       );
-      const result = await optionsContracts.exercise(amtToExercise, {
+
+      initialETH = await balance.current(secondOwnerAddress);
+
+      txInfo = await optionsContracts.exercise(amtToExercise, {
         from: secondOwnerAddress,
         gas: '1000000'
       });
+
+      const tx = await web3.eth.getTransaction(txInfo.tx);
+      finalETH = await balance.current(secondOwnerAddress);
+
+      gasUsed = new BN(txInfo.receipt.gasUsed);
+      gasPrice = new BN(tx.gasPrice);
+
+      // check that the person gets the right amount of ETH back
+      const expectedEndETHBalance = initialETH
+        .sub(gasUsed.mul(gasPrice))
+        .add(new BN(450));
+      expect(finalETH.toString()).to.equal(expectedEndETHBalance.toString());
 
       // check the supply of oTokens has changed
       const totalSupplyAfter = await optionsContracts.totalSupply();
@@ -141,25 +166,23 @@ contract('OptionsContract', accounts => {
       );
 
       // check that the right events were emitted
-      expect(result.logs[3].event).to.equal('Exercise');
-      expect(result.logs[3].args.amtUnderlyingToPay.toString()).to.equal(
-        '100000'
-      );
-      expect(result.logs[3].args.amtCollateralToPay.toString()).to.equal('450');
+      expectEvent(txInfo, 'Exercise', {
+        amtUnderlyingToPay: new BN(100000),
+        amtCollateralToPay: new BN(450)
+      });
     });
 
     it('check that the underlying and oTokens were transferred', async () => {
       // The balances of the person should be 0
       const amtPTokens = await optionsContracts.balanceOf(secondOwnerAddress);
       expect(amtPTokens.toString()).to.equal('0');
+
       const ownerDaiBal = await dai.balanceOf(secondOwnerAddress);
       expect(ownerDaiBal.toString()).to.equal('0');
 
       // The underlying balances of the contract should have increased
       const contractDaiBal = await dai.balanceOf(optionsContracts.address);
       expect(contractDaiBal.toString()).to.equal('100000');
-
-      // TODO: check that the person gets the right amount of ETH back
     });
   });
 
@@ -169,19 +192,31 @@ contract('OptionsContract', accounts => {
 
       await time.increaseTo(1577836802);
 
-      const tx = await optionsContracts.claimCollateral(repoIndex, {
+      const initialETH = await balance.current(creatorAddress);
+
+      const txInfo = await optionsContracts.claimCollateral(repoIndex, {
         from: creatorAddress,
         gas: '1000000'
       });
 
+      const tx = await web3.eth.getTransaction(txInfo.tx);
+      const finalETH = await balance.current(creatorAddress);
       // check the calculations on amount of collateral paid out and underlying transferred is correct
-      expect(tx.logs[0].event).to.equal('ClaimedCollateral');
-      expect(tx.logs[0].args.amtCollateralClaimed.toString()).to.equal(
+      expect(txInfo.logs[0].event).to.equal('ClaimedCollateral');
+      expect(txInfo.logs[0].args.amtCollateralClaimed.toString()).to.equal(
         '19999700'
       );
-      expect(tx.logs[0].args.amtUnderlyingClaimed.toString()).to.equal('66666');
+      expect(txInfo.logs[0].args.amtUnderlyingClaimed.toString()).to.equal(
+        '66666'
+      );
 
       // TODO: check the person's collateral balance went up
+      const gasUsed = new BN(txInfo.receipt.gasUsed);
+      const gasPrice = new BN(tx.gasPrice);
+      const expectedEndETHBalance = initialETH
+        .sub(gasUsed.mul(gasPrice))
+        .add(new BN(19999700));
+      expect(finalETH.toString()).to.equal(expectedEndETHBalance.toString());
 
       // check the person's underlying balance increased
       const ownerDaiBal = await dai.balanceOf(creatorAddress);
