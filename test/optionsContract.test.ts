@@ -228,7 +228,7 @@ contract('OptionsContract', accounts => {
 
   describe('#addETHCollateral()', () => {
     it('should add ETH collateral successfully', async () => {
-      const repoNum = 1;
+      const repoNum = '1';
       const msgValue = '10000000';
       const result = await optionsContracts[0].addETHCollateral(repoNum, {
         from: creatorAddress,
@@ -244,10 +244,15 @@ contract('OptionsContract', accounts => {
         '2': creatorAddress
       };
       checkRepo(repo, expectedRepo);
+
+      // check proper events emitted
+      expect(result.logs[0].event).to.equal('ETHCollateralAdded');
+      expect(result.logs[0].args.repoIndex.toString()).to.equal(repoNum);
+      expect(result.logs[0].args.amount.toString()).to.equal(msgValue);
     });
 
     it('anyone should be able to add ETH collateral to any repo', async () => {
-      const repoNum = 1;
+      const repoNum = '1';
       const msgValue = '10000000';
       const result = await optionsContracts[0].addETHCollateral(repoNum, {
         from: firstOwnerAddress,
@@ -263,12 +268,15 @@ contract('OptionsContract', accounts => {
         '2': creatorAddress
       };
       checkRepo(repo, expectedRepo);
+
+      // check proper events emitted
+      expect(result.logs[0].event).to.equal('ETHCollateralAdded');
+      expect(result.logs[0].args.repoIndex.toString()).to.equal(repoNum);
+      expect(result.logs[0].args.amount.toString()).to.equal(msgValue);
     });
 
-    // TODO: Check tx.logs for the events emitted by a transaction
-    it('add ETH events should be emitted');
-
-    it('should not be able to add ETH collateral to an expired options contract', async () => {
+    // TODO: first have an opened repo in an expired contract, then check this.
+    xit('should not be able to add ETH collateral to an expired options contract', async () => {
       try {
         const repoNum = 1;
         const msgValue = '10000000';
