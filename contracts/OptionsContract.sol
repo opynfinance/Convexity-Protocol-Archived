@@ -455,6 +455,8 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
         repo.collateral = newRepoCollateralAmt;
         transferCollateral(msg.sender, amtToRemove);
         totalCollateral = totalCollateral.sub(amtToRemove);
+
+        // TODO: emit event
     }
 
     /**
@@ -466,7 +468,7 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
      */
     function claimCollateral (uint256 repoIndex) public {
         // TODO: uncomment and test with expiry
-        // require(now >= expiry, "Can't collect collateral until expiry");
+        require(now >= expiry, "Can't collect collateral until expiry");
 
         // pay out people proportional
         Repo storage repo = repos[repoIndex];

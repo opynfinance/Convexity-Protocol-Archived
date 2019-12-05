@@ -9,14 +9,13 @@ import {
 const OptionsContract = artifacts.require('OptionsContract');
 const OptionsFactory = artifacts.require('OptionsFactory');
 const MockCompoundOracle = artifacts.require('MockCompoundOracle');
-const MockUniswapFactory = artifacts.require('MockUniswapFactory');
 const MintableToken = artifacts.require('ERC20Mintable');
 
 const truffleAssert = require('truffle-assertions');
 
 import Reverter from './utils/reverter';
 
-const { BN, balance, expectEvent } = require('@openzeppelin/test-helpers');
+const { BN, balance, expectEvent, time } = require('@openzeppelin/test-helpers');
 
 function checkRepo(
   repo: any,
@@ -45,17 +44,15 @@ contract('OptionsContract', accounts => {
   const reverter = new Reverter(web3);
   const creatorAddress = accounts[0];
   const firstOwnerAddress = accounts[1];
-  const secondOwnerAddress = accounts[2];
 
   const optionsContracts: OptionsContractInstance[] = [];
   let optionsFactory: OptionsFactoryInstance;
-  let compoundOracle: MockCompoundOracleInstance;
   let dai: ERC20MintableInstance;
 
   before('set up contracts', async () => {
     // 1. Deploy mock contracts
     // 1.1 Compound Oracle
-    compoundOracle = await MockCompoundOracle.deployed();
+    await MockCompoundOracle.deployed();
 
     // 1.2 Mock Dai contract
     dai = await MintableToken.new();
@@ -149,6 +146,10 @@ contract('OptionsContract', accounts => {
       expect(repo['0'].toString()).to.equal('0');
       expect(repo['1'].toString()).to.equal('0');
       expect(repo['2']).to.equal(creatorAddress);
+
+      // check proper events emitted
+      expect(result.logs[0].event).to.equal('RepoOpened');
+      expect(result.logs[0].args.repoIndex.toString()).to.equal('0');
     });
 
     it('should open second repo correctly', async () => {
@@ -171,6 +172,10 @@ contract('OptionsContract', accounts => {
       expect(repo['0'].toString()).to.equal('0');
       expect(repo['1'].toString()).to.equal('0');
       expect(repo['2']).to.equal(creatorAddress);
+
+      // check proper events emitted
+      expect(result.logs[0].event).to.equal('RepoOpened');
+      expect(result.logs[0].args.repoIndex.toString()).to.equal('1');
     });
 
     it('new person should be able to open third repo correctly', async () => {
@@ -194,14 +199,15 @@ contract('OptionsContract', accounts => {
       expect(repo['0'].toString()).to.equal('0');
       expect(repo['1'].toString()).to.equal('0');
       expect(repo['2']).to.equal(firstOwnerAddress);
-    });
 
-    // TODO: Check tx.logs for the events emitted by a transaction
-    it('should check for proper events emitted during all open repo calls');
+      // check proper events emitted
+      expect(result.logs[0].event).to.equal('RepoOpened');
+      expect(result.logs[0].args.repoIndex.toString()).to.equal('2');
+    });
 
     it('should not be able to open a repo in an expired options contract', async () => {
       try {
-        const result = await optionsContracts[1].openRepo({
+        await optionsContracts[1].openRepo({
           from: firstOwnerAddress,
           gas: '100000'
         });
@@ -215,7 +221,7 @@ contract('OptionsContract', accounts => {
 
   describe('#addETHCollateral()', () => {
     it('should add ETH collateral successfully', async () => {
-      const repoNum = 1;
+      const repoNum = '1';
       const msgValue = '10000000';
       const result = await optionsContracts[0].addETHCollateral(repoNum, {
         from: creatorAddress,
@@ -231,10 +237,15 @@ contract('OptionsContract', accounts => {
         '2': creatorAddress
       };
       checkRepo(repo, expectedRepo);
+
+      // check proper events emitted
+      expect(result.logs[0].event).to.equal('ETHCollateralAdded');
+      expect(result.logs[0].args.repoIndex.toString()).to.equal(repoNum);
+      expect(result.logs[0].args.amount.toString()).to.equal(msgValue);
     });
 
     it('anyone should be able to add ETH collateral to any repo', async () => {
-      const repoNum = 1;
+      const repoNum = '1';
       const msgValue = '10000000';
       let result = await optionsContracts[0].addETHCollateral(repoNum, {
         from: firstOwnerAddress,
@@ -266,15 +277,19 @@ contract('OptionsContract', accounts => {
       };
       checkRepo(repo, expectedRepo);
     });
+    
+      // check proper events emitted
+      expect(result.logs[0].event).to.equal('ETHCollateralAdded');
+      expect(result.logs[0].args.repoIndex.toString()).to.equal(repoNum);
+      expect(result.logs[0].args.amount.toString()).to.equal(msgValue);
+    });
 
-    // TODO: Check tx.logs for the events emitted by a transaction
-    it('add ETH events should be emitted');
-
-    it('should not be able to add ETH collateral to an expired options contract', async () => {
+    // TODO: first have an opened repo in an expired contract, then check this.
+    xit('should not be able to add ETH collateral to an expired options contract', async () => {
       try {
         const repoNum = 1;
         const msgValue = '10000000';
-        const result = await optionsContracts[1].addETHCollateral(repoNum, {
+        await optionsContracts[1].addETHCollateral(repoNum, {
           from: firstOwnerAddress,
           gas: '100000',
           value: msgValue
@@ -288,7 +303,7 @@ contract('OptionsContract', accounts => {
 
   describe('#addERC20Collateral()', () => {
     it('should open ERC20 repo correctly', async () => {
-      const result = await optionsContracts[2].openRepo({
+      await optionsContracts[2].openRepo({
         from: creatorAddress,
         gas: '100000'
       });
@@ -341,15 +356,11 @@ contract('OptionsContract', accounts => {
       try {
         const repoNum = 1;
         const msgValue = '10000000';
-        const result = await optionsContracts[0].addERC20Collateral(
-          repoNum,
-          '0',
-          {
-            from: firstOwnerAddress,
-            gas: '100000',
-            value: msgValue
-          }
-        );
+        await optionsContracts[0].addERC20Collateral(repoNum, '0', {
+          from: firstOwnerAddress,
+          gas: '100000',
+          value: msgValue
+        });
       } catch (err) {
         return;
       }
@@ -360,7 +371,7 @@ contract('OptionsContract', accounts => {
       try {
         const repoNum = 0;
         const msgValue = '10000000';
-        const result = await optionsContracts[2].addETHCollateral(repoNum, {
+        await optionsContracts[2].addETHCollateral(repoNum, {
           from: firstOwnerAddress,
           gas: '100000',
           value: msgValue
@@ -387,23 +398,20 @@ contract('OptionsContract', accounts => {
       );
       const amtPTokens = await optionsContracts[0].balanceOf(creatorAddress);
       expect(amtPTokens.toString()).to.equal(numTokens);
-    });
 
-    // TODO: Check tx.logs for the events emitted by a transaction
-    it('should emit IssuedOptionTokens events');
+      // Minting oTokens should emit an event correctly
+      expect(result.logs[2].event).to.equal('IssuedOptionTokens');
+      expect(result.logs[2].args.issuedTo).to.equal(creatorAddress);
+    });
 
     it('only owner should of repo should be able to mint', async () => {
       const repoIndex = '1';
       const numTokens = '100';
       try {
-        const result = await optionsContracts[0].issueOptionTokens(
-          repoIndex,
-          numTokens,
-          {
-            from: firstOwnerAddress,
-            gas: '100000'
-          }
-        );
+        await optionsContracts[0].issueOptionTokens(repoIndex, numTokens, {
+          from: firstOwnerAddress,
+          gas: '100000'
+        });
       } catch (err) {
         return;
       }
@@ -418,14 +426,10 @@ contract('OptionsContract', accounts => {
       const repoIndex = '1';
       const numTokens = '2';
       try {
-        const result = await optionsContracts[0].issueOptionTokens(
-          repoIndex,
-          numTokens,
-          {
-            from: creatorAddress,
-            gas: '100000'
-          }
-        );
+        await optionsContracts[0].issueOptionTokens(repoIndex, numTokens, {
+          from: creatorAddress,
+          gas: '100000'
+        });
       } catch (err) {
         return;
       }
@@ -437,7 +441,8 @@ contract('OptionsContract', accounts => {
       expect(amtPTokens.toString()).to.equal('138888');
     });
 
-    it('should not be able to issue tokens after expiry');
+    // TODO: Need to check a contract that expires
+    xit('should not be able to issue tokens after expiry');
   });
 
   describe('#burnPutTokens()', () => {
@@ -457,17 +462,13 @@ contract('OptionsContract', accounts => {
       expect(amtPTokens.toString()).to.equal('138878');
     });
 
-    it('correct events should be emitted');
+    xit('correct events should be emitted');
 
     it('only owner should be able to burn tokens', async () => {
-      const transferred = await optionsContracts[0].transfer(
-        firstOwnerAddress,
-        '10',
-        {
-          from: creatorAddress,
-          gas: '100000'
-        }
-      );
+      await optionsContracts[0].transfer(firstOwnerAddress, '10', {
+        from: creatorAddress,
+        gas: '100000'
+      });
       const amtPTokens = await optionsContracts[0].balanceOf(firstOwnerAddress);
       expect(amtPTokens.toString()).to.equal('10');
 
@@ -475,18 +476,13 @@ contract('OptionsContract', accounts => {
       const numTokens = '10';
 
       try {
-        const result = await optionsContracts[0].burnPutTokens(
-          repoIndex,
-          numTokens,
-          {
-            from: firstOwnerAddress,
-            gas: '100000'
-          }
-        );
+        await optionsContracts[0].burnPutTokens(repoIndex, numTokens, {
+          from: firstOwnerAddress,
+          gas: '100000'
+        });
       } catch (err) {
         return;
       }
-
       truffleAssert.fails('should throw error');
     });
   });
@@ -514,20 +510,19 @@ contract('OptionsContract', accounts => {
       };
       checkRepo(repo, expectedRepo);
 
-      // Check that the owner correctly got their collateral back.
+      // TODO: Check that the owner correctly got their collateral back.
+
+      // TODO: check event emitted
     });
 
     it('only owner should be able to remove collateral', async () => {
       const repoIndex = '0';
+      const numTokens = '10';
       try {
-        const result = await optionsContracts[0].removeCollateral(
-          repoIndex,
-          '10',
-          {
-            from: firstOwnerAddress,
-            gas: '100000'
-          }
-        );
+        await optionsContracts[0].removeCollateral(repoIndex, numTokens, {
+          from: firstOwnerAddress,
+          gas: '100000'
+        });
       } catch (err) {
         return;
       }
@@ -548,6 +543,8 @@ contract('OptionsContract', accounts => {
         }
       );
 
+      // TODO: Check correct event emitted
+
       // Check the contract correctly updated the repo
       const repo = await optionsContracts[0].getRepoByIndex(repoIndex);
       const expectedRepo = {
@@ -559,16 +556,14 @@ contract('OptionsContract', accounts => {
     });
 
     it('should not be able to remove collateral if not sufficient collateral', async () => {
-      const repoIndex = '0';
+      const repoIndex = '1';
+      const numTokens = '70';
+
       try {
-        const result = await optionsContracts[0].removeCollateral(
-          repoIndex,
-          '5',
-          {
-            from: creatorAddress,
-            gas: '100000'
-          }
-        );
+        await optionsContracts[0].removeCollateral(repoIndex, numTokens, {
+          from: creatorAddress,
+          gas: '100000'
+        });
       } catch (err) {
         return;
       }
@@ -578,7 +573,7 @@ contract('OptionsContract', accounts => {
       // check that the collateral in the repo remains the same
       const repo = await optionsContracts[0].getRepoByIndex(repoIndex);
       const expectedRepo = {
-        '0': '19999000',
+        '0': '19998500',
         '1': '138878',
         '2': creatorAddress
       };
@@ -748,4 +743,125 @@ contract('OptionsContract', accounts => {
       });
     });
   });
+  // describe('#liquidate()', () => {
+  //   it('repo should be unsafe when the price drops', async () => {
+  //     // Make sure Repo is safe before price drop
+  //     const isUnsafe = await optionsContracts[0].isUnsafe('1');
+  //     expect(isUnsafe).to.be.false;
+
+  //     // change the oracle price:
+  //     await compoundOracle.updatePrice('100');
+
+  //     // Make sure repo is unsafe after price drop
+  //     const isUnsafeAfterPriceDrop = await optionsContracts[0].isUnsafe('1');
+  //     expect(isUnsafeAfterPriceDrop).to.be.true;
+  //   });
+
+  //   it('should not be able to liquidate more than collateral factor when the price drops', async () => {
+  //     // Try to liquidate the repo
+  //     try {
+  //       await optionsContracts[0].liquidate('1', '11001105', {
+  //         from: firstOwnerAddress,
+  //         gas: '100000'
+  //       });
+  //     } catch (err) {
+  //       return;
+  //     }
+
+  //     truffleAssert.fails('should throw err');
+  //   });
+
+  //   it('should be able to liquidate when the price drops', async () => {
+  //     const repoIndex = '1';
+  //     //Liquidator first needs oTokens
+  //     await optionsContracts[0].transfer(firstOwnerAddress, '11001100', {
+  //       from: creatorAddress,
+  //       gas: '100000'
+  //     });
+  //     const amtPTokens1 = await optionsContracts[0].balanceOf(
+  //       firstOwnerAddress
+  //     );
+  //     expect(amtPTokens1.toString()).to.equal('11001110');
+
+  //     // Approve before burn
+  //     await optionsContracts[0].approve(
+  //       optionsContracts[0].address,
+  //       '10000000000000000',
+  //       { from: firstOwnerAddress }
+  //     );
+
+  //     // Try to liquidate the repo
+  //     const tx = await optionsContracts[0].liquidate(repoIndex, '11001100', {
+  //       from: firstOwnerAddress,
+  //       gas: '100000'
+  //     });
+
+  //     // Check that the correct liquidate events are emitted
+  //     expect(tx.logs[0].event).to.equal('Liquidate');
+  //     expect(tx.logs[0].args.amtCollateralToPay.toString()).to.equal('9999999');
+
+  //     // check that the repo balances have changed
+  //     const repo = await optionsContracts[0].getRepoByIndex(repoIndex);
+  //     const expectedRepo = {
+  //       '0': '10000001',
+  //       '1': '16776667',
+  //       '2': creatorAddress
+  //     };
+  //     checkRepo(repo, expectedRepo);
+
+  //     // check that the liquidator balances have changed
+  //     const amtPTokens2 = await optionsContracts[0].balanceOf(
+  //       firstOwnerAddress
+  //     );
+  //     expect(amtPTokens2.toString()).to.equal('10');
+  //     // TODO: how to check that collateral has increased?
+  //   });
+
+  //   it('should be able to liquidate if still undercollateralized', async () => {
+  //     const repoIndex = '1';
+  //     //Liquidator first needs oTokens
+  //     await optionsContracts[0].transfer(firstOwnerAddress, '1000', {
+  //       from: creatorAddress,
+  //       gas: '100000'
+  //     });
+  //     const amtPTokens1 = await optionsContracts[0].balanceOf(
+  //       firstOwnerAddress
+  //     );
+  //     expect(amtPTokens1.toString()).to.equal('1010');
+
+  //     // Approve before burn
+  //     await optionsContracts[0].approve(
+  //       optionsContracts[0].address,
+  //       '10000000000000000',
+  //       { from: firstOwnerAddress }
+  //     );
+
+  //     // Try to liquidate the repo
+  //     const tx = await optionsContracts[0].liquidate(repoIndex, '1000', {
+  //       from: firstOwnerAddress,
+  //       gas: '100000'
+  //     });
+
+  //     // Check that the correct liquidate events are emitted
+  //     expect(tx.logs[0].event).to.equal('Liquidate');
+  //     expect(tx.logs[0].args.amtCollateralToPay.toString()).to.equal('909');
+
+  //     // check that the repo balances have changed
+  //     const repo = await optionsContracts[0].getRepoByIndex(repoIndex);
+  //     const expectedRepo = {
+  //       '0': '9999092',
+  //       '1': '16775667',
+  //       '2': creatorAddress
+  //     };
+  //     checkRepo(repo, expectedRepo);
+
+  //     // check that the liquidator balances have changed
+  //     const amtPTokens = await optionsContracts[0].balanceOf(firstOwnerAddress);
+  //     expect(amtPTokens.toString()).to.equal('10');
+  //     // TODO: how to check that collateral has increased?
+  //   });
+
+  //   it('should not be able to liquidate if safe');
+  // });
+
 });
