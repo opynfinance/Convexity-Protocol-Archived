@@ -479,11 +479,9 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
         uint256 collateralToTransfer = repo.collateral.mul(collateralLeft).div(totalCollateral);
         uint256 underlyingToTransfer = repo.collateral.mul(totalUnderlying).div(totalCollateral);
 
-        uint256 currentBalance = underlying.balanceOf(address(this));
+        repo.collateral = 0;
 
         emit ClaimedCollateral(collateralToTransfer, underlyingToTransfer);
-
-        repo.collateral = 0;
 
         transferCollateral(msg.sender, collateralToTransfer);
         transferUnderlying(msg.sender, underlyingToTransfer);
