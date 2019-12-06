@@ -16,7 +16,7 @@ contract OptionsFactory is Ownable {
     // The contract which interfaces with the exchange + oracle
     OptionsExchange public optionsExchange;
 
-    event OptionContractCreated(address addr);
+    event OptionsContractCreated(address addr);
     event AssetAdded(string indexed asset, address indexed addr);
     event AssetChanged(string indexed asset, address indexed addr);
     event AssetDeleted(string indexed asset);
@@ -72,7 +72,7 @@ contract OptionsFactory is Ownable {
         );
 
         optionsContracts.push(address(optionsContract));
-        emit OptionContractCreated(address(optionsContract));
+        emit OptionsContractCreated(address(optionsContract));
 
         // Set the owner for the options contract.
         optionsContract.transferOwnership(owner());

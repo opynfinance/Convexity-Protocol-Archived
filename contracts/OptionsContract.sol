@@ -148,15 +148,20 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
     event ETHCollateralAdded(uint256 repoIndex, uint256 amount, address payer);
     event ERC20CollateralAdded(uint256 repoIndex, uint256 amount, address payer);
     event IssuedOTokens(address issuedTo, uint256 oTokensIssued, uint256 repoIndex);
-    event Liquidate (uint256 amtCollateralToPay, address liquidator, uint256 repoIndex);
+    event Liquidate (uint256 amtCollateralToPay, uint256 repoIndex, address liquidator);
     event Exercise (uint256 amtUnderlyingToPay, uint256 amtCollateralToPay, address exerciser);
-    event ClaimedCollateral(uint256 amtCollateralClaimed, uint256 amtUnderlyingClaimed, address repoOwner, uint256 repoIndex);
+    event ClaimedCollateral(uint256 amtCollateralClaimed, uint256 amtUnderlyingClaimed, uint256 repoIndex, address repoOwner);
     event BurnOTokens (uint256 repoIndex, uint256 oTokensBurned);
     event TransferRepoOwnership (uint256 repoIndex, address oldOwner, address payable newOwner);
     event RemoveCollateral (uint256 repoIndex, uint256 amtRemoved, address repoOwner);
 
     /**
      * @notice Can only be called by owner. Used to update the fees, minCollateralizationRatio, etc
+     * @param _liquidationIncentive The incentive paid to liquidator. 10 is 0.01 i.e. 1% incentive.
+     * @param _liquidationFactor Max amount that a repo can be liquidated by. 500 is 0.5.
+     * @param _liquidationFee The fees paid to our protocol every time a liquidation happens. 1054 is 1.054 i.e. 5.4% liqFee.
+     * @param _transactionFee The fees paid to our protocol every time a execution happens. 100 is egs. 0.1 i.e. 10%.
+     * @param _collateralizationRatio The minimum ratio of a repo's collateral to insurance promised. 16 means 1.6.
      */
     function updateParameters(
         uint256 _liquidationIncentive,
@@ -174,6 +179,7 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
 
     /**
      * @notice Can only be called by owner. Used to take out the protocol fees from the contract.
+     * @param _address The address to send the fee to.
      */
     function transferFee(address payable _address) public onlyOwner {
         uint256 fees = totalFee;
@@ -192,7 +198,7 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
      * @notice Creates a new empty repo and sets the owner of the repo to be the msg.sender.
      */
     function openRepo() public returns (uint) {
-        require(now < expiry, "Options contract expired");
+        require(block.timestamp < expiry, "Options contract expired");
         repos.push(Repo(0, 0, msg.sender));
         uint256 repoIndex = repos.length - 1;
         emit RepoOpened(repoIndex, msg.sender);
@@ -240,8 +246,8 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
      */
     function exercise(uint256 _oTokens) public payable {
         // 1. before exercise window: revert
-        require(now >= expiry - windowSize, "Too early to exercise");
-        require(now < expiry, "Beyond exercise time");
+        require(block.timestamp >= expiry - windowSize, "Too early to exercise");
+        require(block.timestamp < expiry, "Beyond exercise time");
 
         // 2. during exercise window: exercise
         // 2.1 ensure person calling has enough pTokens
@@ -286,7 +292,7 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
      */
     function issueOTokens (uint256 repoIndex, uint256 numTokens) public {
         //check that we're properly collateralized to mint this number, then call _mint(address account, uint256 amount)
-        require(now < expiry, "Options contract expired");
+        require(block.timestamp < expiry, "Options contract expired");
 
         Repo storage repo = repos[repoIndex];
         require(msg.sender == repo.owner, "Only owner can issue options");
@@ -297,7 +303,6 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
         _mint(msg.sender, numTokens);
         repo.putsOutstanding = newNumTokens;
 
-        // TODO: figure out proper events:
         emit IssuedOTokens(msg.sender, numTokens, repoIndex);
         return;
     }
@@ -357,7 +362,7 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
      * @param amtToCreate number of oTokens to create
      * @return repoIndex
      */
-    function createETHCollateralOptionNewRepo(uint256 amtToCreate) payable external returns (uint256) {
+    function createETHCollateralOptionNewRepo(uint256 amtToCreate) external payable returns (uint256) {
         uint256 repoIndex = openRepo();
         createETHCollateralOption(amtToCreate, repoIndex);
         return repoIndex;
@@ -425,12 +430,12 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
     /**
      * @notice allows the owner to remove excess collateral from the repo before expiry. Removing collateral lowers
      * the collateralization ratio of the repo.
-     * @param repoIndex: Index of the repo to burn oTokens
+     * @param repoIndex: Index of the repo to remove collateral
      * @param amtToRemove: Amount of collateral to remove in 10^-18.
      */
     function removeCollateral(uint256 repoIndex, uint256 amtToRemove) public {
 
-        require(now < expiry, "Can only call remove collateral before expiry");
+        require(block.timestamp < expiry, "Can only call remove collateral before expiry");
         // check that we are well collateralized enough to remove this amount of collateral
         Repo storage repo = repos[repoIndex];
         require(msg.sender == repo.owner, "Only owner can remove collateral");
@@ -454,7 +459,7 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
      * @param repoIndex index of the repo the owner wants to claim collateral from.
      */
     function claimCollateral (uint256 repoIndex) public {
-        require(now >= expiry, "Can't collect collateral until expiry");
+        require(block.timestamp >= expiry, "Can't collect collateral until expiry");
 
         // pay out people proportional
         Repo storage repo = repos[repoIndex];
@@ -467,7 +472,7 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
 
         repo.collateral = 0;
 
-        emit ClaimedCollateral(collateralToTransfer, underlyingToTransfer, msg.sender, repoIndex);
+        emit ClaimedCollateral(collateralToTransfer, underlyingToTransfer, repoIndex, msg.sender);
 
         transferCollateral(msg.sender, collateralToTransfer);
         transferUnderlying(msg.sender, underlyingToTransfer);
@@ -484,7 +489,7 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
      */
     function liquidate(uint256 repoIndex, uint256 _oTokens) public {
         // can only be called before the options contract expired
-        require(now < expiry, "Options contract expired");
+        require(block.timestamp < expiry, "Options contract expired");
 
         Repo storage repo = repos[repoIndex];
 
@@ -523,7 +528,7 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
          _burn(msg.sender, _oTokens);
          transferCollateral(msg.sender, amtCollateralToPay);
 
-        emit Liquidate(amtCollateralToPay, msg.sender, repoIndex);
+        emit Liquidate(amtCollateralToPay, repoIndex, msg.sender);
     }
 
     /**
@@ -545,7 +550,7 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
      * @param _amt the amount of collateral to add
      */
     function _addCollateral(uint256 _repoIndex, uint256 _amt) private returns (uint256) {
-        require(now < expiry, "Options contract expired");
+        require(block.timestamp < expiry, "Options contract expired");
 
         Repo storage repo = repos[_repoIndex];
 
