@@ -144,9 +144,9 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
     }
 
     /*** Events ***/
-    event RepoOpened(uint256 repoIndex);
-    event ETHCollateralAdded(uint256 repoIndex, uint256 amount);
-    event ERC20CollateralAdded(uint256 repoIndex, uint256 amount);
+    event RepoOpened(uint256 repoIndex, address repoOwner);
+    event ETHCollateralAdded(uint256 repoIndex, uint256 amount, address payer);
+    event ERC20CollateralAdded(uint256 repoIndex, uint256 amount, address payer);
     event IssuedOptionTokens(address issuedTo);
     event Liquidate (uint256 amtCollateralToPay);
     event Exercise (uint256 amtUnderlyingToPay, uint256 amtCollateralToPay);
@@ -192,7 +192,7 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
         require(now < expiry, "Options contract expired");
         repos.push(Repo(0, 0, msg.sender));
         uint256 repoIndex = repos.length - 1;
-        emit RepoOpened(repoIndex);
+        emit RepoOpened(repoIndex, msg.sender);
         return repoIndex;
     }
 
@@ -204,7 +204,7 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
      */
     function addETHCollateral(uint256 repoIndex) public payable returns (uint256) {
         require(isETH(collateral), "ETH is not the specified collateral type");
-        emit ETHCollateralAdded(repoIndex, msg.value);
+        emit ETHCollateralAdded(repoIndex, msg.value, msg.sender);
         return _addCollateral(repoIndex, msg.value);
     }
 
@@ -221,7 +221,7 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
             "Could not transfer in collateral tokens"
         );
 
-        emit ERC20CollateralAdded(repoIndex, amt);
+        emit ERC20CollateralAdded(repoIndex, amt, msg.sender);
         return _addCollateral(repoIndex, amt);
     }
 
@@ -377,39 +377,49 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
         return;
     }
 
-    // this function opens a repo, adds ETH collateral, and mints new putTokens in one step, returing the repoIndex
-    // function createOptionETHCollateral(uint256 amtToCreate) payable external returns (uint256) {
-    //     require(isETH(collateral), "cannot add ETH as collateral to an ERC20 collateralized option");
-    //     uint256 repoIndex = openRepo();
-    //     //TODO: can ETH be passed around payables like this?
-    //     createOptionETHCollateral(amtToCreate, repoIndex);
-    //     return repoIndex;
-    // }
+    /**
+     * @notice opens a repo, adds ETH collateral, and mints new putTokens in one step
+     * @param amtToCreate number of oTokens to create
+     * @return repoIndex
+     */
+    function createETHCollateralOptionNewRepo(uint256 amtToCreate) payable external returns (uint256) {
+        uint256 repoIndex = openRepo();
+        createETHCollateralOption(amtToCreate, repoIndex);
+        return repoIndex;
+    }
 
-    // //this function adds ETH collateral to an existing repo and mints new tokens in one step
-    // function createOptionETHCollateral(uint256 amtToCreate, uint256 repoIndex) public payable {
-    //     require(isETH(collateral), "cannot add ETH as collateral to an ERC20 collateralized option");
-    //     require(repos[repoIndex].owner == msg.sender, "trying to createOption on a repo that is not yours");
-    //     //TODO: can ETH be passed around payables like this?
-    //     addETHCollateral(repoIndex);
-    //     issueOptionTokens(repoIndex, amtToCreate);
-    // }
+    /**
+     * @notice adds ETH collateral, and mints new putTokens in one step
+     * @param amtToCreate number of oTokens to create
+     * @param repoIndex index of the repo to add collateral to
+     */
+    function createETHCollateralOption(uint256 amtToCreate, uint256 repoIndex) public payable {
+        addETHCollateral(repoIndex);
+        issueOptionTokens(repoIndex, amtToCreate);
+    }
 
-    // //this function opens a repo, adds ERC20 collateral to that repo and mints new tokens in one step, returning the repoIndex
-    // function createOptionERC20Collateral(uint256 amtToCreate, uint256 amtCollateral) external returns (uint256) {
-    //     //TODO: was it okay to remove the require here?
-    //     uint256 repoIndex = openRepo();
-    //     createOptionERC20Collateral(repoIndex, amtToCreate, amtCollateral);
-    //     return repoIndex;
-    // }
+    /**
+     * @notice opens a repo, adds ERC20 collateral, and mints new putTokens in one step
+     * @param amtToCreate number of oTokens to create
+     * @param amtCollateral amount of collateral added
+     * @return repoIndex
+     */
+    function createERC20CollateralOptionNewRepo(uint256 amtToCreate, uint256 amtCollateral) external returns (uint256) {
+        uint256 repoIndex = openRepo();
+        createERC20CollateralOption(repoIndex, amtToCreate, amtCollateral);
+        return repoIndex;
+    }
 
-    // //this function adds ERC20 collateral to an existing repo and mints new tokens in one step
-    // function createOptionERC20Collateral(uint256 amtToCreate, uint256 amtCollateral, uint256 repoIndex) public {
-    //     require(!isETH(collateral), "cannot add ERC20 collateral to an ETH collateralized option");
-    //     require(repos[repoIndex].owner == msg.sender, "trying to createOption on a repo that is not yours");
-    //     addERC20Collateral(repoIndex, amtCollateral);
-    //     issueOptionTokens(repoIndex, amtToCreate);
-    // }
+    /**
+     * @notice adds ERC20 collateral, and mints new putTokens in one step
+     * @param amtToCreate number of oTokens to create
+     * @param amtCollateral amount of collateral added
+     * @param repoIndex index of the repo to add collateral to
+     */
+    function createERC20CollateralOption(uint256 amtToCreate, uint256 amtCollateral, uint256 repoIndex) public {
+        addERC20Collateral(repoIndex, amtCollateral);
+        issueOptionTokens(repoIndex, amtToCreate);
+    }
 
     /**
      * @notice allows the owner to burn their oTokens to increase the collateralization ratio of
@@ -575,10 +585,10 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
         emit Liquidate(amtCollateralToPay);
 
         // deduct the collateral and putsOutstanding
-        repo.collateral = repo.collateral.sub(amtCollateralToPay);
+        repo.collateral = repo.collateral.sub(amtCollateralToPay.add(protocolFee));
         repo.putsOutstanding = repo.putsOutstanding.sub(_oTokens);
 
-        totalCollateral = totalCollateral.sub(amtCollateralToPay);
+        totalCollateral = totalCollateral.sub(amtCollateralToPay.add(protocolFee));
 
         // transfer the collateral and burn the _oTokens
          _burn(msg.sender, _oTokens);

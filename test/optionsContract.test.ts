@@ -584,4 +584,41 @@ contract('OptionsContract', accounts => {
 
     it('should not be able to remove collateral after expiry');
   });
+
+  describe('#createOptions()', () => {
+    it('should be able to create new ETH options in a new repo', async () => {
+      const numOptions = '138888';
+      const collateral = '20000000';
+      const result = await optionsContracts[0].createETHCollateralOptionNewRepo(
+        numOptions,
+        {
+          from: creatorAddress,
+          value: collateral
+        }
+      );
+
+      // Minting oTokens should emit an event correctly
+      expect(result.logs[3].event).to.equal('IssuedOptionTokens');
+      expect(result.logs[3].args.issuedTo).to.equal(creatorAddress);
+    });
+    it('should be able to create new ERC20 options in a new repo', async () => {
+      const numOptions = '100';
+      const collateral = '20000000';
+
+      await dai.mint(creatorAddress, '20000000');
+      await dai.approve(optionsContracts[2].address, '10000000000000000');
+
+      const result = await optionsContracts[2].createERC20CollateralOptionNewRepo(
+        numOptions,
+        collateral,
+        {
+          from: creatorAddress
+        }
+      );
+
+      // Minting oTokens should emit an event correctly
+      expect(result.logs[3].event).to.equal('IssuedOptionTokens');
+      expect(result.logs[3].args.issuedTo).to.equal(creatorAddress);
+    });
+  });
 });

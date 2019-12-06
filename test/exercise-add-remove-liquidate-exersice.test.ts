@@ -779,6 +779,8 @@ contract('OptionsContract', accounts => {
       const expectedCollateralToPay = new BN(4590);
       const initialETH = await balance.current(tokenHolder);
 
+      const repo = await optionsContracts[0].getRepoByIndex('0');
+
       const txInfo = await optionsContracts[0].liquidate('0', '100', {
         from: tokenHolder,
         gas: '200000'
@@ -882,8 +884,8 @@ contract('OptionsContract', accounts => {
         gas: '1000000'
       });
 
-      const collateralClaimed = new BN(9955444);
-      const underlyingClaimed = new BN(96512);
+      const collateralClaimed = new BN(9955248);
+      const underlyingClaimed = new BN(96938);
 
       const initialDaiBalance = new BN(
         (await dai.balanceOf(secondRepoOwnerAddress)).toString()
@@ -913,8 +915,8 @@ contract('OptionsContract', accounts => {
     });
 
     it('firstRepoOwnerAddress should be able to claim after expiry', async () => {
-      const collateralClaimed = new BN(10674917);
-      const underlyingClaimed = new BN(103487);
+      const collateralClaimed = new BN(10584159);
+      const underlyingClaimed = new BN(103061);
 
       const initialDaiBalance = new BN(
         (await dai.balanceOf(firstRepoOwnerAddress)).toString()
