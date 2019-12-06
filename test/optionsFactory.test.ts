@@ -198,9 +198,13 @@ contract('OptionsFactory', accounts => {
       ).toNumber();
       const lastAdded = await optionsFactory.optionsContracts(index - 1);
 
-      truffleAssert.eventEmitted(result, 'OptionContractCreated', (ev: any) => {
-        return ev.addr === lastAdded;
-      });
+      truffleAssert.eventEmitted(
+        result,
+        'OptionsContractCreated',
+        (ev: any) => {
+          return ev.addr === lastAdded;
+        }
+      );
     });
     it('anyone else should be able to create a second options contract correctly', async () => {
       const result = await optionsFactory.createOptionsContract(
@@ -222,9 +226,13 @@ contract('OptionsFactory', accounts => {
       ).toNumber();
       const lastAdded = await optionsFactory.optionsContracts(index - 1);
 
-      truffleAssert.eventEmitted(result, 'OptionContractCreated', (ev: any) => {
-        return ev.addr === lastAdded;
-      });
+      truffleAssert.eventEmitted(
+        result,
+        'OptionsContractCreated',
+        (ev: any) => {
+          return ev.addr === lastAdded;
+        }
+      );
 
       // Check the ownership
       const ownerFactory = await optionsFactory.owner();
