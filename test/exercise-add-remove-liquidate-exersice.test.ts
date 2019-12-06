@@ -884,7 +884,7 @@ contract('OptionsContract', accounts => {
         gas: '1000000'
       });
 
-      const collateralClaimed = new BN(9955248);
+      const collateralClaimed = new BN(9999339);
       const underlyingClaimed = new BN(96938);
 
       const initialDaiBalance = new BN(
@@ -915,7 +915,7 @@ contract('OptionsContract', accounts => {
     });
 
     it('firstRepoOwnerAddress should be able to claim after expiry', async () => {
-      const collateralClaimed = new BN(10584159);
+      const collateralClaimed = new BN(10631035);
       const underlyingClaimed = new BN(103061);
 
       const initialDaiBalance = new BN(
