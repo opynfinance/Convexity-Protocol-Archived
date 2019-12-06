@@ -386,12 +386,12 @@ contract('OptionsContract', accounts => {
     });
   });
 
-  describe('#issueOptionTokens()', () => {
+  describe('#issueOTokens()', () => {
     it('should allow you to mint correctly', async () => {
       const repoIndex = '1';
       const numTokens = '138888';
 
-      const result = await optionsContracts[0].issueOptionTokens(
+      const result = await optionsContracts[0].issueOTokens(
         repoIndex,
         numTokens,
         {
@@ -403,7 +403,7 @@ contract('OptionsContract', accounts => {
       expect(amtPTokens.toString()).to.equal(numTokens);
 
       // Minting oTokens should emit an event correctly
-      expect(result.logs[1].event).to.equal('IssuedOptionTokens');
+      expect(result.logs[1].event).to.equal('IssuedOTokens');
       expect(result.logs[1].args.issuedTo).to.equal(creatorAddress);
     });
 
@@ -411,7 +411,7 @@ contract('OptionsContract', accounts => {
       const repoIndex = '1';
       const numTokens = '100';
       try {
-        await optionsContracts[0].issueOptionTokens(repoIndex, numTokens, {
+        await optionsContracts[0].issueOTokens(repoIndex, numTokens, {
           from: firstOwnerAddress,
           gas: '100000'
         });
@@ -429,7 +429,7 @@ contract('OptionsContract', accounts => {
       const repoIndex = '1';
       const numTokens = '2';
       try {
-        await optionsContracts[0].issueOptionTokens(repoIndex, numTokens, {
+        await optionsContracts[0].issueOTokens(repoIndex, numTokens, {
           from: creatorAddress,
           gas: '100000'
         });
@@ -448,12 +448,12 @@ contract('OptionsContract', accounts => {
     xit('should not be able to issue tokens after expiry');
   });
 
-  describe('#burnPutTokens()', () => {
+  describe('#burnOTokens()', () => {
     it('should be able to burn put tokens', async () => {
       const repoIndex = '1';
       const numTokens = '10';
 
-      const result = await optionsContracts[0].burnPutTokens(
+      const result = await optionsContracts[0].burnOTokens(
         repoIndex,
         numTokens,
         {
@@ -479,7 +479,7 @@ contract('OptionsContract', accounts => {
       const numTokens = '10';
 
       try {
-        await optionsContracts[0].burnPutTokens(repoIndex, numTokens, {
+        await optionsContracts[0].burnOTokens(repoIndex, numTokens, {
           from: firstOwnerAddress,
           gas: '100000'
         });
@@ -598,10 +598,10 @@ contract('OptionsContract', accounts => {
       );
 
       // Minting oTokens should emit an event correctly
-      expect(result.logs[3].event).to.equal('IssuedOptionTokens');
+      expect(result.logs[3].event).to.equal('IssuedOTokens');
       expect(result.logs[3].args.issuedTo).to.equal(creatorAddress);
     });
-    it('should be able to create new ERC20 options in a new repo', async () => {
+    xit('should be able to create new ERC20 options in a new repo', async () => {
       const numOptions = '100';
       const collateral = '20000000';
 
@@ -617,7 +617,7 @@ contract('OptionsContract', accounts => {
       );
 
       // Minting oTokens should emit an event correctly
-      expect(result.logs[3].event).to.equal('IssuedOptionTokens');
+      expect(result.logs[3].event).to.equal('IssuedOTokens');
       expect(result.logs[3].args.issuedTo).to.equal(creatorAddress);
     });
   });

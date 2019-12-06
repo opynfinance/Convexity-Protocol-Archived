@@ -102,7 +102,7 @@ contract('OptionsContract', accounts => {
       value: repo1Collateral
     });
 
-    await optionsContracts[0].issueOptionTokens('0', repo1PutsOutstanding, {
+    await optionsContracts[0].issueOTokens('0', repo1PutsOutstanding, {
       from: firstRepoOwnerAddress,
       gas: '100000'
     });
@@ -129,7 +129,7 @@ contract('OptionsContract', accounts => {
       value: repo2Collateral
     });
 
-    await optionsContracts[0].issueOptionTokens(1, repo2PutsOutstanding, {
+    await optionsContracts[0].issueOTokens(1, repo2PutsOutstanding, {
       from: secondRepoOwnerAddress,
       gas: '100000'
     });
@@ -386,7 +386,7 @@ contract('OptionsContract', accounts => {
     });
 
     it('firstRepoOwner should be able to burn some put tokens to turn the repo safe', async () => {
-      await optionsContracts[0].burnPutTokens('0', '100000', {
+      await optionsContracts[0].burnOTokens('0', '100000', {
         from: firstRepoOwnerAddress,
         gas: '100000'
       });
@@ -808,7 +808,7 @@ contract('OptionsContract', accounts => {
     });
 
     it('firstRepoOwner should be able to burn some put tokens to turn the repo safe', async () => {
-      await optionsContracts[0].burnPutTokens('0', '100000', {
+      await optionsContracts[0].burnOTokens('0', '100000', {
         from: firstRepoOwnerAddress,
         gas: '100000'
       });

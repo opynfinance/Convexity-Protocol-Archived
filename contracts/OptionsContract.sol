@@ -147,10 +147,13 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
     event RepoOpened(uint256 repoIndex, address repoOwner);
     event ETHCollateralAdded(uint256 repoIndex, uint256 amount, address payer);
     event ERC20CollateralAdded(uint256 repoIndex, uint256 amount, address payer);
-    event IssuedOptionTokens(address issuedTo);
-    event Liquidate (uint256 amtCollateralToPay);
-    event Exercise (uint256 amtUnderlyingToPay, uint256 amtCollateralToPay);
-    event ClaimedCollateral(uint256 amtCollateralClaimed, uint256 amtUnderlyingClaimed);
+    event IssuedOTokens(address issuedTo, uint256 oTokensIssued, uint256 repoIndex);
+    event Liquidate (uint256 amtCollateralToPay, address liquidator, uint256 repoIndex);
+    event Exercise (uint256 amtUnderlyingToPay, uint256 amtCollateralToPay, address exerciser);
+    event ClaimedCollateral(uint256 amtCollateralClaimed, uint256 amtUnderlyingClaimed, address repoOwner, uint256 repoIndex);
+    event BurnOTokens (uint256 repoIndex, uint256 oTokensBurned);
+    event TransferRepoOwnership (uint256 repoIndex, address oldOwner, address payable newOwner);
+    event RemoveCollateral (uint256 repoIndex, uint256 amtRemoved, address repoOwner);
 
     /**
      * @notice Can only be called by owner. Used to update the fees, minCollateralizationRatio, etc
@@ -226,17 +229,6 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
     }
 
     /**
-     * @notice Returns the differnce in precision in decimals between the
-     * underlying token and the oToken. If the underlying has a precision of 18 digits
-     * and the oTokenExchange is 14 digits of precision, the underlyingExp is 4.
-     */
-    function underlyingExp() internal returns (uint32) {
-        // TODO: change this to be _oTokenExhangeExp - decimals(underlying)
-        return uint32(oTokenExchangeRate.exponent - (-18));
-    }
-
-
-    /**
      * @notice Called by anyone holding the oTokens and equal amount of underlying during the
      * exercise window i.e. from `expiry - windowSize` time to `expiry` time. The caller
      * transfers in their oTokens and corresponding amount of underlying and gets
@@ -279,10 +271,35 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
         totalFee = totalFee.add(amtFee);
 
         totalExercised = totalExercised.add(amtCollateralToPay).add(amtFee);
-        emit Exercise(amtUnderlyingToPay, amtCollateralToPay);
+        emit Exercise(amtUnderlyingToPay, amtCollateralToPay, msg.sender);
 
         // Pay out collateral
         transferCollateral(msg.sender, amtCollateralToPay);
+    }
+
+    /**
+     * @notice This function is called to issue the option tokens
+     * @dev The owner of a repo should only be able to have a max of
+     * floor(Collateral * collateralToStrike / (minCollateralizationRatio * strikePrice)) tokens issued.
+     * @param repoIndex The index of the repo to issue tokens from
+     * @param numTokens The number of tokens to issue
+     */
+    function issueOTokens (uint256 repoIndex, uint256 numTokens) public {
+        //check that we're properly collateralized to mint this number, then call _mint(address account, uint256 amount)
+        require(now < expiry, "Options contract expired");
+
+        Repo storage repo = repos[repoIndex];
+        require(msg.sender == repo.owner, "Only owner can issue options");
+
+        // checks that the repo is sufficiently collateralized
+        uint256 newNumTokens = repo.putsOutstanding.add(numTokens);
+        require(isSafe(repo.collateral, newNumTokens), "unsafe to mint");
+        _mint(msg.sender, numTokens);
+        repo.putsOutstanding = newNumTokens;
+
+        // TODO: figure out proper events:
+        emit IssuedOTokens(msg.sender, numTokens, repoIndex);
+        return;
     }
 
     /**
@@ -336,49 +353,7 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
     }
 
     /**
-     * @notice adds `_amt` collateral to `_repoNum` and returns the new balance of the repo
-     * @param _repoNum the index of the repo
-     * @param _amt the amount of collateral to add
-     */
-    function _addCollateral(uint256 _repoNum, uint256 _amt) private returns (uint256) {
-        require(now < expiry, "Options contract expired");
-
-        Repo storage repo = repos[_repoNum];
-
-        repo.collateral = repo.collateral.add(_amt);
-
-        totalCollateral = totalCollateral.add(_amt);
-
-        return repo.collateral;
-    }
-
-    /**
-     * @notice This function is called to issue the option tokens
-     * @dev The owner of a repo should only be able to have a max of
-     * floor(Collateral * collateralToStrike / (minCollateralizationRatio * strikePrice)) tokens issued.
-     * @param repoIndex The index of the repo to issue tokens from
-     * @param numTokens The number of tokens to issue
-     */
-    function issueOptionTokens (uint256 repoIndex, uint256 numTokens) public {
-        //check that we're properly collateralized to mint this number, then call _mint(address account, uint256 amount)
-        require(now < expiry, "Options contract expired");
-
-        Repo storage repo = repos[repoIndex];
-        require(msg.sender == repo.owner, "Only owner can issue options");
-
-        // checks that the repo is sufficiently collateralized
-        uint256 newNumTokens = repo.putsOutstanding.add(numTokens);
-        require(isSafe(repo.collateral, newNumTokens), "unsafe to mint");
-        _mint(msg.sender, numTokens);
-        repo.putsOutstanding = newNumTokens;
-
-        // TODO: figure out proper events:
-        emit IssuedOptionTokens(msg.sender);
-        return;
-    }
-
-    /**
-     * @notice opens a repo, adds ETH collateral, and mints new putTokens in one step
+     * @notice opens a repo, adds ETH collateral, and mints new oTokens in one step
      * @param amtToCreate number of oTokens to create
      * @return repoIndex
      */
@@ -389,13 +364,13 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
     }
 
     /**
-     * @notice adds ETH collateral, and mints new putTokens in one step
+     * @notice adds ETH collateral, and mints new oTokens in one step
      * @param amtToCreate number of oTokens to create
      * @param repoIndex index of the repo to add collateral to
      */
     function createETHCollateralOption(uint256 amtToCreate, uint256 repoIndex) public payable {
         addETHCollateral(repoIndex);
-        issueOptionTokens(repoIndex, amtToCreate);
+        issueOTokens(repoIndex, amtToCreate);
     }
 
     /**
@@ -418,21 +393,22 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
      */
     function createERC20CollateralOption(uint256 amtToCreate, uint256 amtCollateral, uint256 repoIndex) public {
         addERC20Collateral(repoIndex, amtCollateral);
-        issueOptionTokens(repoIndex, amtToCreate);
+        issueOTokens(repoIndex, amtToCreate);
     }
 
     /**
      * @notice allows the owner to burn their oTokens to increase the collateralization ratio of
      * their repo.
-     * @param repoIndex Index of the repo to burn putTokens
+     * @param repoIndex Index of the repo to burn oTokens
      * @param amtToBurn number of oTokens to burn
      * @dev only want to call this function before expiry. After expiry, no benefit to calling it.
      */
-    function burnPutTokens(uint256 repoIndex, uint256 amtToBurn) public {
+    function burnOTokens(uint256 repoIndex, uint256 amtToBurn) public {
         Repo storage repo = repos[repoIndex];
         require(repo.owner == msg.sender, "Not the owner of this repo");
         repo.putsOutstanding = repo.putsOutstanding.sub(amtToBurn);
         _burn(msg.sender, amtToBurn);
+        emit BurnOTokens (repoIndex, amtToBurn);
     }
 
     /**
@@ -443,12 +419,13 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
     function transferRepoOwnership(uint256 repoIndex, address payable newOwner) public {
         require(repos[repoIndex].owner == msg.sender, "Cannot transferRepoOwnership as non owner");
         repos[repoIndex].owner = newOwner;
+        emit TransferRepoOwnership(repoIndex, msg.sender, newOwner);
     }
 
     /**
      * @notice allows the owner to remove excess collateral from the repo before expiry. Removing collateral lowers
      * the collateralization ratio of the repo.
-     * @param repoIndex: Index of the repo to burn putTokens
+     * @param repoIndex: Index of the repo to burn oTokens
      * @param amtToRemove: Amount of collateral to remove in 10^-18.
      */
     function removeCollateral(uint256 repoIndex, uint256 amtToRemove) public {
@@ -466,7 +443,7 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
         transferCollateral(msg.sender, amtToRemove);
         totalCollateral = totalCollateral.sub(amtToRemove);
 
-        // TODO: emit event
+        emit RemoveCollateral(repoIndex, amtToRemove, msg.sender);
     }
 
     /**
@@ -477,7 +454,6 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
      * @param repoIndex index of the repo the owner wants to claim collateral from.
      */
     function claimCollateral (uint256 repoIndex) public {
-        // TODO: uncomment and test with expiry
         require(now >= expiry, "Can't collect collateral until expiry");
 
         // pay out people proportional
@@ -491,10 +467,63 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
 
         repo.collateral = 0;
 
-        emit ClaimedCollateral(collateralToTransfer, underlyingToTransfer);
+        emit ClaimedCollateral(collateralToTransfer, underlyingToTransfer, msg.sender, repoIndex);
 
         transferCollateral(msg.sender, collateralToTransfer);
         transferUnderlying(msg.sender, underlyingToTransfer);
+    }
+
+    /**
+     * @notice This function can be called by anyone if the notice a repo that is undercollateralized.
+     * The caller gets a reward for reducing the amount of oTokens in circulation.
+     * @dev Liquidator comes with _oTokens. They get _oTokens * strikePrice * (incentive + fee)
+     * amount of collateral out. They can liquidate a max of liquidationFactor * repo.collateral out
+     * in one function call i.e. partial liquidations.
+     * @param repoIndex The index of the repo to be liquidated
+     * @param _oTokens The number of oTokens being taken out of circulation
+     */
+    function liquidate(uint256 repoIndex, uint256 _oTokens) public {
+        // can only be called before the options contract expired
+        require(now < expiry, "Options contract expired");
+
+        Repo storage repo = repos[repoIndex];
+
+        // cannot liquidate a safe repo.
+        require(isUnsafe(repoIndex), "Repo is safe");
+
+        // Owner can't liquidate themselves
+        require(msg.sender != repo.owner, "Owner can't liquidate themselves");
+
+        uint256 amtCollateral = calculateCollateralToPay(_oTokens, Number(1, 0));
+        uint256 amtIncentive = calculateCollateralToPay(_oTokens, liquidationIncentive);
+        uint256 amtCollateralToPay = amtCollateral + amtIncentive;
+
+        // Fees
+        uint256 protocolFee = calculateCollateralToPay(_oTokens, liquidationFee);
+        totalFee = totalFee.add(protocolFee);
+
+        // calculate the maximum amount of collateral that can be liquidated
+        uint256 maxCollateralLiquidatable = repo.collateral.mul(liquidationFactor.value);
+        if(liquidationFactor.exponent > 0) {
+            maxCollateralLiquidatable = maxCollateralLiquidatable.div(10 ** uint32(liquidationFactor.exponent));
+        } else {
+            maxCollateralLiquidatable = maxCollateralLiquidatable.div(10 ** uint32(-1 * liquidationFactor.exponent));
+        }
+
+        require(amtCollateralToPay.add(protocolFee) <= maxCollateralLiquidatable,
+        "Can only liquidate liquidation factor at any given time");
+
+        // deduct the collateral and putsOutstanding
+        repo.collateral = repo.collateral.sub(amtCollateralToPay.add(protocolFee));
+        repo.putsOutstanding = repo.putsOutstanding.sub(_oTokens);
+
+        totalCollateral = totalCollateral.sub(amtCollateralToPay.add(protocolFee));
+
+        // transfer the collateral and burn the _oTokens
+         _burn(msg.sender, _oTokens);
+         transferCollateral(msg.sender, amtCollateralToPay);
+
+        emit Liquidate(amtCollateralToPay, msg.sender, repoIndex);
     }
 
     /**
@@ -508,6 +537,23 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
         bool isUnsafe = !isSafe(repo.collateral, repo.putsOutstanding);
 
         return isUnsafe;
+    }
+
+    /**
+     * @notice adds `_amt` collateral to `_repoIndex` and returns the new balance of the repo
+     * @param _repoIndex the index of the repo
+     * @param _amt the amount of collateral to add
+     */
+    function _addCollateral(uint256 _repoIndex, uint256 _amt) private returns (uint256) {
+        require(now < expiry, "Options contract expired");
+
+        Repo storage repo = repos[_repoIndex];
+
+        repo.collateral = repo.collateral.add(_amt);
+
+        totalCollateral = totalCollateral.add(_amt);
+
+        return repo.collateral;
     }
 
     /**
@@ -540,61 +586,6 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
         }
 
         return isSafe;
-    }
-
-    /**
-     * @notice This function can be called by anyone if the notice a repo that is undercollateralized.
-     * The caller gets a reward for reducing the amount of oTokens in circulation.
-     * @dev Liquidator comes with _oTokens. They get _oTokens * strikePrice * (incentive + fee)
-     * amount of collateral out. They can liquidate a max of liquidationFactor * repo.collateral out
-     * in one function call i.e. partial liquidations.
-     * @param repoNum The index of the repo to be liquidated
-     * @param _oTokens The number of oTokens being taken out of circulation
-     */
-    function liquidate(uint256 repoNum, uint256 _oTokens) public {
-        // can only be called before the options contract expired
-        require(now < expiry, "Options contract expired");
-
-        Repo storage repo = repos[repoNum];
-
-        // cannot liquidate a safe repo.
-        require(isUnsafe(repoNum), "Repo is safe");
-
-        // Owner can't liquidate themselves
-        require(msg.sender != repo.owner, "Owner can't liquidate themselves");
-
-        uint256 amtCollateral = calculateCollateralToPay(_oTokens, Number(1, 0));
-        uint256 amtIncentive = calculateCollateralToPay(_oTokens, liquidationIncentive);
-        uint256 amtCollateralToPay = amtCollateral + amtIncentive;
-
-        // Fees
-        uint256 protocolFee = calculateCollateralToPay(_oTokens, liquidationFee);
-        totalFee = totalFee.add(protocolFee);
-
-        // calculate the maximum amount of collateral that can be liquidated
-        uint256 maxCollateralLiquidatable = repo.collateral.mul(liquidationFactor.value);
-        if(liquidationFactor.exponent > 0) {
-            maxCollateralLiquidatable = maxCollateralLiquidatable.div(10 ** uint32(liquidationFactor.exponent));
-        } else {
-            maxCollateralLiquidatable = maxCollateralLiquidatable.div(10 ** uint32(-1 * liquidationFactor.exponent));
-        }
-
-        require(amtCollateralToPay.add(protocolFee) <= maxCollateralLiquidatable,
-        "Can only liquidate liquidation factor at any given time");
-
-        emit Liquidate(amtCollateralToPay);
-
-        // deduct the collateral and putsOutstanding
-        repo.collateral = repo.collateral.sub(amtCollateralToPay.add(protocolFee));
-        repo.putsOutstanding = repo.putsOutstanding.sub(_oTokens);
-
-        totalCollateral = totalCollateral.sub(amtCollateralToPay.add(protocolFee));
-
-        // transfer the collateral and burn the _oTokens
-         _burn(msg.sender, _oTokens);
-         transferCollateral(msg.sender, amtCollateralToPay);
-
-         // TODO: emit event and return something
     }
 
     /**
@@ -664,6 +655,16 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
         } else {
             return COMPOUND_ORACLE.getPrice(asset);
         }
+    }
+
+    /**
+     * @notice Returns the differnce in precision in decimals between the
+     * underlying token and the oToken. If the underlying has a precision of 18 digits
+     * and the oTokenExchange is 14 digits of precision, the underlyingExp is 4.
+     */
+    function underlyingExp() internal returns (uint32) {
+        // TODO: change this to be _oTokenExhangeExp - decimals(underlying)
+        return uint32(oTokenExchangeRate.exponent - (-18));
     }
 
     function() external payable {

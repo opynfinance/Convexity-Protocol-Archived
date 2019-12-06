@@ -112,7 +112,7 @@ contract('OptionsContract', accounts => {
       value: repo1Collateral
     });
 
-    await optionsContracts[0].issueOptionTokens('0', repo1PutsOutstanding, {
+    await optionsContracts[0].issueOTokens('0', repo1PutsOutstanding, {
       from: firstRepoOwnerAddress,
       gas: '100000'
     });
