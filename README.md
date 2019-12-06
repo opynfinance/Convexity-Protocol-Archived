@@ -31,7 +31,7 @@ Once a repo is opened, anyone can add collateral to the repo by calling `addETHC
 
 ![image info](./images/addCollateral.png)
 ##### Issue Option Tokens
-The owner can then mint oTokens by calling `issueOptionTokens (repoIndex, numTokens)`.
+The owner can then mint oTokens by calling `issueOTokens (repoIndex, numTokens)`.
 ![image info](./images/issueOptions.png)
 
 #### Keep the oToken repos sufficiently collateralized
@@ -41,7 +41,7 @@ Repo owners can ensure their repos are sufficiently collateralized in 2 ways.
 The first way is adding more collateral by calling `addETHCollateral (repoIndex)`  or  `addERC20Collateral (repoIndex)`. See the section on [addCollateral](#addCollateral) above.
 
 ##### Burn Tokens
-Repo owners can also burn oTokens to increase the collateralization ratio by buying back oTokens from the market and then calling `burnPutTokens (repoIndex, amtToBurn)`.
+Repo owners can also burn oTokens to increase the collateralization ratio by buying back oTokens from the market and then calling `burnOTokens (repoIndex, amtToBurn)`.
 ![image info](./images/burnPutTokens.png)
 
 #### Liquidate the undercollateralized repos

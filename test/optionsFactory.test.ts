@@ -198,7 +198,7 @@ contract('OptionsFactory', accounts => {
       ).toNumber();
       const lastAdded = await optionsFactory.optionsContracts(index - 1);
 
-      truffleAssert.eventEmitted(result, 'ContractCreated', (ev: any) => {
+      truffleAssert.eventEmitted(result, 'OptionContractCreated', (ev: any) => {
         return ev.addr === lastAdded;
       });
     });
@@ -222,7 +222,7 @@ contract('OptionsFactory', accounts => {
       ).toNumber();
       const lastAdded = await optionsFactory.optionsContracts(index - 1);
 
-      truffleAssert.eventEmitted(result, 'ContractCreated', (ev: any) => {
+      truffleAssert.eventEmitted(result, 'OptionContractCreated', (ev: any) => {
         return ev.addr === lastAdded;
       });
 

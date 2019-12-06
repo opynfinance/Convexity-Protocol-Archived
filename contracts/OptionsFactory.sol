@@ -16,7 +16,7 @@ contract OptionsFactory is Ownable {
     // The contract which interfaces with the exchange + oracle
     OptionsExchange public optionsExchange;
 
-    event ContractCreated(address addr);
+    event OptionContractCreated(address addr);
     event AssetAdded(string indexed asset, address indexed addr);
     event AssetChanged(string indexed asset, address indexed addr);
     event AssetDeleted(string indexed asset);
@@ -37,7 +37,7 @@ contract OptionsFactory is Ownable {
      * @param _strikePrice The amount of strike asset that will be paid out
      * @param _strikeExp The precision of the strike asset (-18 if ETH)
      * @param _strikeAsset The asset in which the insurance is calculated
-     * @param _expiry The time at which the insurance expires 
+     * @param _expiry The time at which the insurance expires
      * @param _windowSize UNIX time. Exercise window is from `expiry - _windowSize` to `expiry`.
      */
     function createOptionsContract(
@@ -72,7 +72,7 @@ contract OptionsFactory is Ownable {
         );
 
         optionsContracts.push(address(optionsContract));
-        emit ContractCreated(address(optionsContract));
+        emit OptionContractCreated(address(optionsContract));
 
         // Set the owner for the options contract.
         optionsContract.transferOwnership(owner());
