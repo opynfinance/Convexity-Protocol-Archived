@@ -102,10 +102,15 @@ contract('OptionsContract', accounts => {
       value: repo1Collateral
     });
 
-    await optionsContracts[0].issueOTokens('0', repo1PutsOutstanding, {
-      from: firstRepoOwnerAddress,
-      gas: '100000'
-    });
+    await optionsContracts[0].issueOTokens(
+      '0',
+      repo1PutsOutstanding,
+      firstRepoOwnerAddress,
+      {
+        from: firstRepoOwnerAddress,
+        gas: '100000'
+      }
+    );
 
     await optionsContracts[0].transfer(firstExerciser, '10', {
       from: firstRepoOwnerAddress,
@@ -129,10 +134,15 @@ contract('OptionsContract', accounts => {
       value: repo2Collateral
     });
 
-    await optionsContracts[0].issueOTokens(1, repo2PutsOutstanding, {
-      from: secondRepoOwnerAddress,
-      gas: '100000'
-    });
+    await optionsContracts[0].issueOTokens(
+      1,
+      repo2PutsOutstanding,
+      secondRepoOwnerAddress,
+      {
+        from: secondRepoOwnerAddress,
+        gas: '100000'
+      }
+    );
 
     await optionsContracts[0].transfer(secondExerciser, '10', {
       from: secondRepoOwnerAddress,

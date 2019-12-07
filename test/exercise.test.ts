@@ -89,14 +89,14 @@ contract('OptionsContract', accounts => {
     // Mint tokens
     repoNum = '0';
     let numTokens = '25000';
-    optionsContracts.issueOTokens(repoNum, numTokens, {
+    optionsContracts.issueOTokens(repoNum, numTokens, creatorAddress, {
       from: creatorAddress,
       gas: '100000'
     });
 
     repoNum = '1';
     numTokens = '10000';
-    optionsContracts.issueOTokens(repoNum, numTokens, {
+    optionsContracts.issueOTokens(repoNum, numTokens, firstOwnerAddress, {
       from: firstOwnerAddress,
       gas: '100000'
     });

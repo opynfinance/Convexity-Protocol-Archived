@@ -289,8 +289,9 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
      * floor(Collateral * collateralToStrike / (minCollateralizationRatio * strikePrice)) tokens issued.
      * @param repoIndex The index of the repo to issue tokens from
      * @param numTokens The number of tokens to issue
+     * @param receiver The address to send the oTokens to
      */
-    function issueOTokens (uint256 repoIndex, uint256 numTokens) public {
+    function issueOTokens (uint256 repoIndex, uint256 numTokens, address receiver) public {
         //check that we're properly collateralized to mint this number, then call _mint(address account, uint256 amount)
         require(block.timestamp < expiry, "Options contract expired");
 
@@ -300,7 +301,7 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
         // checks that the repo is sufficiently collateralized
         uint256 newNumTokens = repo.putsOutstanding.add(numTokens);
         require(isSafe(repo.collateral, newNumTokens), "unsafe to mint");
-        _mint(msg.sender, numTokens);
+        _mint(receiver, numTokens);
         repo.putsOutstanding = newNumTokens;
 
         emit IssuedOTokens(msg.sender, numTokens, repoIndex);
@@ -360,11 +361,12 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
     /**
      * @notice opens a repo, adds ETH collateral, and mints new oTokens in one step
      * @param amtToCreate number of oTokens to create
+     * @param receiver address to send the Options to
      * @return repoIndex
      */
-    function createETHCollateralOptionNewRepo(uint256 amtToCreate) external payable returns (uint256) {
+    function createETHCollateralOptionNewRepo(uint256 amtToCreate, address receiver) external payable returns (uint256) {
         uint256 repoIndex = openRepo();
-        createETHCollateralOption(amtToCreate, repoIndex);
+        createETHCollateralOption(amtToCreate, repoIndex, receiver);
         return repoIndex;
     }
 
@@ -372,21 +374,23 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
      * @notice adds ETH collateral, and mints new oTokens in one step
      * @param amtToCreate number of oTokens to create
      * @param repoIndex index of the repo to add collateral to
+     * @param receiver address to send the Options to
      */
-    function createETHCollateralOption(uint256 amtToCreate, uint256 repoIndex) public payable {
+    function createETHCollateralOption(uint256 amtToCreate, uint256 repoIndex, address receiver) public payable {
         addETHCollateral(repoIndex);
-        issueOTokens(repoIndex, amtToCreate);
+        issueOTokens(repoIndex, amtToCreate, receiver);
     }
 
     /**
      * @notice opens a repo, adds ERC20 collateral, and mints new putTokens in one step
      * @param amtToCreate number of oTokens to create
      * @param amtCollateral amount of collateral added
+     * @param receiver address to send the Options to
      * @return repoIndex
      */
-    function createERC20CollateralOptionNewRepo(uint256 amtToCreate, uint256 amtCollateral) external returns (uint256) {
+    function createERC20CollateralOptionNewRepo(uint256 amtToCreate, uint256 amtCollateral, address receiver) external returns (uint256) {
         uint256 repoIndex = openRepo();
-        createERC20CollateralOption(repoIndex, amtToCreate, amtCollateral);
+        createERC20CollateralOption(repoIndex, amtToCreate, amtCollateral, receiver);
         return repoIndex;
     }
 
@@ -395,10 +399,11 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
      * @param amtToCreate number of oTokens to create
      * @param amtCollateral amount of collateral added
      * @param repoIndex index of the repo to add collateral to
+     * @param receiver address to send the Options to
      */
-    function createERC20CollateralOption(uint256 amtToCreate, uint256 amtCollateral, uint256 repoIndex) public {
+    function createERC20CollateralOption(uint256 amtToCreate, uint256 amtCollateral, uint256 repoIndex, address receiver) public {
         addERC20Collateral(repoIndex, amtCollateral);
-        issueOTokens(repoIndex, amtToCreate);
+        issueOTokens(repoIndex, amtToCreate, receiver);
     }
 
     /**

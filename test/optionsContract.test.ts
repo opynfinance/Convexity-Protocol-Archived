@@ -394,6 +394,7 @@ contract('OptionsContract', accounts => {
       const result = await optionsContracts[0].issueOTokens(
         repoIndex,
         numTokens,
+        creatorAddress,
         {
           from: creatorAddress,
           gas: '100000'
@@ -411,10 +412,15 @@ contract('OptionsContract', accounts => {
       const repoIndex = '1';
       const numTokens = '100';
       try {
-        await optionsContracts[0].issueOTokens(repoIndex, numTokens, {
-          from: firstOwnerAddress,
-          gas: '100000'
-        });
+        await optionsContracts[0].issueOTokens(
+          repoIndex,
+          numTokens,
+          firstOwnerAddress,
+          {
+            from: firstOwnerAddress,
+            gas: '100000'
+          }
+        );
       } catch (err) {
         return;
       }
@@ -429,10 +435,15 @@ contract('OptionsContract', accounts => {
       const repoIndex = '1';
       const numTokens = '2';
       try {
-        await optionsContracts[0].issueOTokens(repoIndex, numTokens, {
-          from: creatorAddress,
-          gas: '100000'
-        });
+        await optionsContracts[0].issueOTokens(
+          repoIndex,
+          numTokens,
+          creatorAddress,
+          {
+            from: creatorAddress,
+            gas: '100000'
+          }
+        );
       } catch (err) {
         return;
       }
@@ -591,6 +602,7 @@ contract('OptionsContract', accounts => {
       const collateral = '20000000';
       const result = await optionsContracts[0].createETHCollateralOptionNewRepo(
         numOptions,
+        creatorAddress,
         {
           from: creatorAddress,
           value: collateral
@@ -611,6 +623,7 @@ contract('OptionsContract', accounts => {
       const result = await optionsContracts[2].createERC20CollateralOptionNewRepo(
         numOptions,
         collateral,
+        creatorAddress,
         {
           from: creatorAddress
         }
