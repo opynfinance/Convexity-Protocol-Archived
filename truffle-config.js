@@ -13,11 +13,11 @@ if (process.env.NODE_ENV !== 'test') {
 
 module.exports = {
   networks: {
-    kovan: {
+    rinkeby: {
       provider: () => {
-        return new HDWalletProvider(secrets.secret, "https://kovan.infura.io/v3/" + secrets.api_key);
+        return new HDWalletProvider(secrets.secret, "https://rinkeby.infura.io/v3/" + secrets.api_key);
       },
-      network_id: 42,
+      network_id: 4,
       gas: 6700000,
       gasPrice: 10000000000
     },

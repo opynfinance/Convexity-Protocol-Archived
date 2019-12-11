@@ -36,6 +36,7 @@
     "build": "npm run compile:contracts && npm run compile:types",
     "pretest": "npm run build",
     "test": "truffle test",
+    "test:rinkeby": "truffle test -- --network rinkeby",
     "lint:contracts": "solhint 'contracts/**/*.sol'",
     "lint:tests": "eslint 'test/**/*.ts'",
     "lint:tests:fix": "npm run lint:tests -- --fix",
