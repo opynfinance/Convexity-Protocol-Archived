@@ -29,6 +29,7 @@ contract('OptionsContract', accounts => {
   let dai: ERC20MintableInstance;
   let usdc: ERC20MintableInstance;
   let uniswapFactory: UniswapFactoryInterfaceInstance;
+  let optionsExchange: OptionsExchangeInstance;
 
   const windowSize = 1577836800;
   const contractsDeployed = true;
