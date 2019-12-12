@@ -77,14 +77,28 @@ contract oToken is OptionsContract {
     /**
      * @notice opens a repo, adds ETH collateral, and mints new oTokens in one step
      * @param amtToCreate number of oTokens to create
+     * @param receiver address to receive the premiums
      * @return repoIndex
      */
-    function createAndSellETHCollateralOptionNewRepo(uint256 amtToCreate) external payable returns (uint256) {
+    function createAndSellETHCollateralOptionNewRepo(uint256 amtToCreate, address payable receiver) external payable returns (uint256) {
         uint256 repoIndex = openRepo();
         createETHCollateralOption(amtToCreate, repoIndex, address(this));
-        approve(address(optionsExchange), amtToCreate);
-        optionsExchange.sellOTokens(msg.sender, address(this), address(0), amtToCreate);
+        this.approve(address(optionsExchange), amtToCreate);
+        optionsExchange.sellOTokens(receiver, address(this), address(0), amtToCreate);
         return repoIndex;
+    }
+
+     /**
+     * @notice adds ETH collateral, and mints new oTokens in one step
+     * @param amtToCreate number of oTokens to create
+     * @param repoIndex index of the repo to add collateral to
+     * @param receiver address to send the Options to
+     */
+    function createAndSellETHCollateralOption(uint256 amtToCreate, uint256 repoIndex, address payable receiver) public payable {
+        addETHCollateral(repoIndex);
+        issueOTokens(repoIndex, amtToCreate, address(this));
+        this.approve(address(optionsExchange), amtToCreate);
+        optionsExchange.sellOTokens(receiver, address(this), address(0), amtToCreate);
     }
 
     /**

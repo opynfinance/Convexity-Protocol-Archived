@@ -10,13 +10,15 @@ module.exports = function (deployer) {
     await deployer.link(StringComparator, OptionsFactory);
 
     // // TODO: uncomment for the local test net
-    const uniswapFactory = await deployer.deploy(MockUniswapFactory);
-    const compoundOracle = await deployer.deploy(MockCompoundOracle)
+    // const uniswapFactory = await deployer.deploy(MockUniswapFactory);
+    // const uniswapFactoryAddr = uniswapFactory.address;
+    const uniswapFactoryAddr = "0xf5D915570BC477f9B8D6C0E980aA81757A3AaC36";
 
-    const optionsExchange = await deployer.deploy(OptionsExchange, uniswapFactory.address);
-    //TODO: change the compound Oracle address
-    // const optionsExchange = await deployer.deploy(OptionsExchange, "0xf5D915570BC477f9B8D6C0E980aA81757A3AaC36", "0xf5D915570BC477f9B8D6C0E980aA81757A3AaC36");
+    // TODO: on mainnet change oracle address
+    const compoundOracle = await deployer.deploy(MockCompoundOracle);
 
+
+    const optionsExchange = await deployer.deploy(OptionsExchange, uniswapFactoryAddr);
     await deployer.deploy(OptionsFactory, optionsExchange.address, compoundOracle.address);
   })
 };

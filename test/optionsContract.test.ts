@@ -1,28 +1,16 @@
 import { expect } from 'chai';
 import {
   ERC20MintableInstance,
-  MockCompoundOracleInstance,
-  OptionsContractInstance,
   OptionsFactoryInstance,
   oTokenInstance
 } from '../build/types/truffle-types';
 
-const OptionsContract = artifacts.require('OptionsContract');
 const oToken = artifacts.require('oToken');
 const OptionsFactory = artifacts.require('OptionsFactory');
 const MockCompoundOracle = artifacts.require('MockCompoundOracle');
 const MintableToken = artifacts.require('ERC20Mintable');
 
 const truffleAssert = require('truffle-assertions');
-
-import Reverter from './utils/reverter';
-
-const {
-  BN,
-  balance,
-  expectEvent,
-  time
-} = require('@openzeppelin/test-helpers');
 
 function checkRepo(
   repo: any,
@@ -48,7 +36,6 @@ function checkRepoOwners(repos: any, expected: string[]) {
 
 // Initialize the Options Factory, Options Exchange and other mock contracts
 contract('OptionsContract', accounts => {
-  const reverter = new Reverter(web3);
   const creatorAddress = accounts[0];
   const firstOwnerAddress = accounts[1];
 
@@ -464,14 +451,10 @@ contract('OptionsContract', accounts => {
       const repoIndex = '1';
       const numTokens = '10';
 
-      const result = await optionsContracts[0].burnOTokens(
-        repoIndex,
-        numTokens,
-        {
-          from: creatorAddress,
-          gas: '100000'
-        }
-      );
+      await optionsContracts[0].burnOTokens(repoIndex, numTokens, {
+        from: creatorAddress,
+        gas: '100000'
+      });
       const amtPTokens = await optionsContracts[0].balanceOf(creatorAddress);
       expect(amtPTokens.toString()).to.equal('138878');
     });
@@ -506,14 +489,10 @@ contract('OptionsContract', accounts => {
       const repoIndex = '1';
       const numTokens = '1000';
 
-      const result = await optionsContracts[0].removeCollateral(
-        repoIndex,
-        numTokens,
-        {
-          from: creatorAddress,
-          gas: '100000'
-        }
-      );
+      await optionsContracts[0].removeCollateral(repoIndex, numTokens, {
+        from: creatorAddress,
+        gas: '100000'
+      });
 
       // Check the contract correctly updated the repo
       const repo = await optionsContracts[0].getRepoByIndex(repoIndex);
@@ -547,14 +526,10 @@ contract('OptionsContract', accounts => {
       const repoIndex = '1';
       const numTokens = '500';
 
-      const result = await optionsContracts[0].removeCollateral(
-        repoIndex,
-        numTokens,
-        {
-          from: creatorAddress,
-          gas: '100000'
-        }
-      );
+      await optionsContracts[0].removeCollateral(repoIndex, numTokens, {
+        from: creatorAddress,
+        gas: '100000'
+      });
 
       // TODO: Check correct event emitted
 
