@@ -14,7 +14,7 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
  * @title Opyn's Options Contract
  * @author Opyn
  */
-contract OptionsContract is Ownable, OptionsUtils, ERC20 {
+contract OptionsContract is Ownable, ERC20 {
     using SafeMath for uint256;
 
     struct Number {
@@ -99,6 +99,9 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
     // The asset in which insurance is denominated in.
     IERC20 public strike;
 
+    // The Oracle used for the contract
+    CompoundOracleInterface public COMPOUND_ORACLE;
+
     /**
     * @param _collateral The collateral asset
     * @param _collExp The precision of the collateral (-18 if ETH)
@@ -109,6 +112,7 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
     * @param _strike The asset in which the insurance is calculated
     * @param _expiry The time at which the insurance expires
     * @param _optionsExchange The contract which interfaces with the exchange + oracle
+    * @param _oracleAddress The address of the oracle
     * @param _windowSize UNIX time. Exercise window is from `expiry - _windowSize` to `expiry`.
     */
     constructor(
@@ -121,12 +125,10 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
         IERC20 _strike,
         uint256 _expiry,
         OptionsExchange _optionsExchange,
+        address _oracleAddress,
         uint256 _windowSize
 
     )
-        OptionsUtils(
-            address(_optionsExchange.UNISWAP_FACTORY()), address(_optionsExchange.COMPOUND_ORACLE())
-        )
         public
     {
         collateral = _collateral;
@@ -139,6 +141,7 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
         strike = _strike;
 
         expiry = _expiry;
+        COMPOUND_ORACLE = CompoundOracleInterface(_oracleAddress);
         optionsExchange = _optionsExchange;
         windowSize = _windowSize;
     }
@@ -356,54 +359,6 @@ contract OptionsContract is Ownable, OptionsUtils, ERC20 {
      */
     function isETH(IERC20 _ierc20) public pure returns (bool) {
         return _ierc20 == IERC20(0);
-    }
-
-    /**
-     * @notice opens a repo, adds ETH collateral, and mints new oTokens in one step
-     * @param amtToCreate number of oTokens to create
-     * @param receiver address to send the Options to
-     * @return repoIndex
-     */
-    function createETHCollateralOptionNewRepo(uint256 amtToCreate, address receiver) external payable returns (uint256) {
-        uint256 repoIndex = openRepo();
-        createETHCollateralOption(amtToCreate, repoIndex, receiver);
-        return repoIndex;
-    }
-
-    /**
-     * @notice adds ETH collateral, and mints new oTokens in one step
-     * @param amtToCreate number of oTokens to create
-     * @param repoIndex index of the repo to add collateral to
-     * @param receiver address to send the Options to
-     */
-    function createETHCollateralOption(uint256 amtToCreate, uint256 repoIndex, address receiver) public payable {
-        addETHCollateral(repoIndex);
-        issueOTokens(repoIndex, amtToCreate, receiver);
-    }
-
-    /**
-     * @notice opens a repo, adds ERC20 collateral, and mints new putTokens in one step
-     * @param amtToCreate number of oTokens to create
-     * @param amtCollateral amount of collateral added
-     * @param receiver address to send the Options to
-     * @return repoIndex
-     */
-    function createERC20CollateralOptionNewRepo(uint256 amtToCreate, uint256 amtCollateral, address receiver) external returns (uint256) {
-        uint256 repoIndex = openRepo();
-        createERC20CollateralOption(repoIndex, amtToCreate, amtCollateral, receiver);
-        return repoIndex;
-    }
-
-    /**
-     * @notice adds ERC20 collateral, and mints new putTokens in one step
-     * @param amtToCreate number of oTokens to create
-     * @param amtCollateral amount of collateral added
-     * @param repoIndex index of the repo to add collateral to
-     * @param receiver address to send the Options to
-     */
-    function createERC20CollateralOption(uint256 amtToCreate, uint256 amtCollateral, uint256 repoIndex, address receiver) public {
-        addERC20Collateral(repoIndex, amtCollateral);
-        issueOTokens(repoIndex, amtToCreate, receiver);
     }
 
     /**

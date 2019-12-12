@@ -13,8 +13,9 @@ contract OptionsFactory is Ownable {
     mapping (string => IERC20) public tokens;
     address[] public optionsContracts;
 
-    // The contract which interfaces with the exchange + oracle
+    // The contract which interfaces with the exchange
     OptionsExchange public optionsExchange;
+    address public oracleAddress;
 
     event OptionsContractCreated(address addr);
     event AssetAdded(string indexed asset, address indexed addr);
@@ -22,10 +23,12 @@ contract OptionsFactory is Ownable {
     event AssetDeleted(string indexed asset);
 
     /**
-     * @param _optionsExchangeAddr: The contract which interfaces with the exchange + oracle
+     * @param _optionsExchangeAddr: The contract which interfaces with the exchange
+     * @param _oracleAddress Address of the oracle
      */
-    constructor(OptionsExchange _optionsExchangeAddr) public {
+    constructor(OptionsExchange _optionsExchangeAddr, address _oracleAddress) public {
         optionsExchange = OptionsExchange(_optionsExchangeAddr);
+        oracleAddress = _oracleAddress;
     }
 
     /**
@@ -68,6 +71,7 @@ contract OptionsFactory is Ownable {
             tokens[_strikeAsset],
             _expiry,
             optionsExchange,
+            oracleAddress,
             _windowSize
         );
 

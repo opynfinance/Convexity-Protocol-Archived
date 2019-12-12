@@ -84,5 +84,8 @@
   "bugs": {
     "url": "https://github.com/aparnakr/OptionsProtocol/issues"
   },
-  "homepage": "https://github.com/aparnakr/OptionsProtocol#readme"
+  "homepage": "https://github.com/aparnakr/OptionsProtocol#readme",
+  "dependencies": {
+    "truffle-hdwallet-provider": "^1.0.17"
+  }
 }
