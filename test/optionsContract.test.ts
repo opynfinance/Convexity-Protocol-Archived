@@ -3,10 +3,12 @@ import {
   ERC20MintableInstance,
   MockCompoundOracleInstance,
   OptionsContractInstance,
-  OptionsFactoryInstance
+  OptionsFactoryInstance,
+  oTokenInstance
 } from '../build/types/truffle-types';
 
 const OptionsContract = artifacts.require('OptionsContract');
+const oToken = artifacts.require('oToken');
 const OptionsFactory = artifacts.require('OptionsFactory');
 const MockCompoundOracle = artifacts.require('MockCompoundOracle');
 const MintableToken = artifacts.require('ERC20Mintable');
@@ -50,7 +52,7 @@ contract('OptionsContract', accounts => {
   const creatorAddress = accounts[0];
   const firstOwnerAddress = accounts[1];
 
-  const optionsContracts: OptionsContractInstance[] = [];
+  const optionsContracts: oTokenInstance[] = [];
   let optionsFactory: OptionsFactoryInstance;
   let dai: ERC20MintableInstance;
 
@@ -91,7 +93,7 @@ contract('OptionsContract', accounts => {
     );
 
     let optionsContractAddr = optionsContractResult.logs[1].args[0];
-    optionsContracts.push(await OptionsContract.at(optionsContractAddr));
+    optionsContracts.push(await oToken.at(optionsContractAddr));
 
     // create the expired options contract
     optionsContractResult = await optionsFactory.createOptionsContract(
@@ -108,7 +110,7 @@ contract('OptionsContract', accounts => {
     );
 
     const expiredOptionsAddr = optionsContractResult.logs[1].args[0];
-    const expiredOptionsContract = await OptionsContract.at(expiredOptionsAddr);
+    const expiredOptionsContract = await oToken.at(expiredOptionsAddr);
     optionsContracts.push(expiredOptionsContract);
 
     optionsContractResult = await optionsFactory.createOptionsContract(
@@ -125,9 +127,7 @@ contract('OptionsContract', accounts => {
     );
 
     optionsContractAddr = optionsContractResult.logs[1].args[0];
-    const ERC20collateralOptContract = await OptionsContract.at(
-      optionsContractAddr
-    );
+    const ERC20collateralOptContract = await oToken.at(optionsContractAddr);
     optionsContracts.push(ERC20collateralOptContract);
   });
 
@@ -597,20 +597,20 @@ contract('OptionsContract', accounts => {
   });
 
   describe('#createOptions()', () => {
-    xit('should be able to create new ETH options in a new repo', async () => {
-      // const numOptions = '138888';
-      // const collateral = '20000000';
-      // const result = await optionsContracts[0].createETHCollateralOptionNewRepo(
-      //   numOptions,
-      //   creatorAddress,
-      //   {
-      //     from: creatorAddress,
-      //     value: collateral
-      //   }
-      // );
-      // // Minting oTokens should emit an event correctly
-      // expect(result.logs[3].event).to.equal('IssuedOTokens');
-      // expect(result.logs[3].args.issuedTo).to.equal(creatorAddress);
+    it('should be able to create new ETH options in a new repo', async () => {
+      const numOptions = '138888';
+      const collateral = '20000000';
+      const result = await optionsContracts[0].createETHCollateralOptionNewRepo(
+        numOptions,
+        creatorAddress,
+        {
+          from: creatorAddress,
+          value: collateral
+        }
+      );
+      // Minting oTokens should emit an event correctly
+      expect(result.logs[3].event).to.equal('IssuedOTokens');
+      expect(result.logs[3].args.issuedTo).to.equal(creatorAddress);
     });
     xit('should be able to create new ERC20 options in a new repo', async () => {
       // const numOptions = '100';

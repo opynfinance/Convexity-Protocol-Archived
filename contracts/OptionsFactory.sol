@@ -1,6 +1,7 @@
 pragma solidity 0.5.10;
 
 import "./OptionsContract.sol";
+import "./oToken.sol";
 import "./OptionsUtils.sol";
 import "./lib/StringComparator.sol";
 import "@openzeppelin/contracts/ownership/Ownable.sol";
@@ -61,7 +62,7 @@ contract OptionsFactory is Ownable {
         require(supportsAsset(_underlyingType), "Underlying type not supported");
         require(supportsAsset(_strikeAsset), "Strike asset type not supported");
 
-        OptionsContract optionsContract = new OptionsContract(
+        OptionsContract optionsContract = new oToken(
             tokens[_collateralType],
             _collateralExp,
             tokens[_underlyingType],
