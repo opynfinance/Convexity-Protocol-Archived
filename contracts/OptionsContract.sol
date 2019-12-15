@@ -346,9 +346,30 @@ contract OptionsContract is Ownable, ERC20 {
     function getRepoByIndex(uint256 repoIndex) public view returns (uint256, uint256, address) {
         Repo storage repo = repos[repoIndex];
 
+        if(totalCollateral == 0) {
+            return (
+                repo.collateral,
+                repo.putsOutstanding,
+                repo.owner
+            );
+        }
+        uint256 collateralLeft = totalCollateral.sub(totalExercised);
+        uint256 collateralRedeemable = repo.collateral.mul(collateralLeft).div(totalCollateral);
+
+        // Calculate putsOutstanding using the proportionality col : putsOuts = oldCol : oldPuts
+        if(repo.collateral == 0) {
+            return (
+                repo.collateral,
+                0,
+                repo.owner
+            );
+        }
+
+        uint256 newPutsOutstanding = collateralRedeemable.mul(repo.putsOutstanding).div(repo.collateral);
+
         return (
-            repo.collateral,
-            repo.putsOutstanding,
+            collateralRedeemable,
+            newPutsOutstanding,
             repo.owner
         );
     }

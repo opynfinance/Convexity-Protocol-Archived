@@ -64,7 +64,7 @@ contract oToken is OptionsContract {
     }
 
     /**
-     * @notice adds ETH collateral, and mints new oTokens in one step
+     * @notice adds ETH collateral, and mints new oTokens in one step to an existing repo
      * @param amtToCreate number of oTokens to create
      * @param repoIndex index of the repo to add collateral to
      * @param receiver address to send the Options to
@@ -75,7 +75,7 @@ contract oToken is OptionsContract {
     }
 
     /**
-     * @notice opens a repo, adds ETH collateral, and mints new oTokens in one step
+     * @notice opens a repo, adds ETH collateral, mints new oTokens and sell in one step
      * @param amtToCreate number of oTokens to create
      * @param receiver address to receive the premiums
      * @return repoIndex
@@ -89,7 +89,7 @@ contract oToken is OptionsContract {
     }
 
      /**
-     * @notice adds ETH collateral, and mints new oTokens in one step
+     * @notice adds ETH collateral to an existing repo, and mints new oTokens and sells the oTokens in one step
      * @param amtToCreate number of oTokens to create
      * @param repoIndex index of the repo to add collateral to
      * @param receiver address to send the Options to
