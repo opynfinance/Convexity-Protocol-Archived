@@ -67,6 +67,10 @@ contract OptionsContract is Ownable, ERC20 {
     the exercise function is called */
     uint256 totalExercised;
 
+    // Scaled by a factor of 10^18
+    uint256 collateralWeight = 10**18;
+    uint256 oTokenWeight = 10**18;
+
     /* The total fees accumulated in the contract any time liquidate or exercise is called */
     uint256 totalFee;
 
@@ -269,21 +273,27 @@ contract OptionsContract is Ownable, ERC20 {
 
         totalUnderlying = totalUnderlying.add(amtUnderlyingToPay);
 
-        // 2.3 transfer in oTokens
-        _burn(msg.sender, _oTokens);
-
-        // 2.4 payout enough collateral to get (strikePrice * pTokens  + fees) amount of collateral
+        // 2.3 payout enough collateral to get (strikePrice * pTokens  + fees) amount of collateral
         uint256 amtCollateralToPay = calculateCollateralToPay(_oTokens, Number(1, 0));
 
-        // 2.5 Fees
+        // 2.4 Fees
         uint256 amtFee = calculateCollateralToPay(_oTokens, transactionFee);
         totalFee = totalFee.add(amtFee);
 
-        totalExercised = totalExercised.add(amtCollateralToPay).add(amtFee);
-        emit Exercise(amtUnderlyingToPay, amtCollateralToPay, msg.sender);
+        // 2.5 Calculate the oToken weight and collateral weight.
+        uint256 totalCollateral = address(this).balance;
+        uint256 collateralToDeduct = amtCollateralToPay.add(amtFee);
+        collateralWeight = collateralWeight.mul(totalCollateral.sub(collateralToDeduct)).div(totalCollateral);
+        uint256 oTokenSupply = totalSupply();
+        oTokenWeight = oTokenWeight.mul(oTokenSupply.sub(_oTokens)).div(oTokenSupply);
 
-        // Pay out collateral
+        // 2.6 transfer in oTokens
+        _burn(msg.sender, _oTokens);
+
+        // 2.7 Pay out collateral
         transferCollateral(msg.sender, amtCollateralToPay);
+
+        emit Exercise(amtUnderlyingToPay, amtCollateralToPay, msg.sender);
     }
 
     /**
@@ -302,8 +312,11 @@ contract OptionsContract is Ownable, ERC20 {
         require(msg.sender == repo.owner, "Only owner can issue options");
 
         // checks that the repo is sufficiently collateralized
-        uint256 newNumTokens = repo.putsOutstanding.add(numTokens);
-        require(isSafe(repo.collateral, newNumTokens), "unsafe to mint");
+        uint256 oTokensToAdd = numTokens.mul(10**18).div(oTokenWeight);
+        uint256 newNumTokens = repo.putsOutstanding.add(oTokensToAdd);
+        uint256 newPutsOutstandingInRepo = newNumTokens.mul(10**18).div(oTokenWeight);
+
+        require(isSafe(getCollateral(repoIndex), newPutsOutstandingInRepo), "unsafe to mint");
         _mint(receiver, numTokens);
         repo.putsOutstanding = newNumTokens;
 
@@ -345,31 +358,9 @@ contract OptionsContract is Ownable, ERC20 {
      */
     function getRepoByIndex(uint256 repoIndex) public view returns (uint256, uint256, address) {
         Repo storage repo = repos[repoIndex];
-
-        if(totalCollateral == 0) {
-            return (
-                repo.collateral,
-                repo.putsOutstanding,
-                repo.owner
-            );
-        }
-        uint256 collateralLeft = totalCollateral.sub(totalExercised);
-        uint256 collateralRedeemable = repo.collateral.mul(collateralLeft).div(totalCollateral);
-
-        // Calculate putsOutstanding using the proportionality col : putsOuts = oldCol : oldPuts
-        if(repo.collateral == 0) {
-            return (
-                repo.collateral,
-                0,
-                repo.owner
-            );
-        }
-
-        uint256 newPutsOutstanding = collateralRedeemable.mul(repo.putsOutstanding).div(repo.collateral);
-
         return (
-            collateralRedeemable,
-            newPutsOutstanding,
+            getCollateral(repoIndex),
+            getPutsOutstanding(repoIndex),
             repo.owner
         );
     }
@@ -392,7 +383,10 @@ contract OptionsContract is Ownable, ERC20 {
     function burnOTokens(uint256 repoIndex, uint256 amtToBurn) public {
         Repo storage repo = repos[repoIndex];
         require(repo.owner == msg.sender, "Not the owner of this repo");
-        repo.putsOutstanding = repo.putsOutstanding.sub(amtToBurn);
+
+        uint256 tokensToBurn = amtToBurn.mul(10**18).div(oTokenWeight);
+        repo.putsOutstanding = repo.putsOutstanding.sub(tokensToBurn);
+
         _burn(msg.sender, amtToBurn);
         emit BurnOTokens (repoIndex, amtToBurn);
     }
@@ -420,14 +414,16 @@ contract OptionsContract is Ownable, ERC20 {
         // check that we are well collateralized enough to remove this amount of collateral
         Repo storage repo = repos[repoIndex];
         require(msg.sender == repo.owner, "Only owner can remove collateral");
-        require(amtToRemove <= repo.collateral, "Can't remove more collateral than owned");
-        uint256 newRepoCollateralAmt = repo.collateral.sub(amtToRemove);
+        require(amtToRemove <= getCollateral(repoIndex), "Can't remove more collateral than owned");
 
-        require(isSafe(newRepoCollateralAmt, repo.putsOutstanding), "Repo is unsafe");
+        uint256 collateralToRemove = amtToRemove.mul(10**18).div(collateralWeight);
+        uint256 newWeightedCollateralAmt = repo.collateral.sub(collateralToRemove);
+        uint256 newRepoCollateralAmt = newWeightedCollateralAmt.mul(10**18).div(collateralWeight);
 
-        repo.collateral = newRepoCollateralAmt;
+        require(isSafe(newRepoCollateralAmt, getPutsOutstanding(repoIndex)), "Repo is unsafe");
+
+        repo.collateral = newWeightedCollateralAmt;
         transferCollateral(msg.sender, amtToRemove);
-        totalCollateral = totalCollateral.sub(amtToRemove);
 
         emit RemoveCollateral(repoIndex, amtToRemove, msg.sender);
     }
@@ -446,12 +442,16 @@ contract OptionsContract is Ownable, ERC20 {
         Repo storage repo = repos[repoIndex];
 
         require(msg.sender == repo.owner, "only owner can claim collatera");
+        if (totalCollateral == 0) {
+            totalCollateral = address(this).balance;
+        }
 
-        uint256 collateralLeft = totalCollateral.sub(totalExercised);
-        uint256 collateralToTransfer = repo.collateral.mul(collateralLeft).div(totalCollateral);
-        uint256 underlyingToTransfer = repo.collateral.mul(totalUnderlying).div(totalCollateral);
+        uint256 collateralToTransfer = getCollateral(repoIndex);
+        uint256 underlyingToTransfer = getCollateral(repoIndex).mul(totalUnderlying).div(totalCollateral);
 
         repo.collateral = 0;
+
+        //TODO: burn oTokens?
 
         emit ClaimedCollateral(collateralToTransfer, underlyingToTransfer, repoIndex, msg.sender);
 
@@ -488,22 +488,24 @@ contract OptionsContract is Ownable, ERC20 {
         uint256 protocolFee = calculateCollateralToPay(_oTokens, liquidationFee);
         totalFee = totalFee.add(protocolFee);
 
+        uint256 amtCollateralToDeduct = (amtCollateralToPay.add(protocolFee)).mul(10**18).div(collateralWeight);
+
+
         // calculate the maximum amount of collateral that can be liquidated
-        uint256 maxCollateralLiquidatable = repo.collateral.mul(liquidationFactor.value);
+        uint256 maxCollateralLiquidatable = getCollateral(repoIndex).mul(liquidationFactor.value);
         if(liquidationFactor.exponent > 0) {
             maxCollateralLiquidatable = maxCollateralLiquidatable.div(10 ** uint32(liquidationFactor.exponent));
         } else {
             maxCollateralLiquidatable = maxCollateralLiquidatable.div(10 ** uint32(-1 * liquidationFactor.exponent));
         }
 
-        require(amtCollateralToPay.add(protocolFee) <= maxCollateralLiquidatable,
+        require(amtCollateralToDeduct <= maxCollateralLiquidatable,
         "Can only liquidate liquidation factor at any given time");
 
         // deduct the collateral and putsOutstanding
-        repo.collateral = repo.collateral.sub(amtCollateralToPay.add(protocolFee));
-        repo.putsOutstanding = repo.putsOutstanding.sub(_oTokens);
-
-        totalCollateral = totalCollateral.sub(amtCollateralToPay.add(protocolFee));
+        repo.collateral = repo.collateral.sub(amtCollateralToDeduct);
+        uint256 tokensToDeduct = _oTokens.mul(10**18).div(oTokenWeight);
+        repo.putsOutstanding = repo.putsOutstanding.sub(tokensToDeduct);
 
         // transfer the collateral and burn the _oTokens
          _burn(msg.sender, _oTokens);
@@ -518,11 +520,26 @@ contract OptionsContract is Ownable, ERC20 {
      * @return true or false
      */
     function isUnsafe(uint256 repoIndex) public view returns (bool) {
-        Repo storage repo = repos[repoIndex];
 
-        bool isUnsafe = !isSafe(repo.collateral, repo.putsOutstanding);
+        bool isUnsafe = !isSafe(getCollateral(repoIndex), getPutsOutstanding(repoIndex));
 
         return isUnsafe;
+    }
+
+    /**
+     * @notice This function calculates and returns the amount of collateral in the repo
+    */
+    function getCollateral(uint256 repoIndex) internal view returns (uint256) {
+        Repo storage repo = repos[repoIndex];
+        return repo.collateral.mul(collateralWeight).div(10**18);
+    }
+
+    /**
+     * @notice This function calculates and returns the amount of puts issued by the repo
+    */
+    function getPutsOutstanding(uint256 repoIndex) internal view returns (uint256) {
+        Repo storage repo = repos[repoIndex];
+        return repo.putsOutstanding.mul(10**18).div(oTokenWeight);
     }
 
     /**
@@ -535,9 +552,8 @@ contract OptionsContract is Ownable, ERC20 {
 
         Repo storage repo = repos[_repoIndex];
 
-        repo.collateral = repo.collateral.add(_amt);
-
-        totalCollateral = totalCollateral.add(_amt);
+        uint256 amtToAdd = _amt.mul(10**18).div(collateralWeight);
+        repo.collateral = repo.collateral.add(amtToAdd);
 
         return repo.collateral;
     }
@@ -635,7 +651,6 @@ contract OptionsContract is Ownable, ERC20 {
      * @param asset The address of the asset to get the price of
      */
     function getPrice(address asset) internal view returns (uint256) {
-
         if(asset == address(0)) {
             return (10 ** 18);
         } else {
