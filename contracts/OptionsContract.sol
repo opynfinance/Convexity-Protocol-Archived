@@ -22,16 +22,16 @@ contract OptionsContract is Ownable, ERC20 {
         int32 exponent;
     }
 
-    // Keeps track of the collateral, debt for each repo.
-    struct Repo {
-        uint256 collateral;
-        uint256 putsOutstanding;
+    // Keeps track of the weighted collateral and weighted debt for each vault.
+    struct Vault {
+        uint256 weightedCollateral;
+        uint256 weightedOTokens;
         address payable owner;
     }
 
     OptionsExchange public optionsExchange;
 
-    Repo[] public repos;
+    Vault[] public vaults;
 
     // 10 is 0.01 i.e. 1% incentive.
     Number liquidationIncentive = Number(10, -3);
@@ -40,7 +40,7 @@ contract OptionsContract is Ownable, ERC20 {
     // 100 is egs. 0.1 i.e. 10%.
     Number transactionFee = Number(0, -3);
 
-    /* 500 is 0.5. Max amount that a repo can be liquidated by i.e.
+    /* 500 is 0.5. Max amount that a Vault can be liquidated by i.e.
     max collateral that can be taken in one function call */
     Number liquidationFactor = Number(500, -3);
 
@@ -48,9 +48,9 @@ contract OptionsContract is Ownable, ERC20 {
     The fees paid to our protocol every time a liquidation happens */
     Number liquidationFee = Number(0, -3);
 
-    /* 16 means 1.6. The minimum ratio of a repo's collateral to insurance promised.
+    /* 16 means 1.6. The minimum ratio of a Vault's collateral to insurance promised.
     The ratio is calculated as below:
-    repo.collateral / (repo.putsOutstanding * strikePrice) */
+    vault.weightedCollateral / (Vault.weightedOTokens * strikePrice) */
     Number public collateralizationRatio = Number(16, -1);
 
     // The amount of insurance promised per oToken
@@ -63,12 +63,10 @@ contract OptionsContract is Ownable, ERC20 {
     Exercise period starts at `(expiry - windowSize)` and ends at `expiry` */
     uint256 windowSize;
 
-    /* The total collateral withdrawn from the Options Contract every time
-    the exercise function is called */
-    uint256 totalExercised;
-
-    // Scaled by a factor of 10^18
+    /* The amount of collateral that 1 weightedCollateral in a vault gives you. Scaled by a factor of 10^18 */
     uint256 collateralWeight = 10**18;
+
+    /* The amount of oTokens that 1 weightedOToken in a vault gives you. Scaled by a factor of 10^18 */
     uint256 oTokenWeight = 10**18;
 
     /* The total fees accumulated in the contract any time liquidate or exercise is called */
@@ -76,15 +74,13 @@ contract OptionsContract is Ownable, ERC20 {
 
     /* The total amount of underlying that is added to the contract during the exercise window.
     This number can only increase and is only incremented in the exercise function. After expiry,
-    this value is used to calculate the proportion of underlying paid out to the respective repo
+    this value is used to calculate the proportion of underlying paid out to the respective Vault
     owners in the claim collateral function */
     uint256 totalUnderlying;
 
-    /* The totalCollateral is only updated on add, remove, liquidate. After expiry,
-    this value is used to calculate the proportion of underlying paid out to the respective repo
-    owner in the claim collateral function. The amount of collateral any repo owner gets back is
-    caluculated as below:
-    repo.collateral / totalCollateral * (totalCollateral - totalExercised) */
+    /* The totalCollateral is the collateral balance of the options contract on the first call to claimCollateral.
+    (before repo owners start taking out their share of collateral). This value is used as the denominator in
+    calculating the proportions of underlying that has to be paid out to the repo owners. */
     uint256 totalCollateral;
 
     // The time of expiry of the options contract
@@ -151,24 +147,24 @@ contract OptionsContract is Ownable, ERC20 {
     }
 
     /*** Events ***/
-    event RepoOpened(uint256 repoIndex, address repoOwner);
-    event ETHCollateralAdded(uint256 repoIndex, uint256 amount, address payer);
-    event ERC20CollateralAdded(uint256 repoIndex, uint256 amount, address payer);
-    event IssuedOTokens(address issuedTo, uint256 oTokensIssued, uint256 repoIndex);
-    event Liquidate (uint256 amtCollateralToPay, uint256 repoIndex, address liquidator);
+    event VaultOpened(uint256 VaultIndex, address VaultOwner);
+    event ETHCollateralAdded(uint256 VaultIndex, uint256 amount, address payer);
+    event ERC20CollateralAdded(uint256 VaultIndex, uint256 amount, address payer);
+    event IssuedOTokens(address issuedTo, uint256 oTokensIssued, uint256 VaultIndex);
+    event Liquidate (uint256 amtCollateralToPay, uint256 VaultIndex, address liquidator);
     event Exercise (uint256 amtUnderlyingToPay, uint256 amtCollateralToPay, address exerciser);
-    event ClaimedCollateral(uint256 amtCollateralClaimed, uint256 amtUnderlyingClaimed, uint256 repoIndex, address repoOwner);
-    event BurnOTokens (uint256 repoIndex, uint256 oTokensBurned);
-    event TransferRepoOwnership (uint256 repoIndex, address oldOwner, address payable newOwner);
-    event RemoveCollateral (uint256 repoIndex, uint256 amtRemoved, address repoOwner);
+    event ClaimedCollateral(uint256 amtCollateralClaimed, uint256 amtUnderlyingClaimed, uint256 VaultIndex, address VaultOwner);
+    event BurnOTokens (uint256 VaultIndex, uint256 oTokensBurned);
+    event TransferVaultOwnership (uint256 VaultIndex, address oldOwner, address payable newOwner);
+    event RemoveCollateral (uint256 VaultIndex, uint256 amtRemoved, address VaultOwner);
 
     /**
      * @notice Can only be called by owner. Used to update the fees, minCollateralizationRatio, etc
      * @param _liquidationIncentive The incentive paid to liquidator. 10 is 0.01 i.e. 1% incentive.
-     * @param _liquidationFactor Max amount that a repo can be liquidated by. 500 is 0.5.
+     * @param _liquidationFactor Max amount that a Vault can be liquidated by. 500 is 0.5.
      * @param _liquidationFee The fees paid to our protocol every time a liquidation happens. 1054 is 1.054 i.e. 5.4% liqFee.
      * @param _transactionFee The fees paid to our protocol every time a execution happens. 100 is egs. 0.1 i.e. 10%.
-     * @param _collateralizationRatio The minimum ratio of a repo's collateral to insurance promised. 16 means 1.6.
+     * @param _collateralizationRatio The minimum ratio of a Vault's collateral to insurance promised. 16 means 1.6.
      */
     function updateParameters(
         uint256 _liquidationIncentive,
@@ -195,50 +191,50 @@ contract OptionsContract is Ownable, ERC20 {
     }
 
     /**
-     * @notice Returns the number of repos in the options contract.
+     * @notice Returns the number of Vaults in the options contract.
      */
-    function numRepos() public returns (uint256) {
-        return repos.length;
+    function numVaults() public returns (uint256) {
+        return vaults.length;
     }
 
     /**
-     * @notice Creates a new empty repo and sets the owner of the repo to be the msg.sender.
+     * @notice Creates a new empty Vault and sets the owner of the Vault to be the msg.sender.
      */
-    function openRepo() public returns (uint) {
+    function openVault() public returns (uint) {
         require(block.timestamp < expiry, "Options contract expired");
-        repos.push(Repo(0, 0, msg.sender));
-        uint256 repoIndex = repos.length - 1;
-        emit RepoOpened(repoIndex, msg.sender);
-        return repoIndex;
+        vaults.push(Vault(0, 0, msg.sender));
+        uint256 VaultIndex = vaults.length - 1;
+        emit VaultOpened(VaultIndex, msg.sender);
+        return VaultIndex;
     }
 
     /**
      * @notice If the collateral type is ETH, anyone can call this function any time before
-     * expiry to increase the amount of collateral in a repo. Will fail if ETH is not the
+     * expiry to increase the amount of collateral in a Vault. Will fail if ETH is not the
      * collateral asset.
-     * @param repoIndex the index of the repo to which collateral will be added.
+     * @param vaultIndex the index of the Vault to which collateral will be added.
      */
-    function addETHCollateral(uint256 repoIndex) public payable returns (uint256) {
+    function addETHCollateral(uint256 vaultIndex) public payable returns (uint256) {
         require(isETH(collateral), "ETH is not the specified collateral type");
-        emit ETHCollateralAdded(repoIndex, msg.value, msg.sender);
-        return _addCollateral(repoIndex, msg.value);
+        emit ETHCollateralAdded(vaultIndex, msg.value, msg.sender);
+        return _addCollateral(vaultIndex, msg.value);
     }
 
     /**
      * @notice If the collateral type is any ERC20, anyone can call this function any time before
-     * expiry to increase the amount of collateral in a repo. Can only transfer in the collateral asset.
+     * expiry to increase the amount of collateral in a Vault. Can only transfer in the collateral asset.
      * Will fail if ETH is the collateral asset.
-     * @param repoIndex the index of the repo to which collateral will be added.
+     * @param vaultIndex the index of the Vault to which collateral will be added.
      * @param amt the amount of collateral to be transferred in.
      */
-    function addERC20Collateral(uint256 repoIndex, uint256 amt) public returns (uint256) {
+    function addERC20Collateral(uint256 vaultIndex, uint256 amt) public returns (uint256) {
         require(
             collateral.transferFrom(msg.sender, address(this), amt),
             "Could not transfer in collateral tokens"
         );
 
-        emit ERC20CollateralAdded(repoIndex, amt, msg.sender);
-        return _addCollateral(repoIndex, amt);
+        emit ERC20CollateralAdded(vaultIndex, amt, msg.sender);
+        return _addCollateral(vaultIndex, amt);
     }
 
     /**
@@ -246,7 +242,7 @@ contract OptionsContract is Ownable, ERC20 {
      * exercise window i.e. from `expiry - windowSize` time to `expiry` time. The caller
      * transfers in their oTokens and corresponding amount of underlying and gets
      * `strikePrice * oTokens` amount of collateral out. The collateral paid out is taken from
-     * all repo holders. At the end of the expiry window, repo holders can redeem their proportional
+     * all Vault holders. At the end of the expiry window, Vault holders can redeem their proportional
      * share of collateral based on how much collateral is left after all exercise calls have been made.
      * @param _oTokens the number of oTokens being exercised.
      * @dev oTokenExchangeRate is the number of underlying tokens that 1 oToken protects.
@@ -298,70 +294,70 @@ contract OptionsContract is Ownable, ERC20 {
 
     /**
      * @notice This function is called to issue the option tokens
-     * @dev The owner of a repo should only be able to have a max of
+     * @dev The owner of a Vault should only be able to have a max of
      * floor(Collateral * collateralToStrike / (minCollateralizationRatio * strikePrice)) tokens issued.
-     * @param repoIndex The index of the repo to issue tokens from
+     * @param vaultIndex The index of the Vault to issue tokens from
      * @param numTokens The number of tokens to issue
      * @param receiver The address to send the oTokens to
      */
-    function issueOTokens (uint256 repoIndex, uint256 numTokens, address receiver) public {
+    function issueOTokens (uint256 vaultIndex, uint256 numTokens, address receiver) public {
         //check that we're properly collateralized to mint this number, then call _mint(address account, uint256 amount)
         require(block.timestamp < expiry, "Options contract expired");
 
-        Repo storage repo = repos[repoIndex];
-        require(msg.sender == repo.owner, "Only owner can issue options");
+        Vault storage vault = vaults[vaultIndex];
+        require(msg.sender == vault.owner, "Only owner can issue options");
 
-        // checks that the repo is sufficiently collateralized
+        // checks that the Vault is sufficiently collateralized
         uint256 oTokensToAdd = numTokens.mul(10**18).div(oTokenWeight);
-        uint256 newNumTokens = repo.putsOutstanding.add(oTokensToAdd);
-        uint256 newPutsOutstandingInRepo = newNumTokens.mul(10**18).div(oTokenWeight);
+        uint256 newNumTokens = vault.weightedOTokens.add(oTokensToAdd);
+        uint256 newWeightedOTokensInVault = newNumTokens.mul(10**18).div(oTokenWeight);
 
-        require(isSafe(getCollateral(repoIndex), newPutsOutstandingInRepo), "unsafe to mint");
+        require(isSafe(getCollateral(vaultIndex), newWeightedOTokensInVault), "unsafe to mint");
         _mint(receiver, numTokens);
-        repo.putsOutstanding = newNumTokens;
+        vault.weightedOTokens = newNumTokens;
 
-        emit IssuedOTokens(msg.sender, numTokens, repoIndex);
+        emit IssuedOTokens(msg.sender, numTokens, vaultIndex);
         return;
     }
 
     /**
-     * @notice Returns an array of indecies of the repos owned by `_owner`
+     * @notice Returns an array of indecies of the vaults owned by `_owner`
      * @param _owner the address of the owner
      */
-    function getReposByOwner(address _owner) public view returns (uint[] memory) {
-        uint[] memory reposOwned;
+    function getVaultsByOwner(address _owner) public view returns (uint[] memory) {
+        uint[] memory vaultsOwned;
         uint256 count = 0;
         uint index = 0;
 
         // get length necessary for returned array
-        for (uint256 i = 0; i < repos.length; i++) {
-            if(repos[i].owner == _owner){
+        for (uint256 i = 0; i < vaults.length; i++) {
+            if(vaults[i].owner == _owner){
                 count += 1;
             }
         }
 
-        reposOwned = new uint[](count);
+        vaultsOwned = new uint[](count);
 
-        // get each index of each repo owned by given address
-        for (uint256 i = 0; i < repos.length; i++) {
-            if(repos[i].owner == _owner) {
-                reposOwned[index++] = i;
+        // get each index of each vault owned by given address
+        for (uint256 i = 0; i < vaults.length; i++) {
+            if(vaults[i].owner == _owner) {
+                vaultsOwned[index++] = i;
             }
         }
 
-       return reposOwned;
+       return vaultsOwned;
     }
 
     /**
-     * @notice Returns the repo at the given index
-     * @param repoIndex the index of the repo to return
+     * @notice Returns the vault at the given index
+     * @param vaultIndex the index of the Vault to return
      */
-    function getRepoByIndex(uint256 repoIndex) public view returns (uint256, uint256, address) {
-        Repo storage repo = repos[repoIndex];
+    function getVaultByIndex(uint256 vaultIndex) public view returns (uint256, uint256, address) {
+        Vault storage vault = vaults[vaultIndex];
         return (
-            getCollateral(repoIndex),
-            getPutsOutstanding(repoIndex),
-            repo.owner
+            getCollateral(vaultIndex),
+            getOTokensIssued(vaultIndex),
+            vault.owner
         );
     }
 
@@ -375,110 +371,110 @@ contract OptionsContract is Ownable, ERC20 {
 
     /**
      * @notice allows the owner to burn their oTokens to increase the collateralization ratio of
-     * their repo.
-     * @param repoIndex Index of the repo to burn oTokens
+     * their Vault.
+     * @param vaultIndex Index of the Vault to burn oTokens
      * @param amtToBurn number of oTokens to burn
      * @dev only want to call this function before expiry. After expiry, no benefit to calling it.
      */
-    function burnOTokens(uint256 repoIndex, uint256 amtToBurn) public {
-        Repo storage repo = repos[repoIndex];
-        require(repo.owner == msg.sender, "Not the owner of this repo");
+    function burnOTokens(uint256 vaultIndex, uint256 amtToBurn) public {
+        Vault storage vault = vaults[vaultIndex];
+        require(vault.owner == msg.sender, "Not the owner of this vault");
 
         uint256 tokensToBurn = amtToBurn.mul(10**18).div(oTokenWeight);
-        repo.putsOutstanding = repo.putsOutstanding.sub(tokensToBurn);
+        vault.weightedOTokens = vault.weightedOTokens.sub(tokensToBurn);
 
         _burn(msg.sender, amtToBurn);
-        emit BurnOTokens (repoIndex, amtToBurn);
+        emit BurnOTokens (vaultIndex, amtToBurn);
     }
 
     /**
-     * @notice allows the owner to transfer ownership of their repo to someone else
-     * @param repoIndex Index of the repo to be transferred
+     * @notice allows the owner to transfer ownership of their vault to someone else
+     * @param vaultIndex Index of the vault to be transferred
      * @param newOwner address of the new owner
      */
-    function transferRepoOwnership(uint256 repoIndex, address payable newOwner) public {
-        require(repos[repoIndex].owner == msg.sender, "Cannot transferRepoOwnership as non owner");
-        repos[repoIndex].owner = newOwner;
-        emit TransferRepoOwnership(repoIndex, msg.sender, newOwner);
+    function transferVaultOwnership(uint256 vaultIndex, address payable newOwner) public {
+        require(vaults[vaultIndex].owner == msg.sender, "Cannot transferVaultOwnership as non owner");
+        vaults[vaultIndex].owner = newOwner;
+        emit TransferVaultOwnership(vaultIndex, msg.sender, newOwner);
     }
 
     /**
-     * @notice allows the owner to remove excess collateral from the repo before expiry. Removing collateral lowers
-     * the collateralization ratio of the repo.
-     * @param repoIndex: Index of the repo to remove collateral
-     * @param amtToRemove: Amount of collateral to remove in 10^-18.
+     * @notice allows the owner to remove excess collateral from the vault before expiry. Removing collateral lowers
+     * the collateralization ratio of the vault.
+     * @param vaultIndex Index of the vault to remove collateral
+     * @param amtToRemove Amount of collateral to remove in 10^-18.
      */
-    function removeCollateral(uint256 repoIndex, uint256 amtToRemove) public {
+    function removeCollateral(uint256 vaultIndex, uint256 amtToRemove) public {
 
         require(block.timestamp < expiry, "Can only call remove collateral before expiry");
         // check that we are well collateralized enough to remove this amount of collateral
-        Repo storage repo = repos[repoIndex];
-        require(msg.sender == repo.owner, "Only owner can remove collateral");
-        require(amtToRemove <= getCollateral(repoIndex), "Can't remove more collateral than owned");
+        Vault storage vault = vaults[vaultIndex];
+        require(msg.sender == vault.owner, "Only owner can remove collateral");
+        require(amtToRemove <= getCollateral(vaultIndex), "Can't remove more collateral than owned");
 
         uint256 collateralToRemove = amtToRemove.mul(10**18).div(collateralWeight);
-        uint256 newWeightedCollateralAmt = repo.collateral.sub(collateralToRemove);
-        uint256 newRepoCollateralAmt = newWeightedCollateralAmt.mul(10**18).div(collateralWeight);
+        uint256 newWeightedCollateralAmt = vault.weightedCollateral.sub(collateralToRemove);
+        uint256 newVaultCollateralAmt = newWeightedCollateralAmt.mul(10**18).div(collateralWeight);
 
-        require(isSafe(newRepoCollateralAmt, getPutsOutstanding(repoIndex)), "Repo is unsafe");
+        require(isSafe(newVaultCollateralAmt, getOTokensIssued(vaultIndex)), "Vault is unsafe");
 
-        repo.collateral = newWeightedCollateralAmt;
+        vault.weightedCollateral = newWeightedCollateralAmt;
         transferCollateral(msg.sender, amtToRemove);
 
-        emit RemoveCollateral(repoIndex, amtToRemove, msg.sender);
+        emit RemoveCollateral(vaultIndex, amtToRemove, msg.sender);
     }
 
     /**
-     * @notice after expiry, each repo holder can get back their proportional share of collateral
-     * from repos that they own.
+     * @notice after expiry, each vault holder can get back their proportional share of collateral
+     * from vaults that they own.
      * @dev The amount of collateral any owner gets back is calculated as:
-     * repo.collateral / totalCollateral * (totalCollateral - totalExercised)
-     * @param repoIndex index of the repo the owner wants to claim collateral from.
+     * vault.weightedCollateral / totalCollateral * (totalCollateral - totalExercised)
+     * @param vaultIndex index of the vault the owner wants to claim collateral from.
      */
-    function claimCollateral (uint256 repoIndex) public {
+    function claimCollateral (uint256 vaultIndex) public {
         require(block.timestamp >= expiry, "Can't collect collateral until expiry");
 
         // pay out people proportional
-        Repo storage repo = repos[repoIndex];
+        Vault storage vault = vaults[vaultIndex];
 
-        require(msg.sender == repo.owner, "only owner can claim collatera");
+        require(msg.sender == vault.owner, "only owner can claim collatera");
         if (totalCollateral == 0) {
             totalCollateral = address(this).balance.sub(totalFee);
         }
 
-        uint256 collateralToTransfer = getCollateral(repoIndex).div(10).mul(10);
-        uint256 underlyingToTransfer = getCollateral(repoIndex).mul(totalUnderlying).div(totalCollateral);
+        uint256 collateralToTransfer = getCollateral(vaultIndex).div(10).mul(10);
+        uint256 underlyingToTransfer = getCollateral(vaultIndex).mul(totalUnderlying).div(totalCollateral);
 
-        repo.collateral = 0;
+        vault.weightedCollateral = 0;
 
         //TODO: burn oTokens?
 
-        emit ClaimedCollateral(collateralToTransfer, underlyingToTransfer, repoIndex, msg.sender);
+        emit ClaimedCollateral(collateralToTransfer, underlyingToTransfer, vaultIndex, msg.sender);
 
         transferCollateral(msg.sender, collateralToTransfer);
         transferUnderlying(msg.sender, underlyingToTransfer);
     }
 
     /**
-     * @notice This function can be called by anyone if the notice a repo that is undercollateralized.
+     * @notice This function can be called by anyone if the notice a vault that is undercollateralized.
      * The caller gets a reward for reducing the amount of oTokens in circulation.
      * @dev Liquidator comes with _oTokens. They get _oTokens * strikePrice * (incentive + fee)
-     * amount of collateral out. They can liquidate a max of liquidationFactor * repo.collateral out
+     * amount of collateral out. They can liquidate a max of liquidationFactor * vault.weightedCollateral out
      * in one function call i.e. partial liquidations.
-     * @param repoIndex The index of the repo to be liquidated
+     * @param vaultIndex The index of the vault to be liquidated
      * @param _oTokens The number of oTokens being taken out of circulation
      */
-    function liquidate(uint256 repoIndex, uint256 _oTokens) public {
+    function liquidate(uint256 vaultIndex, uint256 _oTokens) public {
         // can only be called before the options contract expired
         require(block.timestamp < expiry, "Options contract expired");
 
-        Repo storage repo = repos[repoIndex];
+        Vault storage vault = vaults[vaultIndex];
 
-        // cannot liquidate a safe repo.
-        require(isUnsafe(repoIndex), "Repo is safe");
+        // cannot liquidate a safe vault.
+        require(isUnsafe(vaultIndex), "Vault is safe");
 
         // Owner can't liquidate themselves
-        require(msg.sender != repo.owner, "Owner can't liquidate themselves");
+        require(msg.sender != vault.owner, "Owner can't liquidate themselves");
 
         uint256 amtCollateral = calculateCollateralToPay(_oTokens, Number(1, 0));
         uint256 amtIncentive = calculateCollateralToPay(_oTokens, liquidationIncentive);
@@ -492,7 +488,7 @@ contract OptionsContract is Ownable, ERC20 {
 
 
         // calculate the maximum amount of collateral that can be liquidated
-        uint256 maxCollateralLiquidatable = getCollateral(repoIndex).mul(liquidationFactor.value);
+        uint256 maxCollateralLiquidatable = getCollateral(vaultIndex).mul(liquidationFactor.value);
         if(liquidationFactor.exponent > 0) {
             maxCollateralLiquidatable = maxCollateralLiquidatable.div(10 ** uint32(liquidationFactor.exponent));
         } else {
@@ -502,75 +498,75 @@ contract OptionsContract is Ownable, ERC20 {
         require(amtCollateralToDeduct <= maxCollateralLiquidatable,
         "Can only liquidate liquidation factor at any given time");
 
-        // deduct the collateral and putsOutstanding
-        repo.collateral = repo.collateral.sub(amtCollateralToDeduct);
+        // deduct the collateral and weightedOTokens
+        vault.weightedCollateral = vault.weightedCollateral.sub(amtCollateralToDeduct);
         uint256 tokensToDeduct = _oTokens.mul(10**18).div(oTokenWeight);
-        repo.putsOutstanding = repo.putsOutstanding.sub(tokensToDeduct);
+        vault.weightedOTokens = vault.weightedOTokens.sub(tokensToDeduct);
 
         // transfer the collateral and burn the _oTokens
          _burn(msg.sender, _oTokens);
          transferCollateral(msg.sender, amtCollateralToPay);
 
-        emit Liquidate(amtCollateralToPay, repoIndex, msg.sender);
+        emit Liquidate(amtCollateralToPay, vaultIndex, msg.sender);
     }
 
     /**
-     * @notice checks if a repo is unsafe. If so, it can be liquidated
-     * @param repoIndex The number of the repo to check
+     * @notice checks if a vault is unsafe. If so, it can be liquidated
+     * @param vaultIndex The number of the vault to check
      * @return true or false
      */
-    function isUnsafe(uint256 repoIndex) public view returns (bool) {
+    function isUnsafe(uint256 vaultIndex) public view returns (bool) {
 
-        bool isUnsafe = !isSafe(getCollateral(repoIndex), getPutsOutstanding(repoIndex));
+        bool isUnsafe = !isSafe(getCollateral(vaultIndex), getOTokensIssued(vaultIndex));
 
         return isUnsafe;
     }
 
     /**
-     * @notice This function calculates and returns the amount of collateral in the repo
+     * @notice This function calculates and returns the amount of collateral in the vault
     */
-    function getCollateral(uint256 repoIndex) internal view returns (uint256) {
-        Repo storage repo = repos[repoIndex];
-        return repo.collateral.mul(collateralWeight).div(10**18);
+    function getCollateral(uint256 vaultIndex) internal view returns (uint256) {
+        Vault storage vault = vaults[vaultIndex];
+        return vault.weightedCollateral.mul(collateralWeight).div(10**18);
     }
 
     /**
-     * @notice This function calculates and returns the amount of puts issued by the repo
+     * @notice This function calculates and returns the amount of puts issued by the Vault
     */
-    function getPutsOutstanding(uint256 repoIndex) internal view returns (uint256) {
-        Repo storage repo = repos[repoIndex];
-        return repo.putsOutstanding.mul(10**18).div(oTokenWeight);
+    function getOTokensIssued(uint256 vaultIndex) internal view returns (uint256) {
+        Vault storage vault = vaults[vaultIndex];
+        return vault.weightedOTokens.mul(10**18).div(oTokenWeight);
     }
 
     /**
-     * @notice adds `_amt` collateral to `_repoIndex` and returns the new balance of the repo
-     * @param _repoIndex the index of the repo
+     * @notice adds `_amt` collateral to `_vaultIndex` and returns the new balance of the vault
+     * @param _vaultIndex the index of the vault
      * @param _amt the amount of collateral to add
      */
-    function _addCollateral(uint256 _repoIndex, uint256 _amt) private returns (uint256) {
+    function _addCollateral(uint256 _vaultIndex, uint256 _amt) private returns (uint256) {
         require(block.timestamp < expiry, "Options contract expired");
 
-        Repo storage repo = repos[_repoIndex];
+        Vault storage vault = vaults[_vaultIndex];
 
         uint256 amtToAdd = _amt.mul(10**18).div(collateralWeight);
-        repo.collateral = repo.collateral.add(amtToAdd);
+        vault.weightedCollateral = vault.weightedCollateral.add(amtToAdd);
 
-        return repo.collateral;
+        return vault.weightedCollateral;
     }
 
     /**
-     * @notice checks if a hypothetical repo is safe with the given collateralAmt and putsOutstanding
-     * @param collateralAmt The amount of collateral the hypothetical repo has
-     * @param putsOutstanding The amount of oTokens generated by the hypothetical repo
+     * @notice checks if a hypothetical vault is safe with the given collateralAmt and weightedOTokens
+     * @param collateralAmt The amount of collateral the hypothetical vault has
+     * @param weightedOTokens The amount of oTokens generated by the hypothetical vault
      * @return true or false
      */
-    function isSafe(uint256 collateralAmt, uint256 putsOutstanding) internal view returns (bool) {
+    function isSafe(uint256 collateralAmt, uint256 weightedOTokens) internal view returns (bool) {
         // get price from Oracle
         uint256 ethToCollateralPrice = getPrice(address(collateral));
         uint256 ethToStrikePrice = getPrice(address(strike));
 
-        // check `putsOutstanding * collateralizationRatio * strikePrice <= collAmt * collateralToStrikePrice`
-        uint256 leftSideVal = putsOutstanding.mul(collateralizationRatio.value).mul(strikePrice.value);
+        // check `weightedOTokens * collateralizationRatio * strikePrice <= collAmt * collateralToStrikePrice`
+        uint256 leftSideVal = weightedOTokens.mul(collateralizationRatio.value).mul(strikePrice.value);
         int32 leftSideExp = collateralizationRatio.exponent + strikePrice.exponent;
 
         uint256 rightSideVal = (collateralAmt.mul(ethToStrikePrice)).div(ethToCollateralPrice);
