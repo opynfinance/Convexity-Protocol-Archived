@@ -12,25 +12,25 @@ const MintableToken = artifacts.require('ERC20Mintable');
 
 const truffleAssert = require('truffle-assertions');
 
-function checkRepo(
-  repo: any,
+function checkVault(
+  vault: any,
   {
     '0': expectedCollateral,
     '1': expectedPutsOutstanding,
     '2': expectedOwner
   }: { '0': string; '1': string; '2': string }
 ) {
-  expect(repo['0'].toString()).to.equal(expectedCollateral);
-  expect(repo['1'].toString()).to.equal(expectedPutsOutstanding);
-  expect(repo['2']).to.equal(expectedOwner);
+  expect(vault['0'].toString()).to.equal(expectedCollateral);
+  expect(vault['1'].toString()).to.equal(expectedPutsOutstanding);
+  expect(vault['2']).to.equal(expectedOwner);
 }
 
-function checkRepoOwners(repos: any, expected: string[]) {
-  expect(repos)
+function checkVaultOwners(vaults: any, expected: string[]) {
+  expect(vaults)
     .to.be.an('array')
     .with.length(expected.length);
-  for (let i = 0; i < repos.length; i++) {
-    expect(repos[i].toString()).to.equal(expected[i]);
+  for (let i = 0; i < vaults.length; i++) {
+    expect(vaults[i].toString()).to.equal(expected[i]);
   }
 }
 
@@ -118,88 +118,88 @@ contract('OptionsContract', accounts => {
     optionsContracts.push(ERC20collateralOptContract);
   });
 
-  describe('#openRepo()', () => {
-    it('should open first repo correctly', async () => {
-      const result = await optionsContracts[0].openRepo({
+  describe('#openVault()', () => {
+    it('should open first vault correctly', async () => {
+      const result = await optionsContracts[0].openVault({
         from: creatorAddress,
         gas: '100000'
       });
-      const repoIndex = '0';
+      const vaultIndex = '0';
 
-      // test getReposByOwner
-      const repos = await optionsContracts[0].getReposByOwner(creatorAddress);
-      expect(repos)
+      // test getVaultsByOwner
+      const vaults = await optionsContracts[0].getVaultsByOwner(creatorAddress);
+      expect(vaults)
         .to.be.an('array')
         .with.lengthOf(1);
-      expect(repos[0].toString()).to.equal('0');
+      expect(vaults[0].toString()).to.equal('0');
 
-      // test getRepoByIndex
-      const repo = await optionsContracts[0].getRepoByIndex(repoIndex);
-      expect(repo['0'].toString()).to.equal('0');
-      expect(repo['1'].toString()).to.equal('0');
-      expect(repo['2']).to.equal(creatorAddress);
+      // test getVaultByIndex
+      const vault = await optionsContracts[0].getVaultByIndex(vaultIndex);
+      expect(vault['0'].toString()).to.equal('0');
+      expect(vault['1'].toString()).to.equal('0');
+      expect(vault['2']).to.equal(creatorAddress);
 
       // check proper events emitted
-      expect(result.logs[0].event).to.equal('RepoOpened');
-      expect(result.logs[0].args.repoIndex.toString()).to.equal('0');
+      expect(result.logs[0].event).to.equal('VaultOpened');
+      expect(result.logs[0].args.vaultIndex.toString()).to.equal('0');
     });
 
-    it('should open second repo correctly', async () => {
-      const result = await optionsContracts[0].openRepo({
+    it('should open second vault correctly', async () => {
+      const result = await optionsContracts[0].openVault({
         from: creatorAddress,
         gas: '100000'
       });
-      const repoIndex = '1';
+      const vaultIndex = '1';
 
-      // test getReposByOwner
-      const repos = await optionsContracts[0].getReposByOwner(creatorAddress);
-      expect(repos)
+      // test getVaultsByOwner
+      const vaults = await optionsContracts[0].getVaultsByOwner(creatorAddress);
+      expect(vaults)
         .to.be.an('array')
         .with.lengthOf(2);
-      expect(repos[0].toString()).to.equal('0');
-      expect(repos[1].toString()).to.equal('1');
+      expect(vaults[0].toString()).to.equal('0');
+      expect(vaults[1].toString()).to.equal('1');
 
-      // test getRepoByIndex
-      const repo = await optionsContracts[0].getRepoByIndex(repoIndex);
-      expect(repo['0'].toString()).to.equal('0');
-      expect(repo['1'].toString()).to.equal('0');
-      expect(repo['2']).to.equal(creatorAddress);
+      // test getVaultByIndex
+      const vault = await optionsContracts[0].getVaultByIndex(vaultIndex);
+      expect(vault['0'].toString()).to.equal('0');
+      expect(vault['1'].toString()).to.equal('0');
+      expect(vault['2']).to.equal(creatorAddress);
 
       // check proper events emitted
-      expect(result.logs[0].event).to.equal('RepoOpened');
-      expect(result.logs[0].args.repoIndex.toString()).to.equal('1');
+      expect(result.logs[0].event).to.equal('VaultOpened');
+      expect(result.logs[0].args.vaultIndex.toString()).to.equal('1');
     });
 
-    it('new person should be able to open third repo correctly', async () => {
-      const result = await optionsContracts[0].openRepo({
+    it('new person should be able to open third vault correctly', async () => {
+      const result = await optionsContracts[0].openVault({
         from: firstOwnerAddress,
         gas: '100000'
       });
-      const repoIndex = '2';
+      const vaultIndex = '2';
 
-      // test getReposByOwner
-      const repos = await optionsContracts[0].getReposByOwner(
+      // test getVaultsByOwner
+      const vaults = await optionsContracts[0].getVaultsByOwner(
         firstOwnerAddress
       );
-      expect(repos)
+      expect(vaults)
         .to.be.an('array')
         .with.lengthOf(1);
-      expect(repos[0].toString()).to.equal('2');
+      expect(vaults[0].toString()).to.equal('2');
 
-      // test getRepoByIndex
-      const repo = await optionsContracts[0].getRepoByIndex(repoIndex);
-      expect(repo['0'].toString()).to.equal('0');
-      expect(repo['1'].toString()).to.equal('0');
-      expect(repo['2']).to.equal(firstOwnerAddress);
+      // test getVaultByIndex
+      const vault = await optionsContracts[0].getVaultByIndex(vaultIndex);
+      expect(vault['0'].toString()).to.equal('0');
+      expect(vault['1'].toString()).to.equal('0');
+      expect(vault['2']).to.equal(firstOwnerAddress);
 
       // check proper events emitted
-      expect(result.logs[0].event).to.equal('RepoOpened');
-      expect(result.logs[0].args.repoIndex.toString()).to.equal('2');
+      expect(result.logs[0].event).to.equal('VaultOpened');
+      expect(result.logs[0].args.vaultIndex.toString()).to.equal('2');
     });
 
-    it('should not be able to open a repo in an expired options contract', async () => {
+    it('should not be able to open a vault in an expired options contract', async () => {
       try {
-        await optionsContracts[1].openRepo({
+        await optionsContracts[1].openVault({
           from: firstOwnerAddress,
           gas: '100000'
         });
@@ -213,49 +213,49 @@ contract('OptionsContract', accounts => {
 
   describe('#addETHCollateral()', () => {
     it('should add ETH collateral successfully', async () => {
-      const repoNum = '1';
+      const vaultNum = '1';
       const msgValue = '10000000';
-      const result = await optionsContracts[0].addETHCollateral(repoNum, {
+      const result = await optionsContracts[0].addETHCollateral(vaultNum, {
         from: creatorAddress,
         gas: '100000',
         value: msgValue
       });
 
-      // test that the repo's balances have been updated.
-      const repo = await optionsContracts[0].getRepoByIndex(repoNum);
-      const expectedRepo = {
+      // test that the vault's balances have been updated.
+      const vault = await optionsContracts[0].getVaultByIndex(vaultNum);
+      const expectedVault = {
         '0': '10000000',
         '1': '0',
         '2': creatorAddress
       };
-      checkRepo(repo, expectedRepo);
+      checkVault(vault, expectedVault);
 
       // check proper events emitted
       expect(result.logs[0].event).to.equal('ETHCollateralAdded');
-      expect(result.logs[0].args.repoIndex.toString()).to.equal(repoNum);
+      expect(result.logs[0].args.vaultIndex.toString()).to.equal(vaultNum);
       expect(result.logs[0].args.amount.toString()).to.equal(msgValue);
     });
 
-    it('anyone should be able to add ETH collateral to any repo', async () => {
-      const repoNum = '1';
+    it('anyone should be able to add ETH collateral to any vault', async () => {
+      const vaultNum = '1';
       const msgValue = '10000000';
-      let result = await optionsContracts[0].addETHCollateral(repoNum, {
+      let result = await optionsContracts[0].addETHCollateral(vaultNum, {
         from: firstOwnerAddress,
         gas: '100000',
         value: msgValue
       });
 
-      // test that the repo's balances have been updated.
-      let repo = await optionsContracts[0].getRepoByIndex(repoNum);
-      let expectedRepo = {
+      // test that the vault's balances have been updated.
+      let vault = await optionsContracts[0].getVaultByIndex(vaultNum);
+      let expectedVault = {
         '0': '20000000',
         '1': '0',
         '2': creatorAddress
       };
-      checkRepo(repo, expectedRepo);
+      checkVault(vault, expectedVault);
       // check proper events emitted
       expect(result.logs[0].event).to.equal('ETHCollateralAdded');
-      expect(result.logs[0].args.repoIndex.toString()).to.equal(repoNum);
+      expect(result.logs[0].args.vaultIndex.toString()).to.equal(vaultNum);
       expect(result.logs[0].args.amount.toString()).to.equal(msgValue);
 
       result = await optionsContracts[0].addETHCollateral(2, {
@@ -264,22 +264,22 @@ contract('OptionsContract', accounts => {
         value: msgValue
       });
 
-      // test that the repo's balances have been updated.
-      repo = await optionsContracts[0].getRepoByIndex(2);
-      expectedRepo = {
+      // test that the vault's balances have been updated.
+      vault = await optionsContracts[0].getVaultByIndex(2);
+      expectedVault = {
         '0': '10000000',
         '1': '0',
         '2': firstOwnerAddress
       };
-      checkRepo(repo, expectedRepo);
+      checkVault(vault, expectedVault);
     });
 
-    // TODO: first have an opened repo in an expired contract, then check this.
+    // TODO: first have an opened vault in an expired contract, then check this.
     xit('should not be able to add ETH collateral to an expired options contract', async () => {
       try {
-        const repoNum = 1;
+        const vaultNum = 1;
         const msgValue = '10000000';
-        await optionsContracts[1].addETHCollateral(repoNum, {
+        await optionsContracts[1].addETHCollateral(vaultNum, {
           from: firstOwnerAddress,
           gas: '100000',
           value: msgValue
@@ -292,34 +292,34 @@ contract('OptionsContract', accounts => {
   });
 
   describe('#addERC20Collateral()', () => {
-    it('should open ERC20 repo correctly', async () => {
-      await optionsContracts[2].openRepo({
+    it('should open ERC20 vault correctly', async () => {
+      await optionsContracts[2].openVault({
         from: creatorAddress,
         gas: '100000'
       });
-      const repoIndex = '0';
+      const vaultIndex = '0';
 
-      // test getReposByOwner
-      const repos = await optionsContracts[2].getReposByOwner(creatorAddress);
-      const expectedRepos = ['0'];
-      checkRepoOwners(repos, expectedRepos);
+      // test getVaultsByOwner
+      const vaults = await optionsContracts[2].getVaultsByOwner(creatorAddress);
+      const expectedVaults = ['0'];
+      checkVaultOwners(vaults, expectedVaults);
 
-      // test getRepoByIndex
-      const repo = await optionsContracts[2].getRepoByIndex(repoIndex);
-      const expectedRepo = {
+      // test getVaultByIndex
+      const vault = await optionsContracts[2].getVaultByIndex(vaultIndex);
+      const expectedVault = {
         '0': '0',
         '1': '0',
         '2': creatorAddress
       };
-      checkRepo(repo, expectedRepo);
+      checkVault(vault, expectedVault);
     });
 
     it('should add ERC20 collateral successfully', async () => {
-      const repoNum = 0;
+      const vaultNum = 0;
       const msgValue = '10000000';
       await dai.approve(optionsContracts[2].address, '10000000000000000');
       const result = await optionsContracts[2].addERC20Collateral(
-        repoNum,
+        vaultNum,
         msgValue,
         {
           from: creatorAddress,
@@ -329,24 +329,24 @@ contract('OptionsContract', accounts => {
 
       // Adding ETH should emit an event correctly
       expect(result.logs[2].event).to.equal('ERC20CollateralAdded');
-      expect(result.logs[2].args.repoIndex.toString()).to.equal('0');
+      expect(result.logs[2].args.vaultIndex.toString()).to.equal('0');
       expect(result.logs[2].args.amount.toString()).to.equal(msgValue);
 
-      // test that the repo's balances have been updated.
-      const repo = await optionsContracts[2].getRepoByIndex('0');
-      const expectedRepo = {
+      // test that the vault's balances have been updated.
+      const vault = await optionsContracts[2].getVaultByIndex('0');
+      const expectedVault = {
         '0': msgValue,
         '1': '0',
         '2': creatorAddress
       };
-      checkRepo(repo, expectedRepo);
+      checkVault(vault, expectedVault);
     });
 
     it('should not be able to add ERC20 collateral to non-ERC20 collateralized options contract', async () => {
       try {
-        const repoNum = 1;
+        const vaultNum = 1;
         const msgValue = '10000000';
-        await optionsContracts[0].addERC20Collateral(repoNum, '0', {
+        await optionsContracts[0].addERC20Collateral(vaultNum, '0', {
           from: firstOwnerAddress,
           gas: '100000',
           value: msgValue
@@ -359,9 +359,9 @@ contract('OptionsContract', accounts => {
 
     it('should not be able to add ETH collateral to non-ETH collateralized options contract', async () => {
       try {
-        const repoNum = 0;
+        const vaultNum = 0;
         const msgValue = '10000000';
-        await optionsContracts[2].addETHCollateral(repoNum, {
+        await optionsContracts[2].addETHCollateral(vaultNum, {
           from: firstOwnerAddress,
           gas: '100000',
           value: msgValue
@@ -375,11 +375,11 @@ contract('OptionsContract', accounts => {
 
   describe('#issueOTokens()', () => {
     it('should allow you to mint correctly', async () => {
-      const repoIndex = '1';
+      const vaultIndex = '1';
       const numTokens = '138888';
 
       const result = await optionsContracts[0].issueOTokens(
-        repoIndex,
+        vaultIndex,
         numTokens,
         creatorAddress,
         {
@@ -395,12 +395,12 @@ contract('OptionsContract', accounts => {
       expect(result.logs[1].args.issuedTo).to.equal(creatorAddress);
     });
 
-    it('only owner should of repo should be able to mint', async () => {
-      const repoIndex = '1';
+    it('only owner should of vault should be able to mint', async () => {
+      const vaultIndex = '1';
       const numTokens = '100';
       try {
         await optionsContracts[0].issueOTokens(
-          repoIndex,
+          vaultIndex,
           numTokens,
           firstOwnerAddress,
           {
@@ -419,11 +419,11 @@ contract('OptionsContract', accounts => {
     });
 
     it('should only allow you to mint tokens if you have sufficient collateral', async () => {
-      const repoIndex = '1';
+      const vaultIndex = '1';
       const numTokens = '2';
       try {
         await optionsContracts[0].issueOTokens(
-          repoIndex,
+          vaultIndex,
           numTokens,
           creatorAddress,
           {
@@ -448,10 +448,10 @@ contract('OptionsContract', accounts => {
 
   describe('#burnOTokens()', () => {
     it('should be able to burn put tokens', async () => {
-      const repoIndex = '1';
+      const vaultIndex = '1';
       const numTokens = '10';
 
-      await optionsContracts[0].burnOTokens(repoIndex, numTokens, {
+      await optionsContracts[0].burnOTokens(vaultIndex, numTokens, {
         from: creatorAddress,
         gas: '100000'
       });
@@ -469,11 +469,11 @@ contract('OptionsContract', accounts => {
       const amtPTokens = await optionsContracts[0].balanceOf(firstOwnerAddress);
       expect(amtPTokens.toString()).to.equal('10');
 
-      const repoIndex = '1';
+      const vaultIndex = '1';
       const numTokens = '10';
 
       try {
-        await optionsContracts[0].burnOTokens(repoIndex, numTokens, {
+        await optionsContracts[0].burnOTokens(vaultIndex, numTokens, {
           from: firstOwnerAddress,
           gas: '100000'
         });
@@ -486,32 +486,32 @@ contract('OptionsContract', accounts => {
 
   describe('#removeCollateral()', () => {
     it('should be able to remove collateral if sufficiently collateralized', async () => {
-      const repoIndex = '1';
+      const vaultIndex = '1';
       const numTokens = '1000';
 
-      await optionsContracts[0].removeCollateral(repoIndex, numTokens, {
+      await optionsContracts[0].removeCollateral(vaultIndex, numTokens, {
         from: creatorAddress,
         gas: '100000'
       });
 
-      // Check the contract correctly updated the repo
-      const repo = await optionsContracts[0].getRepoByIndex(repoIndex);
-      const expectedRepo = {
+      // Check the contract correctly updated the vault
+      const vault = await optionsContracts[0].getVaultByIndex(vaultIndex);
+      const expectedVault = {
         '0': '19999000',
         '1': '138878',
         '2': creatorAddress
       };
-      checkRepo(repo, expectedRepo);
+      checkVault(vault, expectedVault);
 
       // TODO: Check that the owner correctly got their collateral back.
       // TODO: check event emitted
     });
 
     it('only owner should be able to remove collateral', async () => {
-      const repoIndex = '0';
+      const vaultIndex = '0';
       const numTokens = '10';
       try {
-        await optionsContracts[0].removeCollateral(repoIndex, numTokens, {
+        await optionsContracts[0].removeCollateral(vaultIndex, numTokens, {
           from: firstOwnerAddress,
           gas: '100000'
         });
@@ -523,32 +523,32 @@ contract('OptionsContract', accounts => {
     });
 
     it('should be able to remove more collateral if sufficient collateral', async () => {
-      const repoIndex = '1';
+      const vaultIndex = '1';
       const numTokens = '500';
 
-      await optionsContracts[0].removeCollateral(repoIndex, numTokens, {
+      await optionsContracts[0].removeCollateral(vaultIndex, numTokens, {
         from: creatorAddress,
         gas: '100000'
       });
 
       // TODO: Check correct event emitted
 
-      // Check the contract correctly updated the repo
-      const repo = await optionsContracts[0].getRepoByIndex(repoIndex);
-      const expectedRepo = {
+      // Check the contract correctly updated the vault
+      const vault = await optionsContracts[0].getVaultByIndex(vaultIndex);
+      const expectedVault = {
         '0': '19998500',
         '1': '138878',
         '2': creatorAddress
       };
-      checkRepo(repo, expectedRepo);
+      checkVault(vault, expectedVault);
     });
 
     it('should not be able to remove collateral if not sufficient collateral', async () => {
-      const repoIndex = '1';
+      const vaultIndex = '1';
       const numTokens = '70';
 
       try {
-        await optionsContracts[0].removeCollateral(repoIndex, numTokens, {
+        await optionsContracts[0].removeCollateral(vaultIndex, numTokens, {
           from: creatorAddress,
           gas: '100000'
         });
@@ -558,24 +558,24 @@ contract('OptionsContract', accounts => {
 
       truffleAssert.fails('should throw error');
 
-      // check that the collateral in the repo remains the same
-      const repo = await optionsContracts[0].getRepoByIndex(repoIndex);
-      const expectedRepo = {
+      // check that the collateral in the vault remains the same
+      const vault = await optionsContracts[0].getVaultByIndex(vaultIndex);
+      const expectedVault = {
         '0': '19998500',
         '1': '138878',
         '2': creatorAddress
       };
-      checkRepo(repo, expectedRepo);
+      checkVault(vault, expectedVault);
     });
 
     it('should not be able to remove collateral after expiry');
   });
 
   describe('#createOptions()', () => {
-    it('should be able to create new ETH options in a new repo', async () => {
+    it('should be able to create new ETH options in a new vault', async () => {
       const numOptions = '138888';
       const collateral = '20000000';
-      const result = await optionsContracts[0].createETHCollateralOptionNewRepo(
+      const result = await optionsContracts[0].createETHCollateralOptionNewVault(
         numOptions,
         creatorAddress,
         {
@@ -587,12 +587,12 @@ contract('OptionsContract', accounts => {
       expect(result.logs[3].event).to.equal('IssuedOTokens');
       expect(result.logs[3].args.issuedTo).to.equal(creatorAddress);
     });
-    xit('should be able to create new ERC20 options in a new repo', async () => {
+    xit('should be able to create new ERC20 options in a new vault', async () => {
       // const numOptions = '100';
       // const collateral = '20000000';
       // await dai.mint(creatorAddress, '20000000');
       // await dai.approve(optionsContracts[2].address, '10000000000000000');
-      // const result = await optionsContracts[2].createERC20CollateralOptionNewRepo(
+      // const result = await optionsContracts[2].createERC20CollateralOptionNewvault(
       //   numOptions,
       //   collateral,
       //   creatorAddress,

@@ -957,7 +957,7 @@ contract('OptionsContract', accounts => {
       expect(vault['0'].toString()).to.equal('0');
     });
 
-    xit('owner should be able to withdraw fee', async () => {
+    it('owner should be able to withdraw fee', async () => {
       const initialETH = await balance.current(creatorAddress);
 
       const txInfo = await optionsContracts[0].transferFee(creatorAddress, {

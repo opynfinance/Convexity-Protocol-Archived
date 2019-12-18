@@ -147,16 +147,16 @@ contract OptionsContract is Ownable, ERC20 {
     }
 
     /*** Events ***/
-    event VaultOpened(uint256 VaultIndex, address VaultOwner);
-    event ETHCollateralAdded(uint256 VaultIndex, uint256 amount, address payer);
-    event ERC20CollateralAdded(uint256 VaultIndex, uint256 amount, address payer);
-    event IssuedOTokens(address issuedTo, uint256 oTokensIssued, uint256 VaultIndex);
-    event Liquidate (uint256 amtCollateralToPay, uint256 VaultIndex, address liquidator);
+    event VaultOpened(uint256 vaultIndex, address vaultOwner);
+    event ETHCollateralAdded(uint256 vaultIndex, uint256 amount, address payer);
+    event ERC20CollateralAdded(uint256 vaultIndex, uint256 amount, address payer);
+    event IssuedOTokens(address issuedTo, uint256 oTokensIssued, uint256 vaultIndex);
+    event Liquidate (uint256 amtCollateralToPay, uint256 vaultIndex, address liquidator);
     event Exercise (uint256 amtUnderlyingToPay, uint256 amtCollateralToPay, address exerciser);
-    event ClaimedCollateral(uint256 amtCollateralClaimed, uint256 amtUnderlyingClaimed, uint256 VaultIndex, address VaultOwner);
-    event BurnOTokens (uint256 VaultIndex, uint256 oTokensBurned);
+    event ClaimedCollateral(uint256 amtCollateralClaimed, uint256 amtUnderlyingClaimed, uint256 vaultIndex, address vaultOwner);
+    event BurnOTokens (uint256 vaultIndex, uint256 oTokensBurned);
     event TransferVaultOwnership (uint256 VaultIndex, address oldOwner, address payable newOwner);
-    event RemoveCollateral (uint256 VaultIndex, uint256 amtRemoved, address VaultOwner);
+    event RemoveCollateral (uint256 vaultIndex, uint256 amtRemoved, address vaultOwner);
 
     /**
      * @notice Can only be called by owner. Used to update the fees, minCollateralizationRatio, etc
