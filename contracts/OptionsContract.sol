@@ -443,10 +443,10 @@ contract OptionsContract is Ownable, ERC20 {
 
         require(msg.sender == repo.owner, "only owner can claim collatera");
         if (totalCollateral == 0) {
-            totalCollateral = address(this).balance;
+            totalCollateral = address(this).balance.sub(totalFee);
         }
 
-        uint256 collateralToTransfer = getCollateral(repoIndex);
+        uint256 collateralToTransfer = getCollateral(repoIndex).div(10).mul(10);
         uint256 underlyingToTransfer = getCollateral(repoIndex).mul(totalUnderlying).div(totalCollateral);
 
         repo.collateral = 0;
