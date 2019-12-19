@@ -209,9 +209,9 @@ contract OptionsContract is Ownable, ERC20 {
     function openVault() public returns (uint) {
         require(block.timestamp < expiry, "Options contract expired");
         vaults.push(Vault(0, 0, msg.sender));
-        uint256 VaultIndex = vaults.length - 1;
-        emit VaultOpened(VaultIndex, msg.sender);
-        return VaultIndex;
+        uint256 vaultIndex = vaults.length - 1;
+        emit VaultOpened(vaultIndex, msg.sender);
+        return vaultIndex;
     }
 
     /**

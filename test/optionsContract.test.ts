@@ -42,6 +42,7 @@ contract('OptionsContract', accounts => {
   const optionsContracts: oTokenInstance[] = [];
   let optionsFactory: OptionsFactoryInstance;
   let dai: ERC20MintableInstance;
+  let usdc: ERC20MintableInstance;
 
   before('set up contracts', async () => {
     // 1. Deploy mock contracts
@@ -52,6 +53,10 @@ contract('OptionsContract', accounts => {
     dai = await MintableToken.new();
     await dai.mint(creatorAddress, '10000000');
 
+    // 1.3 Mock USDC contract
+    usdc = await MintableToken.new();
+    await usdc.mint(creatorAddress, '10000000');
+
     // 2. Deploy our contracts
     // deploys the Options Exhange contract
 
@@ -59,11 +64,7 @@ contract('OptionsContract', accounts => {
     optionsFactory = await OptionsFactory.deployed();
 
     await optionsFactory.addAsset('DAI', dai.address);
-    // TODO: deploy a mock USDC and get its address
-    await optionsFactory.addAsset(
-      'USDC',
-      '0xB5D0545dF2649359B1F91679f64812dc70Bfd547'
-    );
+    await optionsFactory.addAsset('USDC', usdc.address);
 
     // Create the unexpired options contract
     let optionsContractResult = await optionsFactory.createOptionsContract(
@@ -103,14 +104,14 @@ contract('OptionsContract', accounts => {
     optionsContracts.push(expiredOptionsContract);
 
     optionsContractResult = await optionsFactory.createOptionsContract(
-      'DAI',
+      'USDC',
       -'18',
-      'ETH',
+      'DAI',
       -'18',
       -'17',
       '90',
       -'18',
-      'ETH',
+      'USDC',
       '1577836800',
       '1577836800',
       { from: creatorAddress, gas: '4000000' }
@@ -320,7 +321,7 @@ contract('OptionsContract', accounts => {
     it('should add ERC20 collateral successfully', async () => {
       const vaultNum = 0;
       const msgValue = '10000000';
-      await dai.approve(optionsContracts[2].address, '10000000000000000');
+      await usdc.approve(optionsContracts[2].address, '10000000000000000');
       const result = await optionsContracts[2].addERC20Collateral(
         vaultNum,
         msgValue,
@@ -447,6 +448,23 @@ contract('OptionsContract', accounts => {
 
     // TODO: Need to check a contract that expires
     xit('should not be able to issue tokens after expiry');
+
+    it('should be able to issue options in the erc20 contract', async () => {
+      const vaultIndex = '0';
+      const numTokens = '10';
+
+      await optionsContracts[2].issueOTokens(
+        vaultIndex,
+        numTokens,
+        creatorAddress,
+        {
+          from: creatorAddress,
+          gas: '100000'
+        }
+      );
+      const amtPTokens = await optionsContracts[2].balanceOf(creatorAddress);
+      expect(amtPTokens.toString()).to.equal(numTokens);
+    });
   });
 
   describe('#burnOTokens()', () => {
@@ -590,22 +608,19 @@ contract('OptionsContract', accounts => {
       expect(result.logs[3].event).to.equal('IssuedOTokens');
       expect(result.logs[3].args.issuedTo).to.equal(creatorAddress);
     });
-    xit('should be able to create new ERC20 options in a new vault', async () => {
-      // const numOptions = '100';
-      // const collateral = '20000000';
-      // await dai.mint(creatorAddress, '20000000');
-      // await dai.approve(optionsContracts[2].address, '10000000000000000');
-      // const result = await optionsContracts[2].createERC20CollateralOptionNewvault(
-      //   numOptions,
-      //   collateral,
-      //   creatorAddress,
-      //   {
-      //     from: creatorAddress
-      //   }
-      // );
-      // // Minting oTokens should emit an event correctly
-      // expect(result.logs[3].event).to.equal('IssuedOTokens');
-      // expect(result.logs[3].args.issuedTo).to.equal(creatorAddress);
+    it('should be able to create new ERC20 options in a new vault', async () => {
+      const numOptions = '100';
+      const collateral = '20000000';
+      await usdc.mint(creatorAddress, '20000000');
+      await usdc.approve(optionsContracts[2].address, '10000000000000000');
+      const result = await optionsContracts[2].createERC20CollateralOptionNewVault(
+        numOptions,
+        collateral,
+        creatorAddress,
+        {
+          from: creatorAddress
+        }
+      );
     });
   });
 });
