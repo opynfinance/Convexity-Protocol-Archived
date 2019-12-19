@@ -37,9 +37,10 @@ contract OptionsFactory is Ownable {
      * @param _collateralType The collateral asset. Eg. "ETH"
      * @param _collateralExp The number of decimals the collateral asset has
      * @param _underlyingType The underlying asset. Eg. "DAI"
+     * @param _underlyingExp The precision of the underlying asset. Eg. (-18 if Dai)
      * @param _oTokenExchangeExp Units of underlying that 1 oToken protects
      * @param _strikePrice The amount of strike asset that will be paid out
-     * @param _strikeExp The precision of the strike asset (-18 if ETH)
+     * @param _strikeExp The precision of the strike Price
      * @param _strikeAsset The asset in which the insurance is calculated
      * @param _expiry The time at which the insurance expires
      * @param _windowSize UNIX time. Exercise window is from `expiry - _windowSize` to `expiry`.
@@ -48,6 +49,7 @@ contract OptionsFactory is Ownable {
         string memory _collateralType,
         int32 _collateralExp,
         string memory _underlyingType,
+        int32 _underlyingExp,
         int32 _oTokenExchangeExp,
         uint256 _strikePrice,
         int32 _strikeExp,
@@ -66,6 +68,7 @@ contract OptionsFactory is Ownable {
             tokens[_collateralType],
             _collateralExp,
             tokens[_underlyingType],
+            _underlyingExp,
             _oTokenExchangeExp,
             _strikePrice,
             _strikeExp,

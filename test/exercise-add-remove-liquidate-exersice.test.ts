@@ -78,6 +78,7 @@ contract('OptionsContract', accounts => {
       'ETH',
       -'18',
       'DAI',
+      -'18',
       -'14',
       '9',
       -'15',

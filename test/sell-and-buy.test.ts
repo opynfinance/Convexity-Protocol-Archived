@@ -50,19 +50,20 @@
 //       await optionsFactory.addAsset('DAI', dai.address);
 //       await optionsFactory.addAsset('USDC', usdc.address);
 
-//       // Create the unexpired options contract
-//       const optionsContractResult = await optionsFactory.createOptionsContract(
-//         'ETH',
-//         -'18',
-//         'DAI',
-//         -'14',
-//         '9',
-//         -'15',
-//         'USDC',
-//         '1577836800',
-//         windowSize,
-//         { from: creatorAddress, gas: '4000000' }
-//       );
+// // Create the unexpired options contract
+// const optionsContractResult = await optionsFactory.createOptionsContract(
+//   'ETH',
+//   -'18',
+//   'DAI',
+//   -'18',
+//   -'14',
+//   '9',
+//   -'15',
+//   'USDC',
+//   '1577836800',
+//   windowSize,
+//   { from: creatorAddress, gas: '4000000' }
+// );
 
 //       const optionsContractAddr = optionsContractResult.logs[1].args[0];
 //       optionsContracts.push(await oToken.at(optionsContractAddr));

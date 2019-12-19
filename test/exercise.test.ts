@@ -53,6 +53,7 @@ contract('OptionsContract', accounts => {
       'ETH',
       -'18',
       'DAI',
+      -'18',
       -'14',
       '9',
       -'15',
@@ -205,11 +206,11 @@ contract('OptionsContract', accounts => {
       const tx = await web3.eth.getTransaction(txInfo.tx);
       const finalETH = await balance.current(creatorAddress);
       // check the calculations on amount of collateral paid out and underlying transferred is correct
-      expect(txInfo.logs[0].event).to.equal('ClaimedCollateral');
-      expect(txInfo.logs[0].args.amtCollateralClaimed.toString()).to.equal(
+      expect(txInfo.logs[1].event).to.equal('ClaimedCollateral');
+      expect(txInfo.logs[1].args.amtCollateralClaimed.toString()).to.equal(
         '19999700'
       );
-      expect(txInfo.logs[0].args.amtUnderlyingClaimed.toString()).to.equal(
+      expect(txInfo.logs[1].args.amtUnderlyingClaimed.toString()).to.equal(
         '66666'
       );
 
@@ -253,8 +254,8 @@ contract('OptionsContract', accounts => {
       });
 
       // check the calculations on amount of collateral paid out and underlying transferred is correct
-      expect(tx.logs[0].event).to.equal('ClaimedCollateral');
-      expect(tx.logs[0].args.amtCollateralClaimed.toString()).to.equal(
+      expect(tx.logs[1].event).to.equal('ClaimedCollateral');
+      expect(tx.logs[1].args.amtCollateralClaimed.toString()).to.equal(
         '9999850'
       );
 
