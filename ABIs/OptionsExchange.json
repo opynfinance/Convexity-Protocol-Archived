@@ -1,0 +1,145 @@
+[
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "UNISWAP_FACTORY",
+      "outputs": [
+        {
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "name": "_uniswapFactory",
+          "type": "address"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "payable": true,
+      "stateMutability": "payable",
+      "type": "fallback"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "receiver",
+          "type": "address"
+        },
+        {
+          "name": "_oTokenAddr",
+          "type": "address"
+        },
+        {
+          "name": "_payoutTokenAddress",
+          "type": "address"
+        },
+        {
+          "name": "_oTokens",
+          "type": "uint256"
+        }
+      ],
+      "name": "sellOTokens",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "_pTokens",
+          "type": "uint256"
+        },
+        {
+          "name": "paymentTokenAddress",
+          "type": "address"
+        }
+      ],
+      "name": "buyPTokens",
+      "outputs": [],
+      "payable": true,
+      "stateMutability": "payable",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "_inputToken",
+          "type": "address"
+        },
+        {
+          "name": "_outputToken",
+          "type": "address"
+        },
+        {
+          "name": "_amt",
+          "type": "uint256"
+        },
+        {
+          "name": "_transferTo",
+          "type": "address"
+        }
+      ],
+      "name": "exchangeAndTransferOutput",
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [
+        {
+          "name": "_token",
+          "type": "address"
+        }
+      ],
+      "name": "getExchange",
+      "outputs": [
+        {
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [
+        {
+          "name": "_ierc20",
+          "type": "address"
+        }
+      ],
+      "name": "isETH",
+      "outputs": [
+        {
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "pure",
+      "type": "function"
+    }
+  ]

@@ -113,7 +113,7 @@ contract oToken is OptionsContract {
      */
     function createERC20CollateralOptionNewVault(uint256 amtToCreate, uint256 amtCollateral, address receiver) external returns (uint256) {
         uint256 vaultIndex = openVault();
-        createERC20CollateralOption(vaultIndex, amtToCreate, amtCollateral, receiver);
+        createERC20CollateralOption(amtToCreate, amtCollateral, vaultIndex, receiver);
         return vaultIndex;
     }
 
