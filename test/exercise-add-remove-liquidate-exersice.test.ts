@@ -566,7 +566,7 @@ contract('OptionsContract', accounts => {
       const transactionFee = 10;
       const collateralizationRatio = 20;
 
-      let currentCollateralizationRatio = await optionsContracts[0].collateralizationRatio();
+      let currentCollateralizationRatio = await optionsContracts[0].minCollateralizationRatio();
       expect(currentCollateralizationRatio[0].toString()).to.equal('16');
 
       await optionsContracts[0].updateParameters(
@@ -578,7 +578,7 @@ contract('OptionsContract', accounts => {
         { from: creatorAddress, gas: '100000' }
       );
 
-      currentCollateralizationRatio = await optionsContracts[0].collateralizationRatio();
+      currentCollateralizationRatio = await optionsContracts[0].minCollateralizationRatio();
       expect(currentCollateralizationRatio[0].toString()).to.equal('20');
     });
 

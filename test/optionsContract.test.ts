@@ -596,7 +596,7 @@ contract('OptionsContract', accounts => {
     it('should be able to create new ETH options in a new vault', async () => {
       const numOptions = '138888';
       const collateral = '20000000';
-      const result = await optionsContracts[0].createETHCollateralOptionNewVault(
+      const result = await optionsContracts[0].createETHCollateralOption(
         numOptions,
         creatorAddress,
         {
@@ -613,7 +613,7 @@ contract('OptionsContract', accounts => {
       const collateral = '20000000';
       await usdc.mint(creatorAddress, '20000000');
       await usdc.approve(optionsContracts[2].address, '10000000000000000');
-      const result = await optionsContracts[2].createERC20CollateralOptionNewVault(
+      const result = await optionsContracts[2].createERC20CollateralOption(
         numOptions,
         collateral,
         creatorAddress,
