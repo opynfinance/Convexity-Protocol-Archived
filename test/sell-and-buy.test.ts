@@ -23,7 +23,7 @@ contract('OptionsContract', accounts => {
   const optionsFactoryAddress = '0xC0B7b9e6209804866e1b96CB6c9446533A98c6b2';
   const optionsContractAddress = '0x1695669d2E366e85115564EE2c1f3A9772c71389';
   const uniswapFactoryAddress = '0xf5D915570BC477f9B8D6C0E980aA81757A3AaC36';
-  const optionsExchangeAddress = '0xaaE1AfA1045bF1361f23bfb55D6070D47eBe4Bc1';
+  const optionsExchangeAddress = '0xB3019Bcb7C9C17ED73E27F98C1159eF2CE0a43A3';
 
   const optionsContracts: oTokenInstance[] = [];
   let optionsFactory: OptionsFactoryInstance;
@@ -47,11 +47,9 @@ contract('OptionsContract', accounts => {
       // 2. Deploy our contracts
       // Deploy the Options Exchange
       optionsExchange = await OptionsExchange.deployed();
-      console.log(OptionsExchange.address);
 
       // Deploy the Options Factory contract and add assets to it
       optionsFactory = await OptionsFactory.deployed();
-      console.log(optionsFactory.address);
 
       await optionsFactory.addAsset('DAI', dai.address);
       await optionsFactory.addAsset('USDC', usdc.address);
@@ -74,6 +72,7 @@ contract('OptionsContract', accounts => {
       const optionsContractAddr = optionsContractResult.logs[1].args[0];
       optionsContracts.push(await oToken.at(optionsContractAddr));
 
+      console.log('Options Exchange ' + OptionsExchange.address);
       console.log('Options Factory ' + optionsFactory.address);
       console.log('Options contract ' + optionsContracts[0].address);
     } else {
@@ -194,13 +193,15 @@ contract('OptionsContract', accounts => {
     it('should be able to buy oTokens with ERC20s', async () => {
       const paymentTokenAddr = '0x2448eE2641d78CC42D7AD76498917359D961A783';
       const paymentToken = await MintableToken.at(paymentTokenAddr);
+      // set to optionsCotnracs[0].address
+      const oTokenAddress = optionsContractAddress;
       await paymentToken.approve(
         OptionsExchange.address,
         '10000000000000000000000000'
       );
       await optionsExchange.buyOTokens(
         creatorAddress,
-        optionsContracts[0].address,
+        oTokenAddress,
         '100',
         paymentTokenAddr
       );
