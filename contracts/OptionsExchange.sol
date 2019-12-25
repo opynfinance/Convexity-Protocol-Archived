@@ -19,119 +19,127 @@ contract OptionsExchange {
         UNISWAP_FACTORY = UniswapFactoryInterface(_uniswapFactory);
     }
 
-    // TODO: write these functions later
-    function sellOTokens(address payable receiver, address _oTokenAddr, address _payoutTokenAddress, uint256 _oTokens) public {
-        // @note: first need to boot strap the uniswap exchange to get the address.
-        // uniswap transfer input _pTokens to payoutTokens
-        IERC20 oToken = IERC20(_oTokenAddr);
-        IERC20 payoutToken = IERC20(_payoutTokenAddress);
-        oToken.transferFrom(msg.sender, address(this), _oTokens);
-        exchangeAndTransferInput(oToken, payoutToken, _oTokens, receiver);
+    /**
+    * @notice This function sells oTokens on Uniswap and sends back payoutTokens to the receiver
+    * @param receiver The address to send the payout tokens back to
+    * @param oTokenAddress The address of the oToken to sell
+    * @param payoutTokenAddress The address of the token to receive the premiums in
+    * @param oTokensToSell The number of oTokens to sell
+    */
+    function sellOTokens(address payable receiver, address oTokenAddress, address payoutTokenAddress, uint256 oTokensToSell) public {
+        // @note: first need to bootstrap the uniswap exchange to get the address.
+        IERC20 oToken = IERC20(oTokenAddress);
+        IERC20 payoutToken = IERC20(payoutTokenAddress);
+        oToken.transferFrom(msg.sender, address(this), oTokensToSell);
+        uniswapSellOToken(oToken, payoutToken, oTokensToSell, receiver);
     }
 
-    // TODO: write these functions later
-    function buyPTokens(uint256 _pTokens, address paymentTokenAddress) public payable {
-        // uniswap transfer output. This transfer enough paymentToken to get desired pTokens.
+    // function premiumReceived(
+    //     address payable receiver,
+    //     address oTokenAddress,
+    //     address payoutTokenAddress,
+    //     uint256 oTokensToSell)
+    //     public view returns (uint256) {
+    //     UniswapExchangeInterface oTokenExchange = getExchange(oTokenAddress);
+    //     uint256 ETHToTokenPrice = oTokenExchange.getTokenToEthInputPrice()
+
+    // }
+
+    /**
+    * @notice This function buys oTokens on Uniswap and using paymentTokens from the receiver
+    * @param receiver The address to send the oTokens back to
+    * @param oTokenAddress The address of the oToken to buy
+    * @param oTokensToBuy The number of oTokens to buy
+    * @param paymentTokenAddress The address of the token to pay the premiums in
+    */
+    function buyOTokens(address payable receiver, address oTokenAddress, uint256 oTokensToBuy, address paymentTokenAddress) public payable {
+        IERC20 oToken = IERC20(oTokenAddress);
+        IERC20 paymentToken = IERC20(paymentTokenAddress);
+        uniswapBuyOToken(paymentToken, oToken, oTokensToBuy, receiver);
     }
 
-    function exchangeAndTransferInput(
-        IERC20 _inputToken,
-        IERC20 _outputToken,
+    function premiumToPay(address oTokenAddress, uint256 oTokensToBuy, address paymentTokenAddress) public view returns (uint256) {
+        UniswapExchangeInterface oTokenExchange = getExchange(oTokenAddress);
+        uint256 EthToOTokenPrice = oTokenExchange.getEthToTokenOutputPrice(oTokensToBuy);
+
+        if(!isETH(IERC20(paymentTokenAddress))) {
+            UniswapExchangeInterface paymentTokenExchange = getExchange(paymentTokenAddress);
+            return paymentTokenExchange.getTokenToEthOutputPrice(EthToOTokenPrice);
+        }
+
+        return EthToOTokenPrice;
+    }
+
+    function uniswapSellOToken(
+        IERC20 oToken,
+        IERC20 payoutToken,
         uint256 _amt,
         address payable _transferTo
     )
         internal
         returns (uint256)
     {
-        if (!isETH(_inputToken)) {
-            UniswapExchangeInterface exchange = getExchange(address(_inputToken));
+        require(!isETH(oToken), "Can only sell oTokens");
+        UniswapExchangeInterface exchange = getExchange(address(oToken));
 
-            if(isETH(_outputToken)) {
-                //Token to ETH
-                _inputToken.approve(address(exchange), _amt);
-                return exchange.tokenToEthTransferInput(_amt, 1, LARGE_BLOCK_SIZE, _transferTo);
-            } else {
-                //Token to Token
-                 _inputToken.approve(address(exchange), _amt);
-                return exchange.tokenToTokenTransferInput(
-                    _amt,
+        if(isETH(payoutToken)) {
+            //Token to ETH
+            oToken.approve(address(exchange), _amt);
+            return exchange.tokenToEthTransferInput(_amt, 1, LARGE_BLOCK_SIZE, _transferTo);
+        } else {
+            //Token to Token
+            oToken.approve(address(exchange), _amt);
+            return exchange.tokenToTokenTransferInput(
+                _amt,
+                1,
+                1,
+                LARGE_BLOCK_SIZE,
+                _transferTo,
+                address(payoutToken)
+            );
+        }
+    }
+
+     function uniswapBuyOToken(
+            IERC20 paymentToken,
+            IERC20 oToken,
+            uint256 _amt,
+            address payable _transferTo
+        )
+            public
+            returns (uint256)
+    {
+        require(!isETH(oToken), "Can only buy oTokens");
+
+        if (!isETH(paymentToken)) {
+            UniswapExchangeInterface exchange = getExchange(address(paymentToken));
+
+            uint256 premiumToPay = premiumToPay(address(oToken), _amt, address(paymentToken));
+            paymentToken.transferFrom(msg.sender, address(this), premiumToPay);
+
+            // Token to Token
+            paymentToken.approve(address(exchange), 10 ** 30);
+            return exchange.tokenToTokenTransferInput(
+                    premiumToPay,
                     1,
                     1,
                     LARGE_BLOCK_SIZE,
                     _transferTo,
-                    address(_outputToken)
-                );
-            }
+                    address(oToken)
+            );
         } else {
             // ETH to Token
-            if(!isETH(_outputToken)) {
-                UniswapExchangeInterface exchange = getExchange(address(_outputToken));
+            UniswapExchangeInterface exchange = UniswapExchangeInterface(
+                UNISWAP_FACTORY.getExchange(address(oToken))
+            );
 
-                return exchange.ethToTokenTransferInput.value(_amt)(
-                    1,
-                    LARGE_BLOCK_SIZE,
-                    _transferTo
-                );
-            }
-
-            // both args are ETH
-            revert("Trying to exchange ETH for ETH");
+            uint256 ethToTransfer = exchange.getEthToTokenOutputPrice(_amt);
+            return exchange.ethToTokenTransferOutput.value(ethToTransfer)(
+                _amt,
+                LARGE_BLOCK_SIZE,
+                _transferTo
+            );
         }
-        return 0;
-    }
-
-     function exchangeAndTransferOutput(
-            IERC20 _inputToken,
-            IERC20 _outputToken,
-            uint256 _amt,
-            address payable _transferTo
-        )
-            external
-            returns (uint256)
-        {
-            return 5;
-        // TODO: uncomment below and test on testnet
-        //     if (!isETH(_inputToken)) {
-        //         UniswapExchangeInterface exchange = getExchange(address(_inputToken));
-
-        //         if(isETH(_outputToken)) {
-        //             /// Token to ETH
-        //             _inputToken.approve(address(exchange), 10 ** 30);
-        //             return exchange.tokenToEthTransferOutput(
-        //                 _amt,
-        //                 10 ** 30,
-        //                 LARGE_BLOCK_SIZE,
-        //                 _transferTo
-        //             );
-        //         } else {
-        //             /// Token to Token
-        //             _inputToken.approve(address(exchange), 10 ** 30);
-        //             return exchange.tokenToTokenTransferOutput(
-        //                 _amt,
-        //                 10 ** 30,
-        //                 10 ** 30,
-        //                 LARGE_BLOCK_SIZE,
-        //                 _transferTo,
-        //                 address(_outputToken)
-        //             );
-        //         }
-        // } else {
-        //     // ETH to Token
-        //     if(!isETH(_outputToken)) {
-        //         UniswapExchangeInterface exchange = UniswapExchangeInterface(
-        //             UNISWAP_FACTORY.getExchange(address(_outputToken))
-        //         );
-
-        //         uint256 ethToTransfer = exchange.getEthToTokenOutputPrice(_amt);
-        //         return exchange.ethToTokenTransferOutput.value(ethToTransfer)(
-        //             _amt,
-        //             LARGE_BLOCK_SIZE,
-        //             _transferTo
-        //         );
-        //     }
-
-        //     revert("Trying to exchange ETH for ETH");
-        // }
     }
 
     function getExchange(address _token) public view returns (UniswapExchangeInterface) {
