@@ -35,6 +35,19 @@ contract OptionsExchange {
     }
 
     /**
+    * @notice This function buys oTokens on Uniswap and using paymentTokens from the receiver
+    * @param receiver The address to send the oTokens back to
+    * @param oTokenAddress The address of the oToken to buy
+    * @param paymentTokenAddress The address of the token to pay the premiums in
+    * @param oTokensToBuy The number of oTokens to buy
+    */
+    function buyOTokens(address payable receiver, address oTokenAddress, address paymentTokenAddress, uint256 oTokensToBuy) public payable {
+        IERC20 oToken = IERC20(oTokenAddress);
+        IERC20 paymentToken = IERC20(paymentTokenAddress);
+        uniswapBuyOToken(paymentToken, oToken, oTokensToBuy, receiver);
+    }
+
+    /**
     * @notice This function calculates the amount of premiums that the seller
     * will receive if they sold oTokens on Uniswap
     * @param oTokenAddress The address of the oToken to sell
@@ -60,26 +73,13 @@ contract OptionsExchange {
     }
 
     /**
-    * @notice This function buys oTokens on Uniswap and using paymentTokens from the receiver
-    * @param receiver The address to send the oTokens back to
-    * @param oTokenAddress The address of the oToken to buy
-    * @param oTokensToBuy The number of oTokens to buy
-    * @param paymentTokenAddress The address of the token to pay the premiums in
-    */
-    function buyOTokens(address payable receiver, address oTokenAddress, uint256 oTokensToBuy, address paymentTokenAddress) public payable {
-        IERC20 oToken = IERC20(oTokenAddress);
-        IERC20 paymentToken = IERC20(paymentTokenAddress);
-        uniswapBuyOToken(paymentToken, oToken, oTokensToBuy, receiver);
-    }
-
-    /**
     * @notice This function calculates the premiums to be paid if a buyer wants to
     * buy oTokens on Uniswap
     * @param oTokenAddress The address of the oToken to buy
-    * @param oTokensToBuy The number of oTokens to buy
     * @param paymentTokenAddress The address of the token to pay the premiums in
+    * @param oTokensToBuy The number of oTokens to buy
     */
-    function premiumToPay(address oTokenAddress, uint256 oTokensToBuy, address paymentTokenAddress) public view returns (uint256) {
+    function premiumToPay(address oTokenAddress, address paymentTokenAddress, uint256 oTokensToBuy) public view returns (uint256) {
         // get the amount of ETH that needs to be paid for oTokensToBuy.
         UniswapExchangeInterface oTokenExchange = getExchange(oTokenAddress);
         uint256 ethToPay = oTokenExchange.getEthToTokenOutputPrice(oTokensToBuy);
@@ -137,7 +137,7 @@ contract OptionsExchange {
         if (!isETH(paymentToken)) {
             UniswapExchangeInterface exchange = getExchange(address(paymentToken));
 
-            uint256 premiumToPay = premiumToPay(address(oToken), _amt, address(paymentToken));
+            uint256 premiumToPay = premiumToPay(address(oToken), address(paymentToken), _amt);
             paymentToken.transferFrom(msg.sender, address(this), premiumToPay);
 
             // Token to Token
@@ -165,7 +165,7 @@ contract OptionsExchange {
         }
     }
 
-    function getExchange(address _token) public view returns (UniswapExchangeInterface) {
+    function getExchange(address _token) internal view returns (UniswapExchangeInterface) {
         UniswapExchangeInterface exchange = UniswapExchangeInterface(
             UNISWAP_FACTORY.getExchange(_token)
         );
@@ -177,7 +177,7 @@ contract OptionsExchange {
         return exchange;
     }
 
-    function isETH(IERC20 _ierc20) public pure returns (bool) {
+    function isETH(IERC20 _ierc20) internal pure returns (bool) {
         return _ierc20 == IERC20(0);
     }
 

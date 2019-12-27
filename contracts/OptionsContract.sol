@@ -549,7 +549,6 @@ contract OptionsContract is Ownable, ERC20 {
     function isUnsafe(uint256 vaultIndex) public view returns (bool) {
 
         bool isUnsafe = !isSafe(getCollateral(vaultIndex), getOTokensIssued(vaultIndex));
-
         return isUnsafe;
     }
 
@@ -674,7 +673,7 @@ contract OptionsContract is Ownable, ERC20 {
     }
 
     /**
-     * @notice This function gets the price in ETH (wei) of the asset.
+     * @notice This function gets the price ETH (wei) to asset price.
      * @param asset The address of the asset to get the price of
      */
     function getPrice(address asset) internal view returns (uint256) {
