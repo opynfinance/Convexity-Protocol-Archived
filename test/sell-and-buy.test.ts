@@ -20,10 +20,17 @@ contract('OptionsContract', accounts => {
   const firstRepoOwnerAddress = accounts[1];
   const secondRepoOwnerAddress = accounts[2];
 
-  const optionsFactoryAddress = '0xC0B7b9e6209804866e1b96CB6c9446533A98c6b2';
-  const optionsContractAddress = '0x1695669d2E366e85115564EE2c1f3A9772c71389';
+  const daiAddress = '0x5592ec0cfb4dbc12d3ab100b257153436a1f0fea';
+  const usdcAddress = '0x4dbcdf9b62e891a7cec5a2568c3f4faf9e8abe2b';
+
+  const optionsFactoryAddress = '0x34Da8b34c82988e7FF8F98CA35963057fC0ec9bb';
+  const optionsContractAddresses = [
+    '0xE8Cd37379BF7739E5ca0D8E5a7a118cF89f439fD',
+    '0x57cC8708eFEB7f7D42E4d73ab9120BC275f1DB59',
+    '0x59D5652Ac7aE3008f59AE7b71eD66C98edA317d6'
+  ];
   const uniswapFactoryAddress = '0xf5D915570BC477f9B8D6C0E980aA81757A3AaC36';
-  const optionsExchangeAddress = '0xB3019Bcb7C9C17ED73E27F98C1159eF2CE0a43A3';
+  const optionsExchangeAddress = '0x40c471C6B31E752F39Fd0232Ad5daE42240eeD67';
 
   const optionsContracts: oTokenInstance[] = [];
   let optionsFactory: OptionsFactoryInstance;
@@ -32,17 +39,19 @@ contract('OptionsContract', accounts => {
   let uniswapFactory: UniswapFactoryInterfaceInstance;
   let optionsExchange: OptionsExchangeInstance;
 
-  const windowSize = 1577836800;
+  const windowSize = 1589976000;
   const contractsDeployed = true;
 
   before('set up contracts', async () => {
     if (!contractsDeployed) {
       // 1.2 Mock Dai contract
-      dai = await MintableToken.new();
-      await dai.mint(creatorAddress, '10000000');
-      // 1.3 Mock Dai contract
-      usdc = await MintableToken.new();
-      await usdc.mint(creatorAddress, '10000000');
+      dai = await MintableToken.at(
+        '0x5592ec0cfb4dbc12d3ab100b257153436a1f0fea'
+      );
+      // 1.3 USDC contract
+      usdc = await MintableToken.at(
+        '0x4dbcdf9b62e891a7cec5a2568c3f4faf9e8abe2b'
+      );
 
       // 2. Deploy our contracts
       // Deploy the Options Exchange
@@ -53,9 +62,17 @@ contract('OptionsContract', accounts => {
 
       await optionsFactory.addAsset('DAI', dai.address);
       await optionsFactory.addAsset('USDC', usdc.address);
+      await optionsFactory.addAsset(
+        'cDAI',
+        '0x6d7f0754ffeb405d23c51ce938289d4835be3b14'
+      );
+      await optionsFactory.addAsset(
+        'cUSDC',
+        '0x5b281a6dda0b271e91ae35de655ad301c976edb1'
+      );
 
       // Create the unexpired options contract
-      const optionsContractResult = await optionsFactory.createOptionsContract(
+      let optionsContractResult = await optionsFactory.createOptionsContract(
         'ETH',
         -'18',
         'DAI',
@@ -64,20 +81,60 @@ contract('OptionsContract', accounts => {
         '9',
         -'15',
         'USDC',
-        '1577836800',
+        '1589976000',
         windowSize,
         { from: creatorAddress, gas: '4000000' }
       );
 
-      const optionsContractAddr = optionsContractResult.logs[1].args[0];
+      let optionsContractAddr = optionsContractResult.logs[1].args[0];
+      optionsContracts.push(await oToken.at(optionsContractAddr));
+
+      // Create the unexpired options contract
+      optionsContractResult = await optionsFactory.createOptionsContract(
+        'ETH',
+        -'18',
+        'cDAI',
+        -'8',
+        -'8',
+        '2',
+        -'10',
+        'USDC',
+        '1589976000',
+        windowSize,
+        { from: creatorAddress, gas: '4000000' }
+      );
+
+      optionsContractAddr = optionsContractResult.logs[1].args[0];
+      optionsContracts.push(await oToken.at(optionsContractAddr));
+
+      // Create the unexpired options contract
+      optionsContractResult = await optionsFactory.createOptionsContract(
+        'ETH',
+        -'18',
+        'cUSDC',
+        -'8',
+        -'8',
+        '208',
+        -'12',
+        'USDC',
+        '1589976000',
+        windowSize,
+        { from: creatorAddress, gas: '4000000' }
+      );
+
+      optionsContractAddr = optionsContractResult.logs[1].args[0];
       optionsContracts.push(await oToken.at(optionsContractAddr));
 
       console.log('Options Exchange ' + OptionsExchange.address);
       console.log('Options Factory ' + optionsFactory.address);
-      console.log('Options contract ' + optionsContracts[0].address);
+      console.log('oDai' + optionsContracts[0].address);
+      console.log('ocDai ' + optionsContracts[1].address);
+      console.log('ocUSDC' + optionsContracts[2].address);
     } else {
       optionsFactory = await OptionsFactory.at(optionsFactoryAddress);
-      optionsContracts.push(await oToken.at(optionsContractAddress));
+      optionsContracts.push(await oToken.at(optionsContractAddresses[0]));
+      optionsContracts.push(await oToken.at(optionsContractAddresses[1]));
+      optionsContracts.push(await oToken.at(optionsContractAddresses[2]));
       optionsExchange = await OptionsExchange.at(optionsExchangeAddress);
     }
 
@@ -88,58 +145,65 @@ contract('OptionsContract', accounts => {
   describe('add liquidity on uniswap', () => {
     it('create the uniswap exchange', async () => {
       if (!contractsDeployed) {
-        await uniswapFactory.createExchange(optionsContracts[0].address);
+        let i;
+        for (i = 0; i < optionsContracts.length; i++) {
+          await uniswapFactory.createExchange(optionsContracts[i].address);
+        }
       }
     });
 
     it('should be able to create oTokens', async () => {
       if (!contractsDeployed) {
-        const numOptions = '1388888888';
-        const collateral = '200000000000';
-        const result = await optionsContracts[0].createETHCollateralOption(
-          numOptions,
-          creatorAddress,
-          {
-            from: creatorAddress,
-            value: collateral
-          }
-        );
+        const numOptions = '1000000000000';
+        const collateral = '2000000000000000000';
+        for (let i = 1; i < optionsContracts.length; i++) {
+          const result = await optionsContracts[i].createETHCollateralOption(
+            numOptions,
+            creatorAddress,
+            {
+              from: creatorAddress,
+              value: collateral
+            }
+          );
 
-        // Minting oTokens should emit an event correctly
-        expect(result.logs[3].event).to.equal('IssuedOTokens');
-        expect(result.logs[3].args.issuedTo).to.equal(creatorAddress);
+          // Minting oTokens should emit an event correctly
+          expect(result.logs[3].event).to.equal('IssuedOTokens');
+          expect(result.logs[3].args.issuedTo).to.equal(creatorAddress);
+        }
       }
     });
 
     it('should be able to add liquidity to Uniswap', async () => {
       if (!contractsDeployed) {
-        const uniswapExchangeAddr = await uniswapFactory.getExchange(
-          optionsContracts[0].address
-        );
+        for (let i = 1; i < optionsContracts.length; i++) {
+          const uniswapExchangeAddr = await uniswapFactory.getExchange(
+            optionsContracts[i].address
+          );
 
-        const uniswapExchange = await UniswapExchange.at(uniswapExchangeAddr);
-        await optionsContracts[0].approve(
-          uniswapExchangeAddr,
-          '10000000000000000'
-        );
+          const uniswapExchange = await UniswapExchange.at(uniswapExchangeAddr);
+          await optionsContracts[i].approve(
+            uniswapExchangeAddr,
+            '100000000000000000000000000000'
+          );
 
-        // assuming 1 * 10^-15 USD per oDai, 1000 * oDai * USD-ETH
-        // the minimum value of ETH is 1000000000
-        await uniswapExchange.addLiquidity(
-          '1',
-          '1000000000',
-          '1000000000000000000000000',
-          {
-            from: creatorAddress,
-            value: '5000000000'
-          }
-        );
+          // assuming 1 * 10^-15 USD per oDai, 1000 * oDai * USD-ETH
+          // the minimum value of ETH is 1000000000
+          await uniswapExchange.addLiquidity(
+            '1',
+            '1000000000000',
+            '1000000000000000000000000',
+            {
+              from: creatorAddress,
+              value: '2000000000000000000'
+            }
+          );
+        }
       }
     });
   });
 
   describe('Should be able to buy and sell oTokens', async () => {
-    it('should be able to create and sell oTokens for ETH', async () => {
+    xit('should be able to create and sell oTokens for ETH', async () => {
       const numOptions = '13888';
       const collateral = '2000000';
       await optionsContracts[0].createAndSellETHCollateralOption(
@@ -152,7 +216,7 @@ contract('OptionsContract', accounts => {
       );
     });
 
-    it('should be able to create and sell oTokens for ERC20s', async () => {
+    xit('should be able to create and sell oTokens for ERC20s', async () => {
       const numOptions = '13888';
       const collateral = '2000000';
       await optionsContracts[0].createETHCollateralOption(
@@ -178,23 +242,23 @@ contract('OptionsContract', accounts => {
       );
     });
 
-    it('should be able to buy oTokens with ETH', async () => {
+    xit('should be able to buy oTokens with ETH', async () => {
       await optionsExchange.buyOTokens(
         creatorAddress,
         optionsContracts[0].address,
-        '1000',
         '0x0000000000000000000000000000000000000000',
+        '1000',
         {
           value: '1000000'
         }
       );
     });
 
-    it('should be able to buy oTokens with ERC20s', async () => {
+    xit('should be able to buy oTokens with ERC20s', async () => {
       const paymentTokenAddr = '0x2448eE2641d78CC42D7AD76498917359D961A783';
       const paymentToken = await MintableToken.at(paymentTokenAddr);
       // set to optionsCotnracs[0].address
-      const oTokenAddress = optionsContractAddress;
+      const oTokenAddress = optionsContractAddresses[0];
       await paymentToken.approve(
         OptionsExchange.address,
         '10000000000000000000000000'
@@ -202,8 +266,8 @@ contract('OptionsContract', accounts => {
       await optionsExchange.buyOTokens(
         creatorAddress,
         oTokenAddress,
-        '100',
-        paymentTokenAddr
+        paymentTokenAddr,
+        '100'
       );
     });
   });
