@@ -1,7 +1,7 @@
 // This enables us to use TypeScript in the unit tests.
 require('ts-node/register');
 
-const HDWalletProvider = require("truffle-hdwallet-provider-privkey");
+// const HDWalletProvider = require("truffle-hdwallet-provider-privkey");
 var secrets = {
   secret: '',
   api_key: ''
