@@ -25,7 +25,7 @@ The Options Contract has all the functionality mentioned above built into it. Ea
 ##### Open vault
 oTokens are created by first calling `openVault ()` which instantiates a new vault and sets the owner of that vault to be the `msg.sender`.
 
-![image info](./images/openrepo.png)
+![image info](./images/openRepo.png)
 ##### Add Collateral
 Once a vault is opened, anyone can add collateral to the vault by calling `addETHCollateral (vaultIndex)`  or  `addERC20Collateral (vaultIndex)` depending on what the collateral of that contract is.
 
