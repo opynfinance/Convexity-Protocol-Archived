@@ -27,8 +27,8 @@ contract('OptionsContract', accounts => {
   const reverter = new Reverter(web3);
 
   const creatorAddress = accounts[0];
-  const firstRepoOwnerAddress = accounts[1];
-  const secondRepoOwnerAddress = accounts[2];
+  const firstVaultOwnerAddress = accounts[1];
+  const secondVaultOwnerAddress = accounts[2];
 
   const firstExerciser = accounts[3];
   const secondExerciser = accounts[4];
@@ -39,11 +39,11 @@ contract('OptionsContract', accounts => {
   let dai: ERC20MintableInstance;
   let usdc: ERC20MintableInstance;
 
-  const repo1Collateral = '20000000';
-  const repo1PutsOutstanding = '250000';
+  const vault1Collateral = '20000000';
+  const vault1PutsOutstanding = '250000';
 
-  const repo2Collateral = '10000000';
-  const repo2PutsOutstanding = '100000';
+  const vault2Collateral = '10000000';
+  const vault2PutsOutstanding = '100000';
 
   const windowSize = 1577836800;
 
@@ -75,6 +75,7 @@ contract('OptionsContract', accounts => {
       'ETH',
       -'18',
       'DAI',
+      -'18',
       -'14',
       '9',
       -'15',
@@ -87,57 +88,57 @@ contract('OptionsContract', accounts => {
     const optionsContractAddr = optionsContractResult.logs[1].args[0];
     optionsContracts.push(await OptionsContract.at(optionsContractAddr));
 
-    // Open Repo1, add Collateral and Mint oTokens
-    await optionsContracts[0].openRepo({
-      from: firstRepoOwnerAddress,
+    // Open vault1, add Collateral and Mint oTokens
+    await optionsContracts[0].openVault({
+      from: firstVaultOwnerAddress,
       gas: '100000'
     });
 
     await optionsContracts[0].addETHCollateral(0, {
-      from: firstRepoOwnerAddress,
+      from: firstVaultOwnerAddress,
       gas: '100000',
-      value: repo1Collateral
+      value: vault1Collateral
     });
 
     await optionsContracts[0].issueOTokens(
       '0',
-      repo1PutsOutstanding,
-      firstRepoOwnerAddress,
+      vault1PutsOutstanding,
+      firstVaultOwnerAddress,
       {
-        from: firstRepoOwnerAddress,
+        from: firstVaultOwnerAddress,
         gas: '100000'
       }
     );
 
     await optionsContracts[0].transfer(firstExerciser, '10', {
-      from: firstRepoOwnerAddress,
+      from: firstVaultOwnerAddress,
       gas: '100000'
     });
 
-    // Open Repo2, add Collateral and Mint oTokens
-    await optionsContracts[0].openRepo({
-      from: secondRepoOwnerAddress,
+    // Open vault2, add Collateral and Mint oTokens
+    await optionsContracts[0].openVault({
+      from: secondVaultOwnerAddress,
       gas: '100000'
     });
 
     await optionsContracts[0].addETHCollateral(1, {
-      from: secondRepoOwnerAddress,
+      from: secondVaultOwnerAddress,
       gas: '100000',
-      value: repo2Collateral
+      value: vault2Collateral
     });
 
     await optionsContracts[0].issueOTokens(
       1,
-      repo2PutsOutstanding,
-      secondRepoOwnerAddress,
+      vault2PutsOutstanding,
+      secondVaultOwnerAddress,
       {
-        from: secondRepoOwnerAddress,
+        from: secondVaultOwnerAddress,
         gas: '100000'
       }
     );
 
     await optionsContracts[0].transfer(secondExerciser, '10', {
-      from: secondRepoOwnerAddress,
+      from: secondVaultOwnerAddress,
       gas: '100000'
     });
 
@@ -198,7 +199,7 @@ contract('OptionsContract', accounts => {
       expect(finalETH.toString()).to.equal(expectedEndETHBalance.toString());
     });
 
-    it('repo 1 should be unsafe after Compund Oracle drops price', async () => {
+    it('vault 1 should be unsafe after Compund Oracle drops price', async () => {
       await compoundOracle.updatePrice(100, {
         from: creatorAddress,
         gas: '1000000'
@@ -209,7 +210,7 @@ contract('OptionsContract', accounts => {
       expect(result).to.be.true;
     });
 
-    it('repo 2 should be unsafe after Compund Oracle drops price', async () => {
+    it('vault 2 should be unsafe after Compund Oracle drops price', async () => {
       compoundOracle.updatePrice(100, {
         from: creatorAddress,
         gas: '1000000'
@@ -275,7 +276,7 @@ contract('OptionsContract', accounts => {
       expect(finalETH.toString()).to.equal(expectedEndETHBalance.toString());
     });
 
-    it('secondRepoOwnerAddress should be able to claim after expiry', async () => {
+    it('secondVaultOwnerAddress should be able to claim after expiry', async () => {
       await compoundOracle.updatePrice(200, {
         from: creatorAddress,
         gas: '1000000'
@@ -285,13 +286,13 @@ contract('OptionsContract', accounts => {
       const underlyingClaimed = new BN(66666);
 
       const initialDaiBalance = new BN(
-        (await dai.balanceOf(secondRepoOwnerAddress)).toString()
+        (await dai.balanceOf(secondVaultOwnerAddress)).toString()
       );
 
       await time.increaseTo(windowSize + 2);
 
       const txInfo = await optionsContracts[0].claimCollateral(1, {
-        from: secondRepoOwnerAddress,
+        from: secondVaultOwnerAddress,
         gas: '1000000'
       });
 
@@ -301,26 +302,26 @@ contract('OptionsContract', accounts => {
       });
 
       const finalDaiBalance = new BN(
-        (await dai.balanceOf(secondRepoOwnerAddress)).toString()
+        (await dai.balanceOf(secondVaultOwnerAddress)).toString()
       );
       expect(initialDaiBalance.add(underlyingClaimed).toString()).to.equal(
         finalDaiBalance.toString()
       );
 
-      const repo = await optionsContracts[0].getRepoByIndex(1);
-      expect(repo['0'].toString()).to.equal('0');
+      const vault = await optionsContracts[0].getVaultByIndex(1);
+      expect(vault['0'].toString()).to.equal('0');
     });
 
-    it('firstRepoOwnerAddress should be able to claim after expiry', async () => {
+    it('firstVaultOwnerAddress should be able to claim after expiry', async () => {
       const collateralClaimed = new BN(19999100);
       const underlyingClaimed = new BN(133333);
 
       const initialDaiBalance = new BN(
-        (await dai.balanceOf(firstRepoOwnerAddress)).toString()
+        (await dai.balanceOf(firstVaultOwnerAddress)).toString()
       );
       //       await time.increaseTo(1577836802);
       const txInfo = await optionsContracts[0].claimCollateral(0, {
-        from: firstRepoOwnerAddress,
+        from: firstVaultOwnerAddress,
         gas: '1000000'
       });
 
@@ -330,26 +331,26 @@ contract('OptionsContract', accounts => {
       });
 
       const finalDaiBalance = new BN(
-        (await dai.balanceOf(firstRepoOwnerAddress)).toString()
+        (await dai.balanceOf(firstVaultOwnerAddress)).toString()
       );
       expect(initialDaiBalance.add(underlyingClaimed).toString()).to.equal(
         finalDaiBalance.toString()
       );
 
-      const repo = await optionsContracts[0].getRepoByIndex(0);
-      expect(repo['0'].toString()).to.equal('0');
+      const vault = await optionsContracts[0].getVaultByIndex(0);
+      expect(vault['0'].toString()).to.equal('0');
     });
 
     it('should revert everything', async () => {
       await reverter.revert();
 
-      let repo = await optionsContracts[0].getRepoByIndex(0);
-      expect(repo['0'].toString()).to.equal(repo1Collateral);
-      expect(repo['1'].toString()).to.equal(repo1PutsOutstanding);
+      let vault = await optionsContracts[0].getVaultByIndex(0);
+      expect(vault['0'].toString()).to.equal(vault1Collateral);
+      expect(vault['1'].toString()).to.equal(vault1PutsOutstanding);
 
-      repo = await optionsContracts[0].getRepoByIndex(1);
-      expect(repo['0'].toString()).to.equal(repo2Collateral);
-      expect(repo['1'].toString()).to.equal(repo2PutsOutstanding);
+      vault = await optionsContracts[0].getVaultByIndex(1);
+      expect(vault['0'].toString()).to.equal(vault2Collateral);
+      expect(vault['1'].toString()).to.equal(vault2PutsOutstanding);
     });
   });
 });

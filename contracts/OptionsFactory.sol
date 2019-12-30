@@ -1,6 +1,7 @@
 pragma solidity 0.5.10;
 
 import "./OptionsContract.sol";
+import "./oToken.sol";
 import "./OptionsUtils.sol";
 import "./lib/StringComparator.sol";
 import "@openzeppelin/contracts/ownership/Ownable.sol";
@@ -13,8 +14,9 @@ contract OptionsFactory is Ownable {
     mapping (string => IERC20) public tokens;
     address[] public optionsContracts;
 
-    // The contract which interfaces with the exchange + oracle
+    // The contract which interfaces with the exchange
     OptionsExchange public optionsExchange;
+    address public oracleAddress;
 
     event OptionsContractCreated(address addr);
     event AssetAdded(string indexed asset, address indexed addr);
@@ -22,10 +24,12 @@ contract OptionsFactory is Ownable {
     event AssetDeleted(string indexed asset);
 
     /**
-     * @param _optionsExchangeAddr: The contract which interfaces with the exchange + oracle
+     * @param _optionsExchangeAddr: The contract which interfaces with the exchange
+     * @param _oracleAddress Address of the oracle
      */
-    constructor(OptionsExchange _optionsExchangeAddr) public {
+    constructor(OptionsExchange _optionsExchangeAddr, address _oracleAddress) public {
         optionsExchange = OptionsExchange(_optionsExchangeAddr);
+        oracleAddress = _oracleAddress;
     }
 
     /**
@@ -33,9 +37,10 @@ contract OptionsFactory is Ownable {
      * @param _collateralType The collateral asset. Eg. "ETH"
      * @param _collateralExp The number of decimals the collateral asset has
      * @param _underlyingType The underlying asset. Eg. "DAI"
+     * @param _underlyingExp The precision of the underlying asset. Eg. (-18 if Dai)
      * @param _oTokenExchangeExp Units of underlying that 1 oToken protects
      * @param _strikePrice The amount of strike asset that will be paid out
-     * @param _strikeExp The precision of the strike asset (-18 if ETH)
+     * @param _strikeExp The precision of the strike Price
      * @param _strikeAsset The asset in which the insurance is calculated
      * @param _expiry The time at which the insurance expires
      * @param _windowSize UNIX time. Exercise window is from `expiry - _windowSize` to `expiry`.
@@ -44,6 +49,7 @@ contract OptionsFactory is Ownable {
         string memory _collateralType,
         int32 _collateralExp,
         string memory _underlyingType,
+        int32 _underlyingExp,
         int32 _oTokenExchangeExp,
         uint256 _strikePrice,
         int32 _strikeExp,
@@ -58,16 +64,18 @@ contract OptionsFactory is Ownable {
         require(supportsAsset(_underlyingType), "Underlying type not supported");
         require(supportsAsset(_strikeAsset), "Strike asset type not supported");
 
-        OptionsContract optionsContract = new OptionsContract(
+        OptionsContract optionsContract = new oToken(
             tokens[_collateralType],
             _collateralExp,
             tokens[_underlyingType],
+            _underlyingExp,
             _oTokenExchangeExp,
             _strikePrice,
             _strikeExp,
             tokens[_strikeAsset],
             _expiry,
             optionsExchange,
+            oracleAddress,
             _windowSize
         );
 

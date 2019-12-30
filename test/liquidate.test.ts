@@ -20,25 +20,25 @@ const {
   expectRevert
 } = require('@openzeppelin/test-helpers');
 
-function checkRepo(
-  repo: any,
+function checkVault(
+  vault: any,
   {
     '0': expectedCollateral,
     '1': expectedPutsOutstanding,
     '2': expectedOwner
   }: { '0': string; '1': string; '2': string }
 ) {
-  expect(repo['0'].toString()).to.equal(expectedCollateral);
-  expect(repo['1'].toString()).to.equal(expectedPutsOutstanding);
-  expect(repo['2']).to.equal(expectedOwner);
+  expect(vault['0'].toString()).to.equal(expectedCollateral);
+  expect(vault['1'].toString()).to.equal(expectedPutsOutstanding);
+  expect(vault['2']).to.equal(expectedOwner);
 }
 
 contract('OptionsContract', accounts => {
   const reverter = new Reverter(web3);
 
   const creatorAddress = accounts[0];
-  const firstRepoOwnerAddress = accounts[1];
-  const secondRepoOwnerAddress = accounts[2];
+  const firstVaultOwnerAddress = accounts[1];
+  const secondVaultOwnerAddress = accounts[2];
 
   const firstExerciser = accounts[3];
   const secondExerciser = accounts[4];
@@ -51,11 +51,11 @@ contract('OptionsContract', accounts => {
   let dai: ERC20MintableInstance;
   let usdc: ERC20MintableInstance;
 
-  const repo1Collateral = '20000000';
-  const repo1PutsOutstanding = '250000';
+  const vault1Collateral = '20000000';
+  const vault1PutsOutstanding = '250000';
 
-  const repo2Collateral = '10000000';
-  const repo2PutsOutstanding = '100000';
+  const vault2Collateral = '10000000';
+  const vault2PutsOutstanding = '100000';
 
   const windowSize = 1577836800;
 
@@ -88,6 +88,7 @@ contract('OptionsContract', accounts => {
       'ETH',
       -'18',
       'DAI',
+      -'18',
       -'14',
       '9',
       -'15',
@@ -100,35 +101,35 @@ contract('OptionsContract', accounts => {
     const optionsContractAddr = optionsContractResult.logs[1].args[0];
     optionsContracts.push(await OptionsContract.at(optionsContractAddr));
 
-    // Open Repo1, add Collateral and Mint oTokens
-    await optionsContracts[0].openRepo({
-      from: firstRepoOwnerAddress,
+    // Open vault1, add Collateral and Mint oTokens
+    await optionsContracts[0].openVault({
+      from: firstVaultOwnerAddress,
       gas: '100000'
     });
 
     await optionsContracts[0].addETHCollateral(0, {
-      from: firstRepoOwnerAddress,
+      from: firstVaultOwnerAddress,
       gas: '100000',
-      value: repo1Collateral
+      value: vault1Collateral
     });
 
     await optionsContracts[0].issueOTokens(
       '0',
-      repo1PutsOutstanding,
-      firstRepoOwnerAddress,
+      vault1PutsOutstanding,
+      firstVaultOwnerAddress,
       {
-        from: firstRepoOwnerAddress,
+        from: firstVaultOwnerAddress,
         gas: '100000'
       }
     );
 
     await optionsContracts[0].transfer(firstExerciser, '10', {
-      from: firstRepoOwnerAddress,
+      from: firstVaultOwnerAddress,
       gas: '100000'
     });
 
     await optionsContracts[0].transfer(tokenHolder, '101030', {
-      from: firstRepoOwnerAddress,
+      from: firstVaultOwnerAddress,
       gas: '100000'
     });
 
@@ -136,7 +137,7 @@ contract('OptionsContract', accounts => {
   });
 
   describe('#liquidate()', () => {
-    it('repo should be unsafe when the price drops', async () => {
+    it('vault should be unsafe when the price drops', async () => {
       let result = await optionsContracts[0].isUnsafe(0);
       expect(result).to.be.false;
 
@@ -150,7 +151,7 @@ contract('OptionsContract', accounts => {
     });
 
     it('should not be able to liquidate more than collateral factor when the price drops', async () => {
-      // Try to liquidate the repo
+      // Try to liquidate the vault
       await expectRevert(
         optionsContracts[0].liquidate('0', '1010100', {
           from: tokenHolder,
@@ -183,14 +184,14 @@ contract('OptionsContract', accounts => {
         .add(expectedCollateralToPay);
       expect(finalETH.toString()).to.equal(expectedEndETHBalance.toString());
 
-      // check that the repo balances have changed
-      const repo = await optionsContracts[0].getRepoByIndex(0);
-      const expectedRepo = {
+      // check that the vault balances have changed
+      const vault = await optionsContracts[0].getVaultByIndex(0);
+      const expectedVault = {
         '0': '10818191',
         '1': '148990',
-        '2': firstRepoOwnerAddress
+        '2': firstVaultOwnerAddress
       };
-      checkRepo(repo, expectedRepo);
+      checkVault(vault, expectedVault);
 
       // check that the liquidator balances have changed
       const amtPTokens2 = await optionsContracts[0].balanceOf(tokenHolder);
@@ -198,7 +199,7 @@ contract('OptionsContract', accounts => {
     });
 
     it('should be able to liquidate if still undercollateralized', async () => {
-      // check that repo is still unsafe
+      // check that vault is still unsafe
       const result = await optionsContracts[0].isUnsafe(0);
       expect(result).to.be.true;
 
@@ -224,14 +225,14 @@ contract('OptionsContract', accounts => {
         .add(expectedCollateralToPay);
       expect(finalETH.toString()).to.equal(expectedEndETHBalance.toString());
 
-      // check that the repo balances have changed
-      const repo = await optionsContracts[0].getRepoByIndex(0);
-      const expectedRepo = {
+      // check that the vault balances have changed
+      const vault = await optionsContracts[0].getVaultByIndex(0);
+      const expectedVault = {
         '0': '10817282',
         '1': '148980',
-        '2': firstRepoOwnerAddress
+        '2': firstVaultOwnerAddress
       };
-      checkRepo(repo, expectedRepo);
+      checkVault(vault, expectedVault);
 
       // check that the liquidator balances have changed
       const amtPTokens2 = await optionsContracts[0].balanceOf(tokenHolder);
@@ -247,13 +248,13 @@ contract('OptionsContract', accounts => {
       const result = await optionsContracts[0].isUnsafe(0);
       expect(result).to.be.false;
 
-      // Try to liquidate the repo
+      // Try to liquidate the vault
       await expectRevert(
         optionsContracts[0].liquidate('0', '10', {
           from: tokenHolder,
           gas: '100000'
         }),
-        'Repo is safe'
+        'Vault is safe'
       );
     });
   });
