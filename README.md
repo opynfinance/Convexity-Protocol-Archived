@@ -1,6 +1,6 @@
 # Convexity Protocol
 
-This repo contains all the smart contracts for the Opyn.co Convexity Protocol. Convexity allows options sellers to earn premiums on their collateral and options buyers to protect themselves against technical, financial and systemic risks that the underlying token faces.
+This vault contains all the smart contracts for the Opyn.co Convexity Protocol. Convexity allows options sellers to earn premiums on their collateral and options buyers to protect themselves against technical, financial and systemic risks that the underlying token faces.
 
 Convexity is a protocol that uses protective put options as insurance. At a high level, the insurance buyer pays the insurance provider some premium ahead of time to get access to oTokens. An example of an oToken is the ocDai token which might protect the holder of the token from Jan 1 2020 to Jan 1 2021 against any disasters that Compound's cDai faces. In the case of a disaster, the holder of the oToken can turn in their oToken and their cDai and in exchange take the collateral locked in the Convexity Protocol by insurance providers. If there is no disaster, it is strictly worse for the holder of cDai to give up their cDai in exchange for collateral locked on the Convexity protocol, thus the insurance providers earn a premium on their collateral
 
@@ -10,8 +10,8 @@ Before diving into the codebase, please read:
 # Functionality
 The main functionality offered by the convexity protocol is as below:
 1. Create oTokens
-2. Keep the oToken repos sufficiently collateralized
-3. Liquidate the undercollateralized repos
+2. Keep the oToken vaults sufficiently collateralized
+3. Liquidate the undercollateralized vaults
 4. Exercise the oTokens during the expiry window
 
 ## Contracts
@@ -22,33 +22,33 @@ The Options Factory contract instantiates and keeps track of all the Options Con
 The Options Contract has all the functionality mentioned above built into it. Each Options contract takes in the parameters of `underlying`, `strikePrice`, `expiry`, `collateral` and `windowSize`. Anyone can create an Options Contract.
 
 #### Create oTokens
-##### Open Repo
-oTokens are created by first calling `openRepo ()` which instantiates a new repo and sets the owner of that repo to be the `msg.sender`.
+##### Open vault
+oTokens are created by first calling `openVault ()` which instantiates a new vault and sets the owner of that vault to be the `msg.sender`.
 
-![image info](./images/openRepo.png)
+![image info](./images/openrepo.png)
 ##### Add Collateral
-Once a repo is opened, anyone can add collateral to the repo by calling `addETHCollateral (repoIndex)`  or  `addERC20Collateral (repoIndex)` depending on what the collateral of that contract is.
+Once a vault is opened, anyone can add collateral to the vault by calling `addETHCollateral (vaultIndex)`  or  `addERC20Collateral (vaultIndex)` depending on what the collateral of that contract is.
 
 ![image info](./images/addCollateral.png)
 ##### Issue Option Tokens
-The owner can then mint oTokens by calling `issueOTokens (repoIndex, numTokens)`.
+The owner can then mint oTokens by calling `issueOTokens (vaultIndex, numTokens)`.
 ![image info](./images/issueOptions.png)
 
-#### Keep the oToken repos sufficiently collateralized
-Repo owners can ensure their repos are sufficiently collateralized in 2 ways.
+#### Keep the oToken vaults sufficiently collateralized
+vault owners can ensure their vaults are sufficiently collateralized in 2 ways.
 
 ##### Add Collateral
-The first way is adding more collateral by calling `addETHCollateral (repoIndex)`  or  `addERC20Collateral (repoIndex)`. See the section on [addCollateral](#addCollateral) above.
+The first way is adding more collateral by calling `addETHCollateral (vaultIndex)`  or  `addERC20Collateral (vaultIndex)`. See the section on [addCollateral](#addCollateral) above.
 
 ##### Burn Tokens
-Repo owners can also burn oTokens to increase the collateralization ratio by buying back oTokens from the market and then calling `burnOTokens (repoIndex, amtToBurn)`.
+vault owners can also burn oTokens to increase the collateralization ratio by buying back oTokens from the market and then calling `burnOTokens (vaultIndex, amtToBurn)`.
 ![image info](./images/burnPutTokens.png)
 
-#### Liquidate the undercollateralized repos
+#### Liquidate the undercollateralized vaults
 
-Liquidation happens by calling `liquidate(repoIndex, _oTokens)`. All repos need `collateralizationRatio * strikePrice * puts <= collateral * collateralToStrikePrice` to be safe.
+Liquidation happens by calling `liquidate(vaultIndex, _oTokens)`. All vaults need `collateralizationRatio * strikePrice * puts <= collateral * collateralToStrikePrice` to be safe.
 
-If that condition fails, a liquidator can come with `_oTokens`. The liquidator gets `_oTokens * strikePrice * (incentive + fee)` amount of collateral out. They can liquidate a max of `liquidationFactor * repo.collateral` in one function call i.e. partial liquidations.
+If that condition fails, a liquidator can come with `_oTokens`. The liquidator gets `_oTokens * strikePrice * (incentive + fee)` amount of collateral out. They can liquidate a max of `liquidationFactor * vault.collateral` in one function call i.e. partial liquidations.
 ![image info](./images/liquidate.png)
 
 #### Exercise the oTokens during the expiry window
@@ -57,7 +57,7 @@ Any oToken holder can call `exercise (oTokens)` during the exercise window and i
 ![image info](./images/exercise.png)
 
 ##### Claim Collateral
-After the contract expires, the insurance providers can collect their collateral back. The amount they receive is calculated as `repo.collateral / totalCollateral * (totalCollateral - totalExercised)`. The oTokens expire so don't have to be burned as they no longer have any value. Repos can't be unsafe after expiry because they no longer have a promised insurance amount.
+After the contract expires, the insurance providers can collect their collateral back. The amount they receive is calculated as `vault.collateral / totalCollateral * (totalCollateral - totalExercised)`. The oTokens expire so don't have to be burned as they no longer have any value. vaults can't be unsafe after expiry because they no longer have a promised insurance amount.
 ![image info](./images/claim.png)
 # Installing dependencies
 
