@@ -344,8 +344,8 @@ contract OptionsContract is Ownable, ERC20 {
         require(isSafe(getCollateral(vaultIndex), newOTokensBalance), "unsafe to mint");
 
         // issue the oTokens
-        _mint(receiver, oTokensToIssue);
         vault.weightedOTokens = newWeightedOTokensBalance;
+        _mint(receiver, oTokensToIssue);
 
         emit IssuedOTokens(msg.sender, oTokensToIssue, vaultIndex);
         return;
