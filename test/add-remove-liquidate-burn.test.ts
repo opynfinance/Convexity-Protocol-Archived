@@ -77,8 +77,8 @@ contract('OptionsContract', accounts => {
       '9',
       -'15',
       'USDC',
-      '1577836800',
-      '1577836800',
+      '1589932800',
+      '1589932800',
       { from: creatorAddress, gas: '4000000' }
     );
 

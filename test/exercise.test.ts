@@ -58,8 +58,8 @@ contract('OptionsContract', accounts => {
       '9',
       -'15',
       'USDC',
-      '1577836800',
-      '1577836800',
+      '1589932800',
+      '1589932800',
       { from: creatorAddress, gas: '4000000' }
     );
 
@@ -194,7 +194,7 @@ contract('OptionsContract', accounts => {
     it('first person should be able to collect their share of collateral', async () => {
       const vaultIndex = '0';
 
-      await time.increaseTo(1577836802);
+      await time.increaseTo(1589932800);
 
       const initialETH = await balance.current(creatorAddress);
 

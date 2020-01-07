@@ -76,8 +76,8 @@ contract('OptionsContract', accounts => {
       '90',
       -'18',
       'ETH',
-      '1577836800',
-      '1577836800',
+      '1589932800',
+      '1589932800',
       { from: creatorAddress, gas: '4000000' }
     );
 
@@ -112,8 +112,8 @@ contract('OptionsContract', accounts => {
       '90',
       -'18',
       'USDC',
-      '1577836800',
-      '1577836800',
+      '1589932800',
+      '1589932800',
       { from: creatorAddress, gas: '4000000' }
     );
 

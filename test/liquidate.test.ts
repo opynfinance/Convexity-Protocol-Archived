@@ -57,7 +57,7 @@ contract('OptionsContract', accounts => {
   const vault2Collateral = '10000000';
   const vault2PutsOutstanding = '100000';
 
-  const windowSize = 1577836800;
+  const windowSize = 1589932800;
 
   before('set up contracts', async () => {
     // 1. Deploy mock contracts
@@ -93,7 +93,7 @@ contract('OptionsContract', accounts => {
       '9',
       -'15',
       'USDC',
-      '1577836800',
+      '1589932800',
       windowSize,
       { from: creatorAddress, gas: '4000000' }
     );
