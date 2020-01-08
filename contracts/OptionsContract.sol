@@ -164,6 +164,15 @@ contract OptionsContract is Ownable, ERC20 {
     event TransferVaultOwnership (uint256 VaultIndex, address oldOwner, address payable newOwner);
     event RemoveCollateral (uint256 vaultIndex, uint256 amtRemoved, address vaultOwner);
 
+
+    /**
+     * @dev Throws if called Options contract is expired.
+     */
+    modifier notExpired() {
+        require(!hasExpired(), "Options contract expired");
+        _;
+    }
+
     /**
      * @notice Can only be called by owner. Used to update the fees, minminCollateralizationRatio, etc
      * @param _liquidationIncentive The incentive paid to liquidator. 10 is 0.01 i.e. 1% incentive.
@@ -206,8 +215,7 @@ contract OptionsContract is Ownable, ERC20 {
     /**
      * @notice Creates a new empty Vault and sets the owner of the Vault to be the msg.sender.
      */
-    function openVault() public returns (uint) {
-        require(!hasExpired(), "Options contract expired");
+    function openVault() public notExpired returns (uint) {
         vaults.push(Vault(0, 0, msg.sender));
         uint256 vaultIndex = vaults.length - 1;
         emit VaultOpened(vaultIndex, msg.sender);
@@ -329,9 +337,8 @@ contract OptionsContract is Ownable, ERC20 {
      * @param oTokensToIssue The number of o tokens to issue
      * @param receiver The address to send the oTokens to
      */
-    function issueOTokens (uint256 vaultIndex, uint256 oTokensToIssue, address receiver) public {
+    function issueOTokens (uint256 vaultIndex, uint256 oTokensToIssue, address receiver) public notExpired {
         //check that we're properly collateralized to mint this number, then call _mint(address account, uint256 amount)
-        require(!hasExpired(), "Options contract expired");
 
         Vault storage vault = vaults[vaultIndex];
         require(msg.sender == vault.owner, "Only owner can issue options");
@@ -407,7 +414,7 @@ contract OptionsContract is Ownable, ERC20 {
      * @param amtToBurn number of oTokens to burn
      * @dev only want to call this function before expiry. After expiry, no benefit to calling it.
      */
-    function burnOTokens(uint256 vaultIndex, uint256 amtToBurn) public {
+    function burnOTokens(uint256 vaultIndex, uint256 amtToBurn) public notExpired {
         Vault storage vault = vaults[vaultIndex];
         require(vault.owner == msg.sender, "Not the owner of this vault");
 
@@ -435,10 +442,7 @@ contract OptionsContract is Ownable, ERC20 {
      * @param vaultIndex Index of the vault to remove collateral
      * @param amtToRemove Amount of collateral to remove in 10^-18.
      */
-    function removeCollateral(uint256 vaultIndex, uint256 amtToRemove) public {
-
-        require(!hasExpired(), "Can only call remove collateral before expiry");
-
+    function removeCollateral(uint256 vaultIndex, uint256 amtToRemove) public notExpired {
         Vault storage vault = vaults[vaultIndex];
         require(msg.sender == vault.owner, "Only owner can remove collateral");
         require(amtToRemove <= getCollateral(vaultIndex), "Can't remove more collateral than owned");
@@ -497,10 +501,7 @@ contract OptionsContract is Ownable, ERC20 {
      * @param vaultIndex The index of the vault to be liquidated
      * @param oTokensToLiquidate The number of oTokens being taken out of circulation
      */
-    function liquidate(uint256 vaultIndex, uint256 oTokensToLiquidate) public {
-        // can only be called before the options contract expired
-        require(!hasExpired(), "Options contract expired");
-
+    function liquidate(uint256 vaultIndex, uint256 oTokensToLiquidate) public notExpired {
         Vault storage vault = vaults[vaultIndex];
 
         // cannot liquidate a safe vault.
@@ -573,9 +574,7 @@ contract OptionsContract is Ownable, ERC20 {
      * @param vaultIndex the index of the vault
      * @param amt the amount of collateral to add
      */
-    function _addCollateral(uint256 vaultIndex, uint256 amt) private returns (uint256) {
-        require(!hasExpired(), "Options contract expired");
-
+    function _addCollateral(uint256 vaultIndex, uint256 amt) private notExpired returns (uint256) {
         Vault storage vault = vaults[vaultIndex];
 
         uint256 weightedCollateralToAdd = amt.mul(10**18).div(collateralWeight);
