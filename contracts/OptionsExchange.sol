@@ -10,6 +10,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 contract OptionsExchange {
 
     uint256 constant LARGE_BLOCK_SIZE = 1651753129000;
+    uint256 constant LARGE_APPROVAL_NUMBER = 10 ** 30;
 
     UniswapFactoryInterface public UNISWAP_FACTORY = UniswapFactoryInterface(
         0xc0a47dFe034B400B47bDaD5FecDa2621de6c4d95
@@ -141,7 +142,7 @@ contract OptionsExchange {
             paymentToken.transferFrom(msg.sender, address(this), premiumToPay);
 
             // Token to Token
-            paymentToken.approve(address(exchange), 10 ** 30);
+            paymentToken.approve(address(exchange), LARGE_APPROVAL_NUMBER);
             return exchange.tokenToTokenTransferInput(
                     premiumToPay,
                     1,
