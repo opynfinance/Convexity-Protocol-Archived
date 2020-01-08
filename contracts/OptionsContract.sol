@@ -206,7 +206,7 @@ contract OptionsContract is Ownable, ERC20 {
     /**
      * @notice Creates a new empty Vault and sets the owner of the Vault to be the msg.sender.
      */
-    function openVault() public returns (uint) {
+    function openVault() public returns (uint256) {
         require(!hasExpired(), "Options contract expired");
         vaults.push(Vault(0, 0, msg.sender));
         uint256 vaultIndex = vaults.length - 1;
@@ -355,10 +355,10 @@ contract OptionsContract is Ownable, ERC20 {
      * @notice Returns an array of indecies of the vaults owned by `_owner`
      * @param _owner the address of the owner
      */
-    function getVaultsByOwner(address _owner) public view returns (uint[] memory) {
-        uint[] memory vaultsOwned;
+    function getVaultsByOwner(address _owner) public view returns (uint256[] memory) {
+        uint256[] memory vaultsOwned;
         uint256 count = 0;
-        uint index = 0;
+        uint256 index = 0;
 
         // get length necessary for returned array
         for (uint256 i = 0; i < vaults.length; i++) {
@@ -367,7 +367,7 @@ contract OptionsContract is Ownable, ERC20 {
             }
         }
 
-        vaultsOwned = new uint[](count);
+        vaultsOwned = new uint256[](count);
 
         // get each index of each vault owned by given address
         for (uint256 i = 0; i < vaults.length; i++) {
