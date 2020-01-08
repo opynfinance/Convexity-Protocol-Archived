@@ -17,6 +17,8 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 contract OptionsContract is Ownable, ERC20 {
     using SafeMath for uint256;
 
+    /* represents floting point numbers, where number = value * 10 ** exponent
+    i.e 0.1 = 10 * 10 ** -3 */
     struct Number {
         uint256 value;
         int32 exponent;
@@ -230,6 +232,7 @@ contract OptionsContract is Ownable, ERC20 {
      * @notice If the collateral type is any ERC20, anyone can call this function any time before
      * expiry to increase the amount of collateral in a Vault. Can only transfer in the collateral asset.
      * Will fail if ETH is the collateral asset.
+     * The user has to allow the contract to handle their ERC20 tokens on his behalf before these functions are called.
      * @param vaultIndex the index of the Vault to which collateral will be added.
      * @param amt the amount of collateral to be transferred in.
      */
@@ -271,6 +274,7 @@ contract OptionsContract is Ownable, ERC20 {
      * `strikePrice * oTokens` amount of collateral out. The collateral paid out is taken from
      * all vault holders. At the end of the expiry window, vault holders can redeem their proportional
      * share of collateral based on how much collateral is left after all exercise calls have been made.
+     * The user has to allow the contract to handle their oTokens and underlying on his behalf before these functions are called.
      * @param oTokensToExercise the number of oTokens being exercised.
      * @dev oTokenExchangeRate is the number of underlying tokens that 1 oToken protects.
      */
@@ -294,7 +298,7 @@ contract OptionsContract is Ownable, ERC20 {
 
         totalUnderlying = totalUnderlying.add(amtUnderlyingToPay);
 
-        // 2.3 payout enough collateral to get (strikePrice * pTokens) amount of collateral
+        // 2.3 payout enough collateral to get (strikePrice * oTokens) amount of collateral
         uint256 amtCollateralToPay = calculateCollateralToPay(oTokensToExercise, Number(1, 0));
 
         // 2.4 take a small fee on every exercise
@@ -312,7 +316,7 @@ contract OptionsContract is Ownable, ERC20 {
         uint256 newOTokenSupply = currOTokenSupply.sub(oTokensToExercise);
         oTokenWeight = oTokenWeight.mul(newOTokenSupply).div(currOTokenSupply);
 
-        // 2.6 transfer in oTokens
+        // 2.6 burn oTokens
         _burn(msg.sender, oTokensToExercise);
 
         // 2.7 Pay out collateral
@@ -352,7 +356,7 @@ contract OptionsContract is Ownable, ERC20 {
     }
 
     /**
-     * @notice Returns an array of indecies of the vaults owned by `_owner`
+     * @notice Returns an array of indices of the vaults owned by `_owner`
      * @param _owner the address of the owner
      */
     function getVaultsByOwner(address _owner) public view returns (uint[] memory) {
@@ -619,7 +623,7 @@ contract OptionsContract is Ownable, ERC20 {
     /**
      * @notice This function calculates the amount of collateral to be paid out.
      * @dev The amount of collateral to paid out is determined by:
-     * `proportion` * s`trikePrice` * `oTokens` amount of collateral.
+     * `proportion` * `strikePrice` * `oTokens` amount of collateral.
      * @param _oTokens The number of oTokens.
      * @param proportion The proportion of the collateral to pay out. If 100% of collateral
      * should be paid out, pass in Number(1, 0). The proportion might be less than 100% if
