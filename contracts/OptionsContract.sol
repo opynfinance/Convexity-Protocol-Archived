@@ -157,11 +157,11 @@ contract OptionsContract is Ownable, ERC20 {
     event ETHCollateralAdded(uint256 vaultIndex, uint256 amount, address payer);
     event ERC20CollateralAdded(uint256 vaultIndex, uint256 amount, address payer);
     event IssuedOTokens(address issuedTo, uint256 oTokensIssued, uint256 vaultIndex);
-    event Liquidate (uint256 amtCollateralToPay, uint256 vaultIndex, address liquidator);
+    event Liquidate (uint256 amtCollateralToPay, uint256 vaultIndex, address payable liquidator);
     event Exercise (uint256 amtUnderlyingToPay, uint256 amtCollateralToPay, address exerciser);
     event ClaimedCollateral(uint256 amtCollateralClaimed, uint256 amtUnderlyingClaimed, uint256 vaultIndex, address vaultOwner);
     event BurnOTokens (uint256 vaultIndex, uint256 oTokensBurned);
-    event TransferVaultOwnership (uint256 VaultIndex, address oldOwner, address payable newOwner);
+    event TransferVaultOwnership (uint256 VaultIndex, address payable oldOwner, address payable newOwner);
     event RemoveCollateral (uint256 vaultIndex, uint256 amtRemoved, address vaultOwner);
 
     /**
