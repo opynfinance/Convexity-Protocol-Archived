@@ -165,6 +165,22 @@ contract OptionsContract is Ownable, ERC20 {
     event RemoveCollateral (uint256 vaultIndex, uint256 amtRemoved, address vaultOwner);
 
     /**
+     * @dev Throws if called by any account other than vault the owner.
+     */
+    modifier onlyVaultOwner(uint256 vaultIndex) {
+        require(isVaultOwner(vaultIndex), "Ownable: caller is not the vault owner");
+        _;
+    }
+
+    /**
+     * @dev Returns true if the caller is the current vault owner.
+     */
+    function isVaultOwner(uint256 vaultIndex) public view returns (bool) {
+        Vault storage vault = vaults[vaultIndex];
+        return msg.sender == vault.owner;
+    }
+
+    /**
      * @notice Can only be called by owner. Used to update the fees, minminCollateralizationRatio, etc
      * @param _liquidationIncentive The incentive paid to liquidator. 10 is 0.01 i.e. 1% incentive.
      * @param _liquidationFactor Max amount that a Vault can be liquidated by. 500 is 0.5.
@@ -329,12 +345,11 @@ contract OptionsContract is Ownable, ERC20 {
      * @param oTokensToIssue The number of o tokens to issue
      * @param receiver The address to send the oTokens to
      */
-    function issueOTokens (uint256 vaultIndex, uint256 oTokensToIssue, address receiver) public {
+    function issueOTokens (uint256 vaultIndex, uint256 oTokensToIssue, address receiver) public onlyVaultOwner(vaultIndex) {
         //check that we're properly collateralized to mint this number, then call _mint(address account, uint256 amount)
         require(!hasExpired(), "Options contract expired");
 
         Vault storage vault = vaults[vaultIndex];
-        require(msg.sender == vault.owner, "Only owner can issue options");
 
         // checks that the vault is sufficiently collateralized
         uint256 weightedOTokensToIssue = oTokensToIssue.mul(10**18).div(oTokenWeight);
@@ -407,9 +422,8 @@ contract OptionsContract is Ownable, ERC20 {
      * @param amtToBurn number of oTokens to burn
      * @dev only want to call this function before expiry. After expiry, no benefit to calling it.
      */
-    function burnOTokens(uint256 vaultIndex, uint256 amtToBurn) public {
+    function burnOTokens(uint256 vaultIndex, uint256 amtToBurn) public onlyVaultOwner(vaultIndex) {
         Vault storage vault = vaults[vaultIndex];
-        require(vault.owner == msg.sender, "Not the owner of this vault");
 
         uint256 weightedTokensToBurn = amtToBurn.mul(10**18).div(oTokenWeight);
         vault.weightedOTokens = vault.weightedOTokens.sub(weightedTokensToBurn);
@@ -435,12 +449,11 @@ contract OptionsContract is Ownable, ERC20 {
      * @param vaultIndex Index of the vault to remove collateral
      * @param amtToRemove Amount of collateral to remove in 10^-18.
      */
-    function removeCollateral(uint256 vaultIndex, uint256 amtToRemove) public {
+    function removeCollateral(uint256 vaultIndex, uint256 amtToRemove) public onlyVaultOwner(vaultIndex) {
 
         require(!hasExpired(), "Can only call remove collateral before expiry");
 
         Vault storage vault = vaults[vaultIndex];
-        require(msg.sender == vault.owner, "Only owner can remove collateral");
         require(amtToRemove <= getCollateral(vaultIndex), "Can't remove more collateral than owned");
 
         // check that vault will remain safe after removing collateral
@@ -464,13 +477,12 @@ contract OptionsContract is Ownable, ERC20 {
      * vault.weightedCollateral * collateralWeight
      * @param vaultIndex index of the vault the owner wants to claim collateral from.
      */
-    function claimCollateral (uint256 vaultIndex) public {
+    function claimCollateral (uint256 vaultIndex) public onlyVaultOwner(vaultIndex) {
         require(hasExpired(), "Can't collect collateral until expiry");
 
         // pay out people proportional collateral
         Vault storage vault = vaults[vaultIndex];
 
-        require(msg.sender == vault.owner, "only owner can claim collatera");
         if (totalCollateral == 0) {
             totalCollateral = address(this).balance.sub(totalFee);
         }

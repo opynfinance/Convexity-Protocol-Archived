@@ -506,6 +506,16 @@ contract('OptionsContract', accounts => {
       expect(vault['0'].toString()).to.equal('0');
     });
 
+    it("firstVaultOwnerAddress shouldn't be able to claim second vault", async () => {
+      await expectRevert(
+        optionsContracts[0].claimCollateral(1, {
+          from: firstVaultOwnerAddress,
+          gas: '1000000'
+        }),
+        'Ownable: caller is not the vault owner'
+      );
+    });
+
     it('firstVaultOwnerAddress should be able to claim after expiry', async () => {
       const collateralClaimed = new BN(10811360);
       const underlyingClaimed = new BN(103901);
