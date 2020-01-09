@@ -60,6 +60,8 @@ contract OptionsFactory is Ownable {
         public
         returns (address)
     {
+        require(_expiry > block.timestamp, "Cannot create an expired option");
+        require(_windowSize <= _expiry, "Invalid _windowSize");
         require(supportsAsset(_collateralType), "Collateral type not supported");
         require(supportsAsset(_underlyingType), "Underlying type not supported");
         require(supportsAsset(_strikeAsset), "Strike asset type not supported");

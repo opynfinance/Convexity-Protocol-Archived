@@ -428,7 +428,10 @@ contract OptionsContract is Ownable, ERC20 {
      * @param newOwner address of the new owner
      */
     function transferVaultOwnership(uint256 vaultIndex, address payable newOwner) public {
+        require(newOwner != address(0), "Invalid new owner address");
+        require(vaults[vaultIndex].owner != newOwner, "Cannot transferVaultOwnership to current owner");
         require(vaults[vaultIndex].owner == msg.sender, "Cannot transferVaultOwnership as non owner");
+
         vaults[vaultIndex].owner = newOwner;
         emit TransferVaultOwnership(vaultIndex, msg.sender, newOwner);
     }
@@ -440,7 +443,7 @@ contract OptionsContract is Ownable, ERC20 {
      * @param amtToRemove Amount of collateral to remove in 10^-18.
      */
     function removeCollateral(uint256 vaultIndex, uint256 amtToRemove) public {
-
+        require(amtToRemove > 0, "Cannot remove 0 collateral");
         require(!hasExpired(), "Can only call remove collateral before expiry");
 
         Vault storage vault = vaults[vaultIndex];

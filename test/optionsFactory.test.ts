@@ -11,12 +11,18 @@ const MockUniswapFactory = artifacts.require('MockUniswapFactory');
 const OptionsContract = artifacts.require('OptionsContract');
 const truffleAssert = require('truffle-assertions');
 
+import { getUnixTime, addMonths } from 'date-fns';
+
 contract('OptionsFactory', accounts => {
   const creatorAddress = accounts[0];
   const firstOwnerAddress = accounts[1];
 
   let optionsFactory: OptionsFactoryInstance;
   let compoundOracle: MockCompoundOracleInstance;
+
+  const now = Date.now();
+  const expiry = getUnixTime(addMonths(now, 3));
+  const windowSize = expiry;
 
   before(async () => {
     optionsFactory = await OptionsFactory.deployed();
@@ -188,8 +194,8 @@ contract('OptionsFactory', accounts => {
         '90',
         -'18',
         'ETH',
-        '1577836800',
-        '1577836800',
+        expiry,
+        windowSize,
         { from: creatorAddress, gas: '4000000' }
       );
 
@@ -217,8 +223,8 @@ contract('OptionsFactory', accounts => {
         '90',
         -'18',
         'ETH',
-        '1577836800',
-        '1577836800',
+        expiry,
+        windowSize,
         { from: firstOwnerAddress, gas: '4000000' }
       );
 
