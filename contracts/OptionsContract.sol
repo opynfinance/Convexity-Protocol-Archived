@@ -44,7 +44,7 @@ contract OptionsContract is Ownable, ERC20 {
     max collateral that can be taken in one function call */
     Number public liquidationFactor = Number(500, -3);
 
-    /* 1054 is 1.054 i.e. 5.4% liqFee.
+    /* 100 is egs. 0.1 i.e. 10%.
     The fees paid to our protocol every time a liquidation happens */
     Number public liquidationFee = Number(0, -3);
 
@@ -136,6 +136,10 @@ contract OptionsContract is Ownable, ERC20 {
     )
         public
     {
+        require(block.timestamp < _expiry, "Can't deploy an expired contract");
+        require(_windowSize <= _expiry, "Exercise window can't be longer than the contract's lifespan");
+
+
         collateral = _collateral;
         collateralExp = _collExp;
 
@@ -179,6 +183,12 @@ contract OptionsContract is Ownable, ERC20 {
         uint256 _transactionFee,
         uint256 _minCollateralizationRatio)
         public onlyOwner {
+            require(_liquidationIncentive <= 200, "Can't have >20% liquidation incentive");
+            require (_liquidationFactor <= 1000, "Can't liquidate more than 100% of the vault");
+            require(_transactionFee <= 100, "Can't have transaction fee > 10%");
+            require(_liquidationFee <= 100, "Can't have liquidation fee > 10%");
+            require (_minCollateralizationRatio >= 10, "Can't have minCollateralizationRatio < 1");
+            
             liquidationIncentive.value = _liquidationIncentive;
             liquidationFactor.value = _liquidationFactor;
             liquidationFee.value = _liquidationFee;
@@ -425,6 +435,9 @@ contract OptionsContract is Ownable, ERC20 {
      */
     function transferVaultOwnership(uint256 vaultIndex, address payable newOwner) public {
         require(vaults[vaultIndex].owner == msg.sender, "Cannot transferVaultOwnership as non owner");
+        require(newOwner != address(0), "Can't transfer owner to the 0 address");
+        require(newOwner != vaults[vaultIndex].owner, "Can't transfer ownership to yourself");
+
         vaults[vaultIndex].owner = newOwner;
         emit TransferVaultOwnership(vaultIndex, msg.sender, newOwner);
     }
@@ -441,6 +454,7 @@ contract OptionsContract is Ownable, ERC20 {
 
         Vault storage vault = vaults[vaultIndex];
         require(msg.sender == vault.owner, "Only owner can remove collateral");
+        require(amtToRemove > 0, "Can't remove 0 collateral");
         require(amtToRemove <= getCollateral(vaultIndex), "Can't remove more collateral than owned");
 
         // check that vault will remain safe after removing collateral

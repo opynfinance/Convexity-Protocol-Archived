@@ -188,8 +188,8 @@ contract('OptionsFactory', accounts => {
         '90',
         -'18',
         'ETH',
-        '1577836800',
-        '1577836800',
+        '1589932800',
+        '1589932800',
         { from: creatorAddress, gas: '4000000' }
       );
 
@@ -217,8 +217,8 @@ contract('OptionsFactory', accounts => {
         '90',
         -'18',
         'ETH',
-        '1577836800',
-        '1577836800',
+        '1589932800',
+        '1589932800',
         { from: firstOwnerAddress, gas: '4000000' }
       );
 
