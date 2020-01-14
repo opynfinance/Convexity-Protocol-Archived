@@ -225,16 +225,10 @@ contract OptionsContract is Ownable, ERC20 {
      */
     function addETHCollateral(address vaultOwner) public payable returns (uint256) {
         require(isETH(collateral), "ETH is not the specified collateral type");
+        require(hasVault(vaultOwner), "Vault does not exist");
 
-        address owner = vaultOwner;
-        if (vaultOwner == address(0)) {
-            owner = msg.sender;
-        }
-
-        require(hasVault(owner), "Vault does not exist");
-
-        emit ETHCollateralAdded(owner, msg.value, msg.sender);
-        return _addCollateral(owner, msg.value);
+        emit ETHCollateralAdded(vaultOwner, msg.value, msg.sender);
+        return _addCollateral(vaultOwner, msg.value);
     }
 
     /**
@@ -249,16 +243,10 @@ contract OptionsContract is Ownable, ERC20 {
             collateral.transferFrom(msg.sender, address(this), amt),
             "Could not transfer in collateral tokens"
         );
+        require(hasVault(vaultOwner), "Vault does not exist");
 
-        address owner = vaultOwner;
-        if (vaultOwner == address(0)) {
-            owner = msg.sender;
-        }
-
-        require(hasVault(owner), "Vault does not exist");
-
-        emit ERC20CollateralAdded(owner, amt, msg.sender);
-        return _addCollateral(owner, amt);
+        emit ERC20CollateralAdded(vaultOwner, amt, msg.sender);
+        return _addCollateral(vaultOwner, amt);
     }
 
     /**

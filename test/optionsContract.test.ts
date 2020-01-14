@@ -57,6 +57,7 @@ contract('OptionsContract', accounts => {
     // 1.3 Mock USDC contract
     usdc = await MintableToken.new();
     await usdc.mint(creatorAddress, '10000000');
+    await usdc.mint(nonOwnerAddress, '10000000');
 
     // 2. Deploy our contracts
     // deploys the Options Exhange contract
@@ -129,7 +130,6 @@ contract('OptionsContract', accounts => {
         from: creatorAddress,
         gas: '100000'
       });
-      const vaultIndex = '0';
 
       // test getVault
       const vault = await optionsContracts[0].getVault(creatorAddress);
@@ -156,7 +156,6 @@ contract('OptionsContract', accounts => {
         from: firstOwnerAddress,
         gas: '100000'
       });
-      const vaultIndex = '2';
 
       // test getVault
       const vault = await optionsContracts[0].getVault(firstOwnerAddress);
@@ -183,6 +182,21 @@ contract('OptionsContract', accounts => {
   });
 
   describe('#addETHCollateral()', () => {
+    it("shouldn't be able to add ETH collateral to a 0x0 address", async () => {
+      const msgValue = '10000000';
+      await expectRevert(
+        optionsContracts[0].addETHCollateral(
+          '0x0000000000000000000000000000000000000000',
+          {
+            from: creatorAddress,
+            gas: '100000',
+            value: msgValue
+          }
+        ),
+        'Vault does not exist'
+      );
+    });
+
     it('should add ETH collateral successfully', async () => {
       const msgValue = '10000000';
       const result = await optionsContracts[0].addETHCollateral(
@@ -251,7 +265,6 @@ contract('OptionsContract', accounts => {
         from: creatorAddress,
         gas: '100000'
       });
-      const vaultIndex = '0';
 
       // test getVaultsByOwner
       const vault = await optionsContracts[2].getVault(creatorAddress);
@@ -287,6 +300,25 @@ contract('OptionsContract', accounts => {
         '1': '0'
       };
       checkVault(vault, expectedVault);
+    });
+
+    it("shouldn't be able to add ERC20 collateral to a 0x0 address", async () => {
+      await usdc.approve(optionsContracts[2].address, '10000000000000000', {
+        from: nonOwnerAddress,
+        gas: '1000000'
+      });
+      const msgValue = '10000000';
+      await expectRevert(
+        optionsContracts[2].addERC20Collateral(
+          '0x0000000000000000000000000000000000000000',
+          msgValue,
+          {
+            from: nonOwnerAddress,
+            gas: '100000'
+          }
+        ),
+        'Vault does not exist'
+      );
     });
 
     it('should not be able to add ERC20 collateral to non-ERC20 collateralized options contract', async () => {
@@ -386,7 +418,6 @@ contract('OptionsContract', accounts => {
 
   describe('#burnOTokens()', () => {
     it('should be able to burn oTokens', async () => {
-      const vaultIndex = '1';
       const numTokens = '10';
 
       const result = await optionsContracts[0].burnOTokens(numTokens, {
@@ -424,7 +455,6 @@ contract('OptionsContract', accounts => {
 
   describe('#removeCollateral()', () => {
     it('should be able to remove collateral if sufficiently collateralized', async () => {
-      const vaultIndex = '1';
       const numTokens = '1000';
 
       const result = await optionsContracts[0].removeCollateral(numTokens, {
