@@ -91,14 +91,13 @@ contract('OptionsContract', accounts => {
       gas: '100000'
     });
 
-    await optionsContracts[0].addETHCollateral(0, {
+    await optionsContracts[0].addETHCollateral(firstVaultOwnerAddress, {
       from: firstVaultOwnerAddress,
       gas: '100000',
       value: vault1Collateral
     });
 
     await optionsContracts[0].issueOTokens(
-      '0',
       vault1PutsOutstanding,
       firstVaultOwnerAddress,
       {
@@ -118,14 +117,13 @@ contract('OptionsContract', accounts => {
       gas: '100000'
     });
 
-    await optionsContracts[0].addETHCollateral(1, {
+    await optionsContracts[0].addETHCollateral(secondVaultOwnerAddress, {
       from: secondVaultOwnerAddress,
       gas: '100000',
       value: vault2Collateral
     });
 
     await optionsContracts[0].issueOTokens(
-      1,
       vault2PutsOutstanding,
       secondVaultOwnerAddress,
       {
@@ -142,16 +140,18 @@ contract('OptionsContract', accounts => {
 
   describe('Scenario: Add + remove collateral + liquidate + burn tokens', () => {
     it('anyone should be able to add ETH collateral to vault 2', async () => {
-      let vaultState = await optionsContracts[0].getVaultByIndex(1);
+      let vaultState = await optionsContracts[0].getVault(
+        secondVaultOwnerAddress
+      );
       const initialCollateral = new BN(vaultState['0'].toString());
 
-      await optionsContracts[0].addETHCollateral(1, {
+      await optionsContracts[0].addETHCollateral(secondVaultOwnerAddress, {
         from: creatorAddress,
         gas: '100000',
         value: vault2Collateral
       });
 
-      vaultState = await optionsContracts[0].getVaultByIndex(1);
+      vaultState = await optionsContracts[0].getVault(secondVaultOwnerAddress);
       const finalCollateral = new BN(vaultState['0'].toString());
 
       expect(finalCollateral.toString()).to.equal(
@@ -165,12 +165,14 @@ contract('OptionsContract', accounts => {
         gas: '1000000'
       });
 
-      const result = await optionsContracts[0].isUnsafe(0);
+      const result = await optionsContracts[0].isUnsafe(firstVaultOwnerAddress);
       expect(result).to.be.true;
     });
 
     it('vault 2 should be safe after Compund Oracle drops price', async () => {
-      const result = await optionsContracts[0].isUnsafe(1);
+      const result = await optionsContracts[0].isUnsafe(
+        secondVaultOwnerAddress
+      );
       expect(result).to.be.false;
     });
 
@@ -180,16 +182,17 @@ contract('OptionsContract', accounts => {
         gas: '1000000'
       });
 
-      const result = await optionsContracts[0].isUnsafe(0);
+      const result = await optionsContracts[0].isUnsafe(firstVaultOwnerAddress);
       expect(result).to.be.false;
     });
 
     it('secondVaultOwnerAddress should be able to remove collateral', async () => {
-      let vaultState = await optionsContracts[0].getVaultByIndex(1);
+      let vaultState = await optionsContracts[0].getVault(
+        secondVaultOwnerAddress
+      );
       const initialCollateral = new BN(vaultState['0'].toString());
       const initialETH = await balance.current(secondVaultOwnerAddress);
       const txInfo = await optionsContracts[0].removeCollateral(
-        1,
         vault2Collateral,
         {
           from: secondVaultOwnerAddress,
@@ -200,7 +203,7 @@ contract('OptionsContract', accounts => {
       const tx = await web3.eth.getTransaction(txInfo.tx);
       const finalETH = await balance.current(secondVaultOwnerAddress);
 
-      vaultState = await optionsContracts[0].getVaultByIndex(1);
+      vaultState = await optionsContracts[0].getVault(secondVaultOwnerAddress);
       const finalCollateral = new BN(vaultState['0'].toString());
 
       expect(finalCollateral.toString()).to.equal(
@@ -217,7 +220,7 @@ contract('OptionsContract', accounts => {
 
     it("firstVaultOwnerAddress shouldn't be able to remove collateral", async () => {
       await expectRevert(
-        optionsContracts[0].removeCollateral(0, vault2Collateral, {
+        optionsContracts[0].removeCollateral(vault2Collateral, {
           from: firstVaultOwnerAddress,
           gas: '100000'
         }),
@@ -231,12 +234,14 @@ contract('OptionsContract', accounts => {
         gas: '1000000'
       });
 
-      const result = await optionsContracts[0].isUnsafe(0);
+      const result = await optionsContracts[0].isUnsafe(firstVaultOwnerAddress);
       expect(result).to.be.true;
     });
 
     it('vault 2 should be unsafe after Compund Oracle drops price', async () => {
-      const result = await optionsContracts[0].isUnsafe(1);
+      const result = await optionsContracts[0].isUnsafe(
+        secondVaultOwnerAddress
+      );
 
       expect(result).to.be.true;
     });
@@ -245,10 +250,14 @@ contract('OptionsContract', accounts => {
       const expectedCollateralToPay = new BN(9181809);
       const initialETH = await balance.current(tokenHolder);
 
-      const txInfo = await optionsContracts[0].liquidate('0', '101010', {
-        from: tokenHolder,
-        gas: '100000'
-      });
+      const txInfo = await optionsContracts[0].liquidate(
+        firstVaultOwnerAddress,
+        '101010',
+        {
+          from: tokenHolder,
+          gas: '100000'
+        }
+      );
 
       const tx = await web3.eth.getTransaction(txInfo.tx);
       const finalETH = await balance.current(tokenHolder);
@@ -271,13 +280,15 @@ contract('OptionsContract', accounts => {
         gas: '1000000'
       });
 
-      const result = await optionsContracts[0].isUnsafe(0);
+      const result = await optionsContracts[0].isUnsafe(firstVaultOwnerAddress);
 
       expect(result).to.be.true;
     });
 
     it('vault 2 should be safe after Compund Oracle reices price', async () => {
-      const result = await optionsContracts[0].isUnsafe(1);
+      const result = await optionsContracts[0].isUnsafe(
+        secondVaultOwnerAddress
+      );
 
       expect(result).to.be.false;
     });
@@ -286,10 +297,14 @@ contract('OptionsContract', accounts => {
       const expectedCollateralToPay = new BN(6060);
       const initialETH = await balance.current(tokenHolder);
 
-      const txInfo = await optionsContracts[0].liquidate('0', '100', {
-        from: tokenHolder,
-        gas: '100000'
-      });
+      const txInfo = await optionsContracts[0].liquidate(
+        firstVaultOwnerAddress,
+        '100',
+        {
+          from: tokenHolder,
+          gas: '100000'
+        }
+      );
 
       const tx = await web3.eth.getTransaction(txInfo.tx);
       const finalETH = await balance.current(tokenHolder);
@@ -307,18 +322,18 @@ contract('OptionsContract', accounts => {
     });
 
     it('vault 1 should remain unsafe after liquidation', async () => {
-      const result = await optionsContracts[0].isUnsafe(0);
+      const result = await optionsContracts[0].isUnsafe(firstVaultOwnerAddress);
 
       expect(result).to.be.true;
     });
 
     it('firstVaultOwner should be able to burn some put tokens to turn the vault safe', async () => {
-      await optionsContracts[0].burnOTokens('0', '100000', {
+      await optionsContracts[0].burnOTokens('100000', {
         from: firstVaultOwnerAddress,
         gas: '100000'
       });
 
-      const result = await optionsContracts[0].isUnsafe(0);
+      const result = await optionsContracts[0].isUnsafe(firstVaultOwnerAddress);
 
       expect(result).to.be.false;
     });
