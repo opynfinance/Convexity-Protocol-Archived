@@ -162,6 +162,15 @@ contract OptionsContract is Ownable, ERC20 {
     event BurnOTokens (address vaultOwner, uint256 oTokensBurned);
     event TransferVaultOwnership (address oldOwner, address payable newOwner);
     event RemoveCollateral (uint256 amtRemoved, address vaultOwner);
+    event UpdateParameters(
+        uint256 liquidationIncentive,
+        uint256 liquidationFactor,
+        uint256 liquidationFee,
+        uint256 transactionFee,
+        uint256 minCollateralizationRatio,
+        address owner
+    );
+    event TransferFee(address to, uint256 fees);
 
     /**
      * @notice Can only be called by owner. Used to update the fees, minminCollateralizationRatio, etc
@@ -183,6 +192,15 @@ contract OptionsContract is Ownable, ERC20 {
             liquidationFee.value = _liquidationFee;
             transactionFee.value = _transactionFee;
             minCollateralizationRatio.value = _minCollateralizationRatio;
+
+            emit UpdateParameters(
+                _liquidationIncentive,
+                _liquidationFactor,
+                _liquidationFee,
+                _transactionFee,
+                _minCollateralizationRatio,
+                owner()
+            );
     }
 
     /**
@@ -193,6 +211,8 @@ contract OptionsContract is Ownable, ERC20 {
         uint256 fees = totalFee;
         totalFee = 0;
         transferCollateral(_address, fees);
+
+        emit TransferFee(_address, fees);
     }
 
         /**
