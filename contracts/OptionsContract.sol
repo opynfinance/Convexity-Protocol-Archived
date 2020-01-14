@@ -255,7 +255,7 @@ contract OptionsContract is Ownable, ERC20 {
      * @notice Returns true if exercise can be called
      */
     function isExerciseWindow() public view returns (bool) {
-        return ((block.timestamp >= expiry - windowSize) && (block.timestamp < expiry));
+        return ((block.timestamp >= expiry.sub(windowSize)) && (block.timestamp < expiry));
     }
 
     /**
