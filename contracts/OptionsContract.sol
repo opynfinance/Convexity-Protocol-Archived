@@ -261,7 +261,7 @@ contract OptionsContract is Ownable, ERC20 {
      * @notice Returns true if exercise can be called
      */
     function isExerciseWindow() public view returns (bool) {
-        return ((block.timestamp >= expiry - windowSize) && (block.timestamp < expiry));
+        return ((block.timestamp >= expiry.sub(windowSize)) && (block.timestamp < expiry));
     }
 
     /**
@@ -349,8 +349,8 @@ contract OptionsContract is Ownable, ERC20 {
         require(isSafe(getCollateral(msg.sender), newOTokensBalance), "unsafe to mint");
 
         // issue the oTokens
-        _mint(receiver, oTokensToIssue);
         vault.weightedOTokens = newWeightedOTokensBalance;
+        _mint(receiver, oTokensToIssue);
 
         emit IssuedOTokens(receiver, oTokensToIssue, msg.sender);
         return;
@@ -467,6 +467,18 @@ contract OptionsContract is Ownable, ERC20 {
     }
 
     /**
+     * This function returns the maximum amount of collateral liquidatable if the given vault is unsafe
+     * @param vaultIndex The index of the vault to be liquidated
+     */
+    function maxCollateralLiquidatable(uint256 vaultIndex) public view returns (uint256) {
+        if(isUnsafe(vaultIndex)) {
+            return getCollateral(vaultIndex).mul(liquidationFactor.value);
+        } else {
+            return 0;
+        }
+    }
+
+    /**
      * @notice This function can be called by anyone who notices a vault is undercollateralized.
      * The caller gets a reward for reducing the amount of oTokens in circulation.
      * @dev Liquidator comes with _oTokens. They get _oTokens * strikePrice * (incentive + fee)
@@ -499,7 +511,7 @@ contract OptionsContract is Ownable, ERC20 {
         // calculate the maximum amount of collateral that can be liquidated
         uint256 maxCollateralLiquidatable = getCollateral(vaultOwner).mul(liquidationFactor.value);
         if(liquidationFactor.exponent > 0) {
-            maxCollateralLiquidatable = maxCollateralLiquidatable.div(10 ** uint32(liquidationFactor.exponent));
+            maxCollateralLiquidatable = maxCollateralLiquidatable.mul(10 ** uint32(liquidationFactor.exponent));
         } else {
             maxCollateralLiquidatable = maxCollateralLiquidatable.div(10 ** uint32(-1 * liquidationFactor.exponent));
         }
@@ -660,9 +672,5 @@ contract OptionsContract is Ownable, ERC20 {
         } else {
             return COMPOUND_ORACLE.getPrice(asset);
         }
-    }
-
-    function() external payable {
-        // to get ether from uniswap exchanges
     }
 }
