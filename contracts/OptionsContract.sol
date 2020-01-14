@@ -467,6 +467,18 @@ contract OptionsContract is Ownable, ERC20 {
     }
 
     /**
+     * This function returns the maximum amount of collateral liquidatable if the given vault is unsafe
+     * @param vaultOwner The index of the vault to be liquidated
+     */
+    function maxCollateralLiquidatable(address vaultOwner) public view returns (uint256) {
+        if(isUnsafe(vaultOwner)) {
+            return getCollateral(vaultOwner).mul(liquidationFactor.value);
+        } else {
+            return 0;
+        }
+    }
+
+    /**
      * @notice This function can be called by anyone who notices a vault is undercollateralized.
      * The caller gets a reward for reducing the amount of oTokens in circulation.
      * @dev Liquidator comes with _oTokens. They get _oTokens * strikePrice * (incentive + fee)
@@ -497,7 +509,7 @@ contract OptionsContract is Ownable, ERC20 {
         totalFee = totalFee.add(protocolFee);
 
         // calculate the maximum amount of collateral that can be liquidated
-        uint256 maxCollateralLiquidatable = getCollateral(vaultOwner).mul(liquidationFactor.value);
+        uint256 maxCollateralLiquidatable = maxCollateralLiquidatable(vaultOwner);
         if(liquidationFactor.exponent > 0) {
             maxCollateralLiquidatable = maxCollateralLiquidatable.mul(10 ** uint32(liquidationFactor.exponent));
         } else {
