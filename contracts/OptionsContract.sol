@@ -683,8 +683,4 @@ contract OptionsContract is Ownable, ERC20 {
             return COMPOUND_ORACLE.getPrice(asset);
         }
     }
-
-    function() external payable {
-        // to get ether from uniswap exchanges
-    }
 }
