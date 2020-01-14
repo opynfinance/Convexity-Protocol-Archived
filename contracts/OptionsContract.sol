@@ -520,7 +520,7 @@ contract OptionsContract is Ownable, ERC20 {
         // calculate the maximum amount of collateral that can be liquidated
         uint256 maxCollateralLiquidatable = getCollateral(vaultIndex).mul(liquidationFactor.value);
         if(liquidationFactor.exponent > 0) {
-            maxCollateralLiquidatable = maxCollateralLiquidatable.div(10 ** uint32(liquidationFactor.exponent));
+            maxCollateralLiquidatable = maxCollateralLiquidatable.mul(10 ** uint32(liquidationFactor.exponent));
         } else {
             maxCollateralLiquidatable = maxCollateralLiquidatable.div(10 ** uint32(-1 * liquidationFactor.exponent));
         }
