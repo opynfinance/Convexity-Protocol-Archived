@@ -55,6 +55,10 @@ contract oToken is OptionsContract {
 
     /**
      * @notice opens a Vault, adds ETH collateral, and mints new oTokens in one step
+     * Remember that creating oTokens can put the owner at a risk of losing the collateral
+     * if an exercise event happens.
+     * The sell function provides the owner a chance to earn premiums.
+     * Ensure that you create and immediately sell oTokens atmoically.
      * @param amtToCreate number of oTokens to create
      * @param receiver address to send the Options to
      */
@@ -65,6 +69,10 @@ contract oToken is OptionsContract {
 
     /**
      * @notice adds ETH collateral, and mints new oTokens in one step to an existing Vault
+     * Remember that creating oTokens can put the owner at a risk of losing the collateral
+     * if an exercise event happens.
+     * The sell function provides the owner a chance to earn premiums.
+     * Ensure that you create and immediately sell oTokens atmoically.
      * @param amtToCreate number of oTokens to create
      * @param receiver address to send the Options to
      */
@@ -99,6 +107,10 @@ contract oToken is OptionsContract {
 
     /**
      * @notice opens a Vault, adds ERC20 collateral, and mints new oTokens in one step
+     * Remember that creating oTokens can put the owner at a risk of losing the collateral
+     * if an exercise event happens.
+     * The sell function provides the owner a chance to earn premiums.
+     * Ensure that you create and immediately sell oTokens atmoically.
      * @param amtToCreate number of oTokens to create
      * @param amtCollateral amount of collateral added
      * @param receiver address to send the Options to
@@ -110,6 +122,10 @@ contract oToken is OptionsContract {
 
     /**
      * @notice adds ERC20 collateral, and mints new oTokens in one step
+     * Remember that creating oTokens can put the owner at a risk of losing the collateral
+     * if an exercise event happens.
+     * The sell function provides the owner a chance to earn premiums.
+     * Ensure that you create and immediately sell oTokens atmoically.
      * @param amtToCreate number of oTokens to create
      * @param amtCollateral amount of collateral added
      * @param receiver address to send the Options to

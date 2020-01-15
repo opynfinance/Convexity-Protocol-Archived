@@ -252,6 +252,12 @@ contract OptionsContract is Ownable, ERC20 {
      * @notice If the collateral type is ETH, anyone can call this function any time before
      * expiry to increase the amount of collateral in a Vault. Will fail if ETH is not the
      * collateral asset.
+     * Remember that adding ETH collateral even if no oTokens have been created can put the owner at a
+     * risk of losing the collateral if an exercise event happens. 
+     * Ensure that you issue and immediately sell oTokens to allow the owner to earn premiums.
+     * (Either call the createAndSell function in the oToken contract or batch the
+     * addERC20Collateral, issueOTokens and sell transactions and ensure they happen atomically to protect
+     * the end user).
      * @param vaultOwner the index of the Vault to which collateral will be added.
      */
     function addETHCollateral(address vaultOwner) public payable returns (uint256) {
@@ -266,7 +272,13 @@ contract OptionsContract is Ownable, ERC20 {
      * @notice If the collateral type is any ERC20, anyone can call this function any time before
      * expiry to increase the amount of collateral in a Vault. Can only transfer in the collateral asset.
      * Will fail if ETH is the collateral asset.
-     * The user has to allow the contract to handle their ERC20 tokens on his behalf before these functions are called.
+     * The user has to allow the contract to handle their ERC20 tokens on his behalf before these
+     * functions are called.
+     * Remember that adding ERC20 collateral even if no oTokens have been created can put the owner at a
+     * risk of losing the collateral. Ensure that you issue and immediately sell the oTokens!
+     * (Either call the createAndSell function in the oToken contract or batch the
+     * addERC20Collateral, issueOTokens and sell transactions and ensure they happen atomically to protect
+     * the end user).
      * @param vaultOwner the index of the Vault to which collateral will be added.
      * @param amt the amount of collateral to be transferred in.
      */
@@ -361,7 +373,10 @@ contract OptionsContract is Ownable, ERC20 {
     }
 
     /**
-     * @notice This function is called to issue the option tokens
+     * @notice This function is called to issue the option tokens. Remember that issuing oTokens even if they
+     * haven't been sold can put the owner at a risk of not making premiums on the oTokens. Ensure that you
+     * issue and immidiately sell the oTokens! (Either call the createAndSell function in the oToken contract
+     * of batch the issueOTokens transaction with a sell transaction and ensure it happens atomically).
      * @dev The owner of a Vault should only be able to have a max of
      * repo.collateral * collateralToStrike / (minminCollateralizationRatio * strikePrice) tokens issued.
      * @param oTokensToIssue The number of o tokens to issue
