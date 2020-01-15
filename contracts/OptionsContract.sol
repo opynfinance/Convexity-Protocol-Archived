@@ -621,17 +621,17 @@ contract OptionsContract is Ownable, ERC20 {
         int32 rightSideExp = collateralExp;
 
         uint256 exp = 0;
-        bool isSafe = false;
+        bool stillSafe = false;
 
         if(rightSideExp < leftSideExp) {
             exp = uint256(leftSideExp - rightSideExp);
-            isSafe = leftSideVal.mul(10**exp) <= rightSideVal;
+            stillSafe = leftSideVal.mul(10**exp) <= rightSideVal;
         } else {
             exp = uint256(rightSideExp - leftSideExp);
-            isSafe = leftSideVal <= rightSideVal.mul(10 ** exp);
+            stillSafe = leftSideVal <= rightSideVal.mul(10 ** exp);
         }
 
-        return isSafe;
+        return stillSafe;
     }
 
     /**
@@ -649,15 +649,15 @@ contract OptionsContract is Ownable, ERC20 {
         uint256 ethToStrikePrice = getPrice(address(strike));
 
         // calculate how much should be paid out
-        uint256 amtCollateralToPayNum = _oTokens.mul(strikePrice.value).mul(proportion.value).mul(ethToCollateralPrice);
+        uint256 amtCollateralToPayInEthNum = _oTokens.mul(strikePrice.value).mul(proportion.value).mul(ethToCollateralPrice);
         int32 amtCollateralToPayExp = strikePrice.exponent + proportion.exponent - collateralExp;
         uint256 amtCollateralToPay = 0;
         if(amtCollateralToPayExp > 0) {
             uint32 exp = uint32(amtCollateralToPayExp);
-            amtCollateralToPay = amtCollateralToPayNum.mul(10 ** exp).div(ethToStrikePrice);
+            amtCollateralToPay = amtCollateralToPayInEthNum.mul(10 ** exp).div(ethToStrikePrice);
         } else {
             uint32 exp = uint32(-1 * amtCollateralToPayExp);
-            amtCollateralToPay = (amtCollateralToPayNum.div(10 ** exp)).div(ethToStrikePrice);
+            amtCollateralToPay = (amtCollateralToPayInEthNum.div(10 ** exp)).div(ethToStrikePrice);
         }
 
         return amtCollateralToPay;
