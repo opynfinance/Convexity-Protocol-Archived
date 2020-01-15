@@ -159,9 +159,6 @@ contract('OptionsContract', accounts => {
       expect(vault['0'].toString()).to.equal('0');
       expect(vault['1'].toString()).to.equal('0');
       expect(vault['2']).to.equal(true);
-
-      // check proper events emitted
-      expect(result.logs[0].event).to.equal('VaultOpened');
     });
   });
 
@@ -250,7 +247,6 @@ contract('OptionsContract', accounts => {
         gas: '100000'
       });
 
-      // test getVaultsByOwner
       const vault = await optionsContracts[1].getVault(creatorAddress);
       const expectedVault = {
         '0': '0',
@@ -321,8 +317,8 @@ contract('OptionsContract', accounts => {
 
     it('should not be able to add ETH collateral to non-ETH collateralized options contract', async () => {
       try {
-        const vaultNum = 0;
         const msgValue = '10000000';
+
         await optionsContracts[1].addETHCollateral(creatorAddress, {
           from: firstOwnerAddress,
           gas: '100000',
@@ -394,6 +390,7 @@ contract('OptionsContract', accounts => {
         from: creatorAddress,
         gas: '100000'
       });
+
       const amtPTokens = await optionsContracts[1].balanceOf(creatorAddress);
       expect(amtPTokens.toString()).to.equal(numTokens);
     });
@@ -601,7 +598,7 @@ contract('OptionsContract', accounts => {
           from: creatorAddress,
           gas: '100000'
         }),
-        'Cannot transferVaultOwnership to current owner'
+        "Can't transfer ownership to yourself"
       );
     });
 
@@ -614,7 +611,7 @@ contract('OptionsContract', accounts => {
             gas: '100000'
           }
         ),
-        'Invalid new owner address'
+        "Can't transfer owner to the 0 address"
       );
     });
   });

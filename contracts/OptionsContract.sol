@@ -45,7 +45,7 @@ contract OptionsContract is Ownable, ERC20 {
     max collateral that can be taken in one function call */
     Number public liquidationFactor = Number(500, -3);
 
-    /* 1054 is 1.054 i.e. 5.4% liqFee.
+    /* 100 is egs. 0.1 i.e. 10%.
     The fees paid to our protocol every time a liquidation happens */
     Number public liquidationFee = Number(0, -3);
 
@@ -133,6 +133,14 @@ contract OptionsContract is Ownable, ERC20 {
         address _oracleAddress,
         uint256 _windowSize
     ) public {
+        require(
+            block.timestamp < _expiry, 
+            "Can't deploy an expired contract"
+        );
+        require(
+            _windowSize <= _expiry, 
+            "Exercise window can't be longer than the contract's lifespan"
+        );
         require(
             isWithinExponentRange(_collExp),
             "collateral exponent not within expected range"
@@ -233,6 +241,13 @@ contract OptionsContract is Ownable, ERC20 {
         uint256 _transactionFee,
         uint256 _minCollateralizationRatio
     ) public onlyOwner {
+    
+        require(_liquidationIncentive <= 200, "Can't have >20% liquidation incentive");
+        require (_liquidationFactor <= 1000, "Can't liquidate more than 100% of the vault");
+        require(_transactionFee <= 100, "Can't have transaction fee > 10%");
+        require(_liquidationFee <= 100, "Can't have liquidation fee > 10%");
+        require (_minCollateralizationRatio >= 10, "Can't have minCollateralizationRatio < 1");
+            
         liquidationIncentive.value = _liquidationIncentive;
         liquidationFactor.value = _liquidationFactor;
         liquidationFee.value = _liquidationFee;
