@@ -59,7 +59,7 @@ contract OptionsContract is Ownable, ERC20 {
     Number public strikePrice;
 
     // The amount of underlying that 1 oToken protects.
-    Number public oTokenExchangeRate = Number(1, -18);
+    Number public oTokenExchangeRate;
 
     /* UNIX time.
     Exercise period starts at `(expiry - windowSize)` and ends at `expiry` */
