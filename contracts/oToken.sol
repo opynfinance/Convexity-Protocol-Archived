@@ -8,7 +8,6 @@ import "./OptionsContract.sol";
  */
 
 contract oToken is OptionsContract {
-
     /**
     * @param _collateral The collateral asset
     * @param _collExp The precision of the collateral (-18 if ETH)
@@ -36,42 +35,56 @@ contract oToken is OptionsContract {
         OptionsExchange _optionsExchange,
         address _oracleAddress,
         uint256 _windowSize
+    )
+        public
+        OptionsContract(
+            _collateral,
+            _collExp,
+            _underlying,
+            _underlyingExp,
+            _oTokenExchangeExp,
+            _strikePrice,
+            _strikeExp,
+            _strike,
+            _expiry,
+            _optionsExchange,
+            _oracleAddress,
+            _windowSize
         )
-    OptionsContract (
-        _collateral,
-        _collExp,
-        _underlying,
-        _underlyingExp,
-        _oTokenExchangeExp,
-        _strikePrice,
-        _strikeExp,
-        _strike,
-        _expiry,
-        _optionsExchange,
-        _oracleAddress,
-        _windowSize
-    ) public {
-    }
+    {}
 
     /**
      * @notice opens a Vault, adds ETH collateral, and mints new oTokens in one step
+     * Remember that creating oTokens can put the owner at a risk of losing the collateral
+     * if an exercise event happens.
+     * The sell function provides the owner a chance to earn premiums.
+     * Ensure that you create and immediately sell oTokens atmoically.
      * @param amtToCreate number of oTokens to create
      * @param receiver address to send the Options to
      */
-    function createETHCollateralOption(uint256 amtToCreate, address receiver) external payable {
-        uint256 vaultIndex = openVault();
-        addETHCollateralOption(amtToCreate, vaultIndex, receiver);
+    function createETHCollateralOption(uint256 amtToCreate, address receiver)
+        external
+        payable
+    {
+        openVault();
+        addETHCollateralOption(amtToCreate, receiver);
     }
 
     /**
      * @notice adds ETH collateral, and mints new oTokens in one step to an existing Vault
+     * Remember that creating oTokens can put the owner at a risk of losing the collateral
+     * if an exercise event happens.
+     * The sell function provides the owner a chance to earn premiums.
+     * Ensure that you create and immediately sell oTokens atmoically.
      * @param amtToCreate number of oTokens to create
-     * @param vaultIndex index of the Vault to add collateral to
      * @param receiver address to send the Options to
      */
-    function addETHCollateralOption(uint256 amtToCreate, uint256 vaultIndex, address receiver) public payable {
-        addETHCollateral(vaultIndex);
-        issueOTokens(vaultIndex, amtToCreate, receiver);
+    function addETHCollateralOption(uint256 amtToCreate, address receiver)
+        public
+        payable
+    {
+        addETHCollateral(msg.sender);
+        issueOTokens(amtToCreate, receiver);
     }
 
     /**
@@ -79,47 +92,77 @@ contract oToken is OptionsContract {
      * @param amtToCreate number of oTokens to create
      * @param receiver address to receive the premiums
      */
-    function createAndSellETHCollateralOption(uint256 amtToCreate, address payable receiver) external payable {
-        uint256 vaultIndex = openVault();
-        addETHCollateralOption(amtToCreate, vaultIndex, address(this));
+    function createAndSellETHCollateralOption(
+        uint256 amtToCreate,
+        address payable receiver
+    ) external payable {
+        openVault();
+        addETHCollateralOption(amtToCreate, address(this));
         this.approve(address(optionsExchange), amtToCreate);
-        optionsExchange.sellOTokens(receiver, address(this), address(0), amtToCreate);
+        optionsExchange.sellOTokens(
+            receiver,
+            address(this),
+            address(0),
+            amtToCreate
+        );
     }
 
-     /**
+    /**
      * @notice adds ETH collateral to an existing Vault, and mints new oTokens and sells the oTokens in one step
      * @param amtToCreate number of oTokens to create
-     * @param vaultIndex index of the Vault to add collateral to
      * @param receiver address to send the Options to
      */
-    function addAndSellETHCollateralOption(uint256 amtToCreate, uint256 vaultIndex, address payable receiver) public payable {
-        addETHCollateral(vaultIndex);
-        issueOTokens(vaultIndex, amtToCreate, address(this));
+    function addAndSellETHCollateralOption(
+        uint256 amtToCreate,
+        address payable receiver
+    ) public payable {
+        addETHCollateral(msg.sender);
+        issueOTokens(amtToCreate, address(this));
         this.approve(address(optionsExchange), amtToCreate);
-        optionsExchange.sellOTokens(receiver, address(this), address(0), amtToCreate);
+        optionsExchange.sellOTokens(
+            receiver,
+            address(this),
+            address(0),
+            amtToCreate
+        );
     }
 
     /**
      * @notice opens a Vault, adds ERC20 collateral, and mints new oTokens in one step
+     * Remember that creating oTokens can put the owner at a risk of losing the collateral
+     * if an exercise event happens.
+     * The sell function provides the owner a chance to earn premiums.
+     * Ensure that you create and immediately sell oTokens atmoically.
      * @param amtToCreate number of oTokens to create
      * @param amtCollateral amount of collateral added
      * @param receiver address to send the Options to
      */
-    function createERC20CollateralOption(uint256 amtToCreate, uint256 amtCollateral, address receiver) external {
-        uint256 vaultIndex = openVault();
-        addERC20CollateralOption(amtToCreate, amtCollateral, vaultIndex, receiver);
+    function createERC20CollateralOption(
+        uint256 amtToCreate,
+        uint256 amtCollateral,
+        address receiver
+    ) external {
+        openVault();
+        addERC20CollateralOption(amtToCreate, amtCollateral, receiver);
     }
 
     /**
      * @notice adds ERC20 collateral, and mints new oTokens in one step
+     * Remember that creating oTokens can put the owner at a risk of losing the collateral
+     * if an exercise event happens.
+     * The sell function provides the owner a chance to earn premiums.
+     * Ensure that you create and immediately sell oTokens atmoically.
      * @param amtToCreate number of oTokens to create
      * @param amtCollateral amount of collateral added
-     * @param vaultIndex index of the Vault to add collateral to
      * @param receiver address to send the Options to
      */
-    function addERC20CollateralOption(uint256 amtToCreate, uint256 amtCollateral, uint256 vaultIndex, address receiver) public {
-        addERC20Collateral(vaultIndex, amtCollateral);
-        issueOTokens(vaultIndex, amtToCreate, receiver);
+    function addERC20CollateralOption(
+        uint256 amtToCreate,
+        uint256 amtCollateral,
+        address receiver
+    ) public {
+        addERC20Collateral(msg.sender, amtCollateral);
+        issueOTokens(amtToCreate, receiver);
     }
 
     /**
@@ -128,24 +171,41 @@ contract oToken is OptionsContract {
      * @param amtCollateral amount of collateral added
      * @param receiver address to send the Options to
      */
-     function createAndSellERC20CollateralOption(uint256 amtToCreate, uint256 amtCollateral, address payable receiver) external {
-        uint256 vaultIndex = openVault();
-        addERC20CollateralOption(amtToCreate, amtCollateral, vaultIndex, address(this));
+    function createAndSellERC20CollateralOption(
+        uint256 amtToCreate,
+        uint256 amtCollateral,
+        address payable receiver
+    ) external {
+        openVault();
+        addERC20CollateralOption(amtToCreate, amtCollateral, address(this));
         this.approve(address(optionsExchange), amtToCreate);
-        optionsExchange.sellOTokens(receiver, address(this), address(0), amtToCreate);
+        optionsExchange.sellOTokens(
+            receiver,
+            address(this),
+            address(0),
+            amtToCreate
+        );
     }
 
     /**
      * @notice adds ERC20 collateral, mints new oTokens and sells the oTokens in one step
      * @param amtToCreate number of oTokens to create
      * @param amtCollateral amount of collateral added
-     * @param vaultIndex index of the Vault to add collateral to
      * @param receiver address to send the Options to
      */
-    function addAndSellERC20CollateralOption(uint256 amtToCreate, uint256 amtCollateral, uint256 vaultIndex, address payable receiver) public {
-        addERC20Collateral(vaultIndex, amtCollateral);
-        issueOTokens(vaultIndex, amtToCreate, address(this));
+    function addAndSellERC20CollateralOption(
+        uint256 amtToCreate,
+        uint256 amtCollateral,
+        address payable receiver
+    ) public {
+        addERC20Collateral(msg.sender, amtCollateral);
+        issueOTokens(amtToCreate, address(this));
         this.approve(address(optionsExchange), amtToCreate);
-        optionsExchange.sellOTokens(receiver, address(this), address(0), amtToCreate);
+        optionsExchange.sellOTokens(
+            receiver,
+            address(this),
+            address(0),
+            amtToCreate
+        );
     }
 }
