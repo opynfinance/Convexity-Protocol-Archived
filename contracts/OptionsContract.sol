@@ -34,7 +34,7 @@ contract OptionsContract is Ownable, ERC20 {
     OptionsExchange public optionsExchange;
 
 
-    mapping internal (address => Vault) vaults;
+    mapping (address => Vault) internal vaults;
 
     // 10 is 0.01 i.e. 1% incentive.
     Number public liquidationIncentive = Number(10, -3);
