@@ -16,6 +16,7 @@ const {
   BN,
   time,
   expectEvent,
+  expectRevert,
   balance
 } = require('@openzeppelin/test-helpers');
 
@@ -24,6 +25,7 @@ contract('OptionsContract', accounts => {
   const creatorAddress = accounts[0];
   const firstOwnerAddress = accounts[1];
   const secondOwnerAddress = accounts[2];
+  const nonOwnerAddress = accounts[3];
 
   let optionsContracts: OptionsContractInstance;
   let optionsFactory: OptionsFactoryInstance;
@@ -76,7 +78,7 @@ contract('OptionsContract', accounts => {
     // Add Collateral to both vaults
     let vaultNum = '0';
     let msgValue = '20000000';
-    await optionsContracts.addETHCollateral(vaultNum, {
+    await optionsContracts.addETHCollateral(creatorAddress, {
       from: creatorAddress,
       gas: '100000',
       value: msgValue
@@ -84,7 +86,7 @@ contract('OptionsContract', accounts => {
 
     vaultNum = '1';
     msgValue = '10000000';
-    await optionsContracts.addETHCollateral(vaultNum, {
+    await optionsContracts.addETHCollateral(firstOwnerAddress, {
       from: firstOwnerAddress,
       gas: '100000',
       value: msgValue
@@ -93,14 +95,14 @@ contract('OptionsContract', accounts => {
     // Mint tokens
     vaultNum = '0';
     let numTokens = '25000';
-    optionsContracts.issueOTokens(vaultNum, numTokens, creatorAddress, {
+    optionsContracts.issueOTokens(numTokens, creatorAddress, {
       from: creatorAddress,
       gas: '100000'
     });
 
     vaultNum = '1';
     numTokens = '10000';
-    optionsContracts.issueOTokens(vaultNum, numTokens, firstOwnerAddress, {
+    optionsContracts.issueOTokens(numTokens, firstOwnerAddress, {
       from: firstOwnerAddress,
       gas: '100000'
     });
@@ -198,23 +200,20 @@ contract('OptionsContract', accounts => {
 
       const initialETH = await balance.current(creatorAddress);
 
-      const txInfo = await optionsContracts.claimCollateral(vaultIndex, {
+      const txInfo = await optionsContracts.claimCollateral({
         from: creatorAddress,
         gas: '1000000'
       });
 
       const tx = await web3.eth.getTransaction(txInfo.tx);
       const finalETH = await balance.current(creatorAddress);
-      // check the calculations on amount of collateral paid out and underlying transferred is correct
-      expect(txInfo.logs[1].event).to.equal('ClaimedCollateral');
-      expect(txInfo.logs[1].args.amtCollateralClaimed.toString()).to.equal(
-        '19999700'
-      );
-      expect(txInfo.logs[1].args.amtUnderlyingClaimed.toString()).to.equal(
-        '66666'
-      );
 
-      // TODO: check the person's collateral balance went up
+      // check the calculations on amount of collateral paid out and underlying transferred is correct
+      expectEvent(txInfo, 'ClaimedCollateral', {
+        amtCollateralClaimed: '19999700',
+        amtUnderlyingClaimed: '66666'
+      });
+
       const gasUsed = new BN(txInfo.receipt.gasUsed);
       const gasPrice = new BN(tx.gasPrice);
       const expectedEndETHBalance = initialETH
@@ -227,19 +226,15 @@ contract('OptionsContract', accounts => {
       expect(ownerDaiBal.toString()).to.equal('66666');
     });
 
-    it('only the owner of the vault should be able to collect collateral', async () => {
+    it('only the owner of a vault should be able to collect collateral', async () => {
       const vaultIndex = '1';
-
-      try {
-        await optionsContracts.claimCollateral(vaultIndex, {
-          from: creatorAddress,
+      await expectRevert(
+        optionsContracts.claimCollateral({
+          from: nonOwnerAddress,
           gas: '1000000'
-        });
-      } catch (err) {
-        return;
-      }
-
-      truffleAssert.fails('should throw err');
+        }),
+        'Vault does not exist'
+      );
     });
 
     it(
@@ -248,16 +243,16 @@ contract('OptionsContract', accounts => {
 
     it('the second person should be able to collect their share of collateral', async () => {
       const vaultIndex = '1';
-      const tx = await optionsContracts.claimCollateral(vaultIndex, {
+      const tx = await optionsContracts.claimCollateral({
         from: firstOwnerAddress,
         gas: '1000000'
       });
 
       // check the calculations on amount of collateral paid out and underlying transferred is correct
-      expect(tx.logs[1].event).to.equal('ClaimedCollateral');
-      expect(tx.logs[1].args.amtCollateralClaimed.toString()).to.equal(
-        '9999850'
-      );
+      expectEvent(tx, 'ClaimedCollateral', {
+        amtCollateralClaimed: '9999850',
+        amtUnderlyingClaimed: '33333'
+      });
 
       const ownerDaiBal = await dai.balanceOf(firstOwnerAddress);
       // expect(ownerDaiBal.toString()).to.equal('33333');
