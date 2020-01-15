@@ -11,12 +11,20 @@ const MockUniswapFactory = artifacts.require('MockUniswapFactory');
 const OptionsContract = artifacts.require('OptionsContract');
 const truffleAssert = require('truffle-assertions');
 
+import { getUnixTime, addMonths, addSeconds, fromUnixTime } from 'date-fns';
+
+const { expectRevert, time } = require('@openzeppelin/test-helpers');
+
 contract('OptionsFactory', accounts => {
   const creatorAddress = accounts[0];
   const firstOwnerAddress = accounts[1];
 
   let optionsFactory: OptionsFactoryInstance;
   let compoundOracle: MockCompoundOracleInstance;
+
+  const now = Date.now();
+  const expiry = getUnixTime(addMonths(now, 3));
+  const windowSize = expiry;
 
   before(async () => {
     optionsFactory = await OptionsFactory.deployed();
@@ -178,6 +186,48 @@ contract('OptionsFactory', accounts => {
   });
 
   describe('#createOptionsContract()', () => {
+    it('should not allow to create an expided new options contract', async () => {
+      const expiredExpiry = getUnixTime(new Date());
+
+      await expectRevert(
+        optionsFactory.createOptionsContract(
+          'ETH',
+          -'18',
+          'ETH',
+          -'18',
+          -'17',
+          '90',
+          -'18',
+          'ETH',
+          expiredExpiry,
+          expiredExpiry,
+          { from: creatorAddress, gas: '4000000' }
+        ),
+        'Cannot create an expired option'
+      );
+    });
+
+    it('should not allow to create a new options contract where windowSize is bigger than expiry', async () => {
+      const bigWindowSize = getUnixTime(addSeconds(fromUnixTime(expiry), 1));
+
+      await expectRevert(
+        optionsFactory.createOptionsContract(
+          'ETH',
+          -'18',
+          'ETH',
+          -'18',
+          -'17',
+          '90',
+          -'18',
+          'ETH',
+          expiry,
+          bigWindowSize,
+          { from: creatorAddress, gas: '4000000' }
+        ),
+        'Invalid _windowSize'
+      );
+    });
+
     it('should create a new options contract correctly', async () => {
       const result = await optionsFactory.createOptionsContract(
         'ETH',
@@ -188,8 +238,8 @@ contract('OptionsFactory', accounts => {
         '90',
         -'18',
         'ETH',
-        '1589932800',
-        '1589932800',
+        expiry,
+        windowSize,
         { from: creatorAddress, gas: '4000000' }
       );
 
@@ -217,8 +267,8 @@ contract('OptionsFactory', accounts => {
         '90',
         -'18',
         'ETH',
-        '1589932800',
-        '1589932800',
+        expiry,
+        windowSize,
         { from: firstOwnerAddress, gas: '4000000' }
       );
 
