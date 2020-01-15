@@ -1,3 +1,14 @@
 {
-  "extends": "solhint:default"
+  "extends": "solhint:recommended",
+  "plugins": ["prettier"],
+  "rules": {
+    "prettier/prettier": "error",
+    "mark-callable-contracts": "off",
+    "avoid-low-level-calls": "off",
+    "no-inline-assembly": "off",
+    "multiple-sends": "off",
+    "bracket-align": "off",
+    "no-complex-fallback": "off",
+    "compiler-version": ["error", "0.4.24"]
+  }
 }

@@ -8,7 +8,6 @@ import "./OptionsContract.sol";
  */
 
 contract oToken is OptionsContract {
-
     /**
     * @param _collateral The collateral asset
     * @param _collExp The precision of the collateral (-18 if ETH)
@@ -36,22 +35,23 @@ contract oToken is OptionsContract {
         OptionsExchange _optionsExchange,
         address _oracleAddress,
         uint256 _windowSize
+    )
+        public
+        OptionsContract(
+            _collateral,
+            _collExp,
+            _underlying,
+            _underlyingExp,
+            _oTokenExchangeExp,
+            _strikePrice,
+            _strikeExp,
+            _strike,
+            _expiry,
+            _optionsExchange,
+            _oracleAddress,
+            _windowSize
         )
-    OptionsContract (
-        _collateral,
-        _collExp,
-        _underlying,
-        _underlyingExp,
-        _oTokenExchangeExp,
-        _strikePrice,
-        _strikeExp,
-        _strike,
-        _expiry,
-        _optionsExchange,
-        _oracleAddress,
-        _windowSize
-    ) public {
-    }
+    {}
 
     /**
      * @notice opens a Vault, adds ETH collateral, and mints new oTokens in one step
@@ -62,7 +62,10 @@ contract oToken is OptionsContract {
      * @param amtToCreate number of oTokens to create
      * @param receiver address to send the Options to
      */
-    function createETHCollateralOption(uint256 amtToCreate, address receiver) external payable {
+    function createETHCollateralOption(uint256 amtToCreate, address receiver)
+        external
+        payable
+    {
         openVault();
         addETHCollateralOption(amtToCreate, receiver);
     }
@@ -76,7 +79,10 @@ contract oToken is OptionsContract {
      * @param amtToCreate number of oTokens to create
      * @param receiver address to send the Options to
      */
-    function addETHCollateralOption(uint256 amtToCreate, address receiver) public payable {
+    function addETHCollateralOption(uint256 amtToCreate, address receiver)
+        public
+        payable
+    {
         addETHCollateral(msg.sender);
         issueOTokens(amtToCreate, receiver);
     }
@@ -86,23 +92,39 @@ contract oToken is OptionsContract {
      * @param amtToCreate number of oTokens to create
      * @param receiver address to receive the premiums
      */
-    function createAndSellETHCollateralOption(uint256 amtToCreate, address payable receiver) external payable {
+    function createAndSellETHCollateralOption(
+        uint256 amtToCreate,
+        address payable receiver
+    ) external payable {
         openVault();
         addETHCollateralOption(amtToCreate, address(this));
         this.approve(address(optionsExchange), amtToCreate);
-        optionsExchange.sellOTokens(receiver, address(this), address(0), amtToCreate);
+        optionsExchange.sellOTokens(
+            receiver,
+            address(this),
+            address(0),
+            amtToCreate
+        );
     }
 
-     /**
+    /**
      * @notice adds ETH collateral to an existing Vault, and mints new oTokens and sells the oTokens in one step
      * @param amtToCreate number of oTokens to create
      * @param receiver address to send the Options to
      */
-    function addAndSellETHCollateralOption(uint256 amtToCreate, address payable receiver) public payable {
+    function addAndSellETHCollateralOption(
+        uint256 amtToCreate,
+        address payable receiver
+    ) public payable {
         addETHCollateral(msg.sender);
         issueOTokens(amtToCreate, address(this));
         this.approve(address(optionsExchange), amtToCreate);
-        optionsExchange.sellOTokens(receiver, address(this), address(0), amtToCreate);
+        optionsExchange.sellOTokens(
+            receiver,
+            address(this),
+            address(0),
+            amtToCreate
+        );
     }
 
     /**
@@ -115,7 +137,11 @@ contract oToken is OptionsContract {
      * @param amtCollateral amount of collateral added
      * @param receiver address to send the Options to
      */
-    function createERC20CollateralOption(uint256 amtToCreate, uint256 amtCollateral, address receiver) external {
+    function createERC20CollateralOption(
+        uint256 amtToCreate,
+        uint256 amtCollateral,
+        address receiver
+    ) external {
         openVault();
         addERC20CollateralOption(amtToCreate, amtCollateral, receiver);
     }
@@ -130,7 +156,11 @@ contract oToken is OptionsContract {
      * @param amtCollateral amount of collateral added
      * @param receiver address to send the Options to
      */
-    function addERC20CollateralOption(uint256 amtToCreate, uint256 amtCollateral, address receiver) public {
+    function addERC20CollateralOption(
+        uint256 amtToCreate,
+        uint256 amtCollateral,
+        address receiver
+    ) public {
         addERC20Collateral(msg.sender, amtCollateral);
         issueOTokens(amtToCreate, receiver);
     }
@@ -141,11 +171,20 @@ contract oToken is OptionsContract {
      * @param amtCollateral amount of collateral added
      * @param receiver address to send the Options to
      */
-     function createAndSellERC20CollateralOption(uint256 amtToCreate, uint256 amtCollateral, address payable receiver) external {
+    function createAndSellERC20CollateralOption(
+        uint256 amtToCreate,
+        uint256 amtCollateral,
+        address payable receiver
+    ) external {
         openVault();
         addERC20CollateralOption(amtToCreate, amtCollateral, address(this));
         this.approve(address(optionsExchange), amtToCreate);
-        optionsExchange.sellOTokens(receiver, address(this), address(0), amtToCreate);
+        optionsExchange.sellOTokens(
+            receiver,
+            address(this),
+            address(0),
+            amtToCreate
+        );
     }
 
     /**
@@ -154,10 +193,19 @@ contract oToken is OptionsContract {
      * @param amtCollateral amount of collateral added
      * @param receiver address to send the Options to
      */
-    function addAndSellERC20CollateralOption(uint256 amtToCreate, uint256 amtCollateral, address payable receiver) public {
+    function addAndSellERC20CollateralOption(
+        uint256 amtToCreate,
+        uint256 amtCollateral,
+        address payable receiver
+    ) public {
         addERC20Collateral(msg.sender, amtCollateral);
         issueOTokens(amtToCreate, address(this));
         this.approve(address(optionsExchange), amtToCreate);
-        optionsExchange.sellOTokens(receiver, address(this), address(0), amtToCreate);
+        optionsExchange.sellOTokens(
+            receiver,
+            address(this),
+            address(0),
+            amtToCreate
+        );
     }
 }
