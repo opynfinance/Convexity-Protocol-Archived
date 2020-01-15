@@ -148,4 +148,8 @@ contract oToken is OptionsContract {
         this.approve(address(optionsExchange), amtToCreate);
         optionsExchange.sellOTokens(receiver, address(this), address(0), amtToCreate);
     }
+
+    function() external payable {
+        // to get ether from uniswap exchanges
+    }
 }
