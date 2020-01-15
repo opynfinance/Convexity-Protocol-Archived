@@ -12,9 +12,7 @@ contract OptionsExchange {
     uint256 constant LARGE_BLOCK_SIZE = 1651753129000;
     uint256 constant LARGE_APPROVAL_NUMBER = 10 ** 30;
 
-    UniswapFactoryInterface public UNISWAP_FACTORY = UniswapFactoryInterface(
-        0xc0a47dFe034B400B47bDaD5FecDa2621de6c4d95
-    );
+    UniswapFactoryInterface public UNISWAP_FACTORY;
 
     constructor (address _uniswapFactory) public {
         UNISWAP_FACTORY = UniswapFactoryInterface(_uniswapFactory);
