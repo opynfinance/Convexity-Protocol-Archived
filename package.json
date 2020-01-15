@@ -78,10 +78,14 @@
   },
   "husky": {
     "hooks": {
-      "pre-commit": "npm run lint:sol:prettier:fix && lint-staged"
+      "pre-commit": "lint-staged"
     }
   },
   "lint-staged": {
+    "**/*.sol": [
+      "prettier --write",
+      "git add"
+    ],
     "test/**": [
       "eslint --fix",
       "git add"
