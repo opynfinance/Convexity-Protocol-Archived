@@ -11,7 +11,7 @@ contract OptionsFactory is Ownable {
     using StringComparator for string;
 
     // keys saved in front-end -- look at the docs if needed
-    mapping (string => IERC20) public tokens;
+    mapping(string => IERC20) public tokens;
     address[] public optionsContracts;
 
     // The contract which interfaces with the exchange
@@ -27,7 +27,9 @@ contract OptionsFactory is Ownable {
      * @param _optionsExchangeAddr: The contract which interfaces with the exchange
      * @param _oracleAddress Address of the oracle
      */
-    constructor(OptionsExchange _optionsExchangeAddr, address _oracleAddress) public {
+    constructor(OptionsExchange _optionsExchangeAddr, address _oracleAddress)
+        public
+    {
         optionsExchange = OptionsExchange(_optionsExchangeAddr);
         oracleAddress = _oracleAddress;
     }
@@ -56,14 +58,17 @@ contract OptionsFactory is Ownable {
         string memory _strikeAsset,
         uint256 _expiry,
         uint256 _windowSize
-    )
-        public
-        returns (address)
-    {
+    ) public returns (address) {
         require(_expiry > block.timestamp, "Cannot create an expired option");
         require(_windowSize <= _expiry, "Invalid _windowSize");
-        require(supportsAsset(_collateralType), "Collateral type not supported");
-        require(supportsAsset(_underlyingType), "Underlying type not supported");
+        require(
+            supportsAsset(_collateralType),
+            "Collateral type not supported"
+        );
+        require(
+            supportsAsset(_underlyingType),
+            "Underlying type not supported"
+        );
         require(supportsAsset(_strikeAsset), "Strike asset type not supported");
 
         OptionsContract optionsContract = new oToken(
@@ -117,7 +122,10 @@ contract OptionsFactory is Ownable {
      * @param _addr The address of the asset
      */
     function changeAsset(string memory _asset, address _addr) public onlyOwner {
-        require(tokens[_asset] != IERC20(0), "Trying to replace a non-existent asset");
+        require(
+            tokens[_asset] != IERC20(0),
+            "Trying to replace a non-existent asset"
+        );
         require(_addr != address(0), "Cannot set to address(0)");
 
         tokens[_asset] = IERC20(_addr);
@@ -129,7 +137,10 @@ contract OptionsFactory is Ownable {
      * @param _asset The ticker symbol for the asset
      */
     function deleteAsset(string memory _asset) public onlyOwner {
-        require(tokens[_asset] != IERC20(0), "Trying to delete a non-existent asset");
+        require(
+            tokens[_asset] != IERC20(0),
+            "Trying to delete a non-existent asset"
+        );
 
         tokens[_asset] = IERC20(0);
         emit AssetDeleted(_asset);
