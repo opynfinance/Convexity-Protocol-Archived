@@ -12,17 +12,17 @@ const MintableToken = artifacts.require('ERC20Mintable');
 
 const truffleAssert = require('truffle-assertions');
 
+const { expectEvent, expectRevert } = require('@openzeppelin/test-helpers');
+
 function checkVault(
   vault: any,
   {
     '0': expectedCollateral,
-    '1': expectedPutsOutstanding,
-    '2': expectedOwner
-  }: { '0': string; '1': string; '2': string }
+    '1': expectedPutsOutstanding
+  }: { '0': string; '1': string }
 ) {
   expect(vault['0'].toString()).to.equal(expectedCollateral);
   expect(vault['1'].toString()).to.equal(expectedPutsOutstanding);
-  expect(vault['2']).to.equal(expectedOwner);
 }
 
 function checkVaultOwners(vaults: any, expected: string[]) {
@@ -38,6 +38,7 @@ function checkVaultOwners(vaults: any, expected: string[]) {
 contract('OptionsContract', accounts => {
   const creatorAddress = accounts[0];
   const firstOwnerAddress = accounts[1];
+  const nonOwnerAddress = accounts[2];
 
   const optionsContracts: oTokenInstance[] = [];
   let optionsFactory: OptionsFactoryInstance;
@@ -56,6 +57,7 @@ contract('OptionsContract', accounts => {
     // 1.3 Mock USDC contract
     usdc = await MintableToken.new();
     await usdc.mint(creatorAddress, '10000000');
+    await usdc.mint(nonOwnerAddress, '10000000');
 
     // 2. Deploy our contracts
     // deploys the Options Exhange contract
@@ -128,50 +130,25 @@ contract('OptionsContract', accounts => {
         from: creatorAddress,
         gas: '100000'
       });
-      const vaultIndex = '0';
 
-      // test getVaultsByOwner
-      const vaults = await optionsContracts[0].getVaultsByOwner(creatorAddress);
-      expect(vaults)
-        .to.be.an('array')
-        .with.lengthOf(1);
-      expect(vaults[0].toString()).to.equal('0');
-
-      // test getVaultByIndex
-      const vault = await optionsContracts[0].getVaultByIndex(vaultIndex);
+      // test getVault
+      const vault = await optionsContracts[0].getVault(creatorAddress);
       expect(vault['0'].toString()).to.equal('0');
       expect(vault['1'].toString()).to.equal('0');
-      expect(vault['2']).to.equal(creatorAddress);
+      expect(vault['2']).to.equal(true);
 
       // check proper events emitted
       expect(result.logs[0].event).to.equal('VaultOpened');
-      expect(result.logs[0].args.vaultIndex.toString()).to.equal('0');
     });
 
-    it('should open second vault correctly', async () => {
-      const result = await optionsContracts[0].openVault({
-        from: creatorAddress,
-        gas: '100000'
-      });
-      const vaultIndex = '1';
-
-      // test getVaultsByOwner
-      const vaults = await optionsContracts[0].getVaultsByOwner(creatorAddress);
-      expect(vaults)
-        .to.be.an('array')
-        .with.lengthOf(2);
-      expect(vaults[0].toString()).to.equal('0');
-      expect(vaults[1].toString()).to.equal('1');
-
-      // test getVaultByIndex
-      const vault = await optionsContracts[0].getVaultByIndex(vaultIndex);
-      expect(vault['0'].toString()).to.equal('0');
-      expect(vault['1'].toString()).to.equal('0');
-      expect(vault['2']).to.equal(creatorAddress);
-
-      // check proper events emitted
-      expect(result.logs[0].event).to.equal('VaultOpened');
-      expect(result.logs[0].args.vaultIndex.toString()).to.equal('1');
+    it("shouldn't allow to open second vault correctly", async () => {
+      await expectRevert(
+        optionsContracts[0].openVault({
+          from: creatorAddress,
+          gas: '100000'
+        }),
+        'Vault already created'
+      );
     });
 
     it('new person should be able to open third vault correctly', async () => {
@@ -179,26 +156,15 @@ contract('OptionsContract', accounts => {
         from: firstOwnerAddress,
         gas: '100000'
       });
-      const vaultIndex = '2';
 
-      // test getVaultsByOwner
-      const vaults = await optionsContracts[0].getVaultsByOwner(
-        firstOwnerAddress
-      );
-      expect(vaults)
-        .to.be.an('array')
-        .with.lengthOf(1);
-      expect(vaults[0].toString()).to.equal('2');
-
-      // test getVaultByIndex
-      const vault = await optionsContracts[0].getVaultByIndex(vaultIndex);
+      // test getVault
+      const vault = await optionsContracts[0].getVault(firstOwnerAddress);
       expect(vault['0'].toString()).to.equal('0');
       expect(vault['1'].toString()).to.equal('0');
-      expect(vault['2']).to.equal(firstOwnerAddress);
+      expect(vault['2']).to.equal(true);
 
       // check proper events emitted
       expect(result.logs[0].event).to.equal('VaultOpened');
-      expect(result.logs[0].args.vaultIndex.toString()).to.equal('2');
     });
 
     it('should not be able to open a vault in an expired options contract', async () => {
@@ -216,82 +182,80 @@ contract('OptionsContract', accounts => {
   });
 
   describe('#addETHCollateral()', () => {
-    it('should add ETH collateral successfully', async () => {
-      const vaultNum = '1';
+    it("shouldn't be able to add ETH collateral to a 0x0 address", async () => {
       const msgValue = '10000000';
-      const result = await optionsContracts[0].addETHCollateral(vaultNum, {
-        from: creatorAddress,
-        gas: '100000',
-        value: msgValue
-      });
+      await expectRevert(
+        optionsContracts[0].addETHCollateral(
+          '0x0000000000000000000000000000000000000000',
+          {
+            from: creatorAddress,
+            gas: '100000',
+            value: msgValue
+          }
+        ),
+        'Vault does not exist'
+      );
+    });
+
+    it('should add ETH collateral successfully', async () => {
+      const msgValue = '10000000';
+      const result = await optionsContracts[0].addETHCollateral(
+        creatorAddress,
+        {
+          from: creatorAddress,
+          gas: '100000',
+          value: msgValue
+        }
+      );
 
       // test that the vault's balances have been updated.
-      const vault = await optionsContracts[0].getVaultByIndex(vaultNum);
+      const vault = await optionsContracts[0].getVault(creatorAddress);
       const expectedVault = {
         '0': '10000000',
-        '1': '0',
-        '2': creatorAddress
+        '1': '0'
       };
       checkVault(vault, expectedVault);
 
       // check proper events emitted
       expect(result.logs[0].event).to.equal('ETHCollateralAdded');
-      expect(result.logs[0].args.vaultIndex.toString()).to.equal(vaultNum);
+      expect(result.logs[0].args.vaultOwner).to.equal(creatorAddress);
       expect(result.logs[0].args.amount.toString()).to.equal(msgValue);
     });
 
     it('anyone should be able to add ETH collateral to any vault', async () => {
-      const vaultNum = '1';
       const msgValue = '10000000';
-      let result = await optionsContracts[0].addETHCollateral(vaultNum, {
+      let result = await optionsContracts[0].addETHCollateral(creatorAddress, {
         from: firstOwnerAddress,
         gas: '100000',
         value: msgValue
       });
 
       // test that the vault's balances have been updated.
-      let vault = await optionsContracts[0].getVaultByIndex(vaultNum);
+      let vault = await optionsContracts[0].getVault(creatorAddress);
       let expectedVault = {
         '0': '20000000',
-        '1': '0',
-        '2': creatorAddress
+        '1': '0'
       };
       checkVault(vault, expectedVault);
       // check proper events emitted
       expect(result.logs[0].event).to.equal('ETHCollateralAdded');
-      expect(result.logs[0].args.vaultIndex.toString()).to.equal(vaultNum);
+      expect(result.logs[0].args.vaultOwner).to.equal(creatorAddress);
       expect(result.logs[0].args.amount.toString()).to.equal(msgValue);
+      expect(result.logs[0].args.payer).to.equal(firstOwnerAddress);
 
-      result = await optionsContracts[0].addETHCollateral(2, {
+      result = await optionsContracts[0].addETHCollateral(firstOwnerAddress, {
         from: creatorAddress,
         gas: '100000',
         value: msgValue
       });
 
       // test that the vault's balances have been updated.
-      vault = await optionsContracts[0].getVaultByIndex(2);
+      vault = await optionsContracts[0].getVault(firstOwnerAddress);
       expectedVault = {
         '0': '10000000',
-        '1': '0',
-        '2': firstOwnerAddress
+        '1': '0'
       };
       checkVault(vault, expectedVault);
-    });
-
-    // TODO: first have an opened vault in an expired contract, then check this.
-    xit('should not be able to add ETH collateral to an expired options contract', async () => {
-      try {
-        const vaultNum = 1;
-        const msgValue = '10000000';
-        await optionsContracts[1].addETHCollateral(vaultNum, {
-          from: firstOwnerAddress,
-          gas: '100000',
-          value: msgValue
-        });
-      } catch (err) {
-        return;
-      }
-      truffleAssert.fails('should throw error');
     });
   });
 
@@ -301,29 +265,21 @@ contract('OptionsContract', accounts => {
         from: creatorAddress,
         gas: '100000'
       });
-      const vaultIndex = '0';
 
       // test getVaultsByOwner
-      const vaults = await optionsContracts[2].getVaultsByOwner(creatorAddress);
-      const expectedVaults = ['0'];
-      checkVaultOwners(vaults, expectedVaults);
-
-      // test getVaultByIndex
-      const vault = await optionsContracts[2].getVaultByIndex(vaultIndex);
+      const vault = await optionsContracts[2].getVault(creatorAddress);
       const expectedVault = {
         '0': '0',
-        '1': '0',
-        '2': creatorAddress
+        '1': '0'
       };
       checkVault(vault, expectedVault);
     });
 
     it('should add ERC20 collateral successfully', async () => {
-      const vaultNum = 0;
       const msgValue = '10000000';
       await usdc.approve(optionsContracts[2].address, '10000000000000000');
       const result = await optionsContracts[2].addERC20Collateral(
-        vaultNum,
+        creatorAddress,
         msgValue,
         {
           from: creatorAddress,
@@ -332,25 +288,43 @@ contract('OptionsContract', accounts => {
       );
 
       // Adding ETH should emit an event correctly
-      expect(result.logs[2].event).to.equal('ERC20CollateralAdded');
-      expect(result.logs[2].args.vaultIndex.toString()).to.equal('0');
-      expect(result.logs[2].args.amount.toString()).to.equal(msgValue);
+      expectEvent(result, 'ERC20CollateralAdded', {
+        vaultOwner: creatorAddress,
+        amount: msgValue
+      });
 
       // test that the vault's balances have been updated.
-      const vault = await optionsContracts[2].getVaultByIndex('0');
+      const vault = await optionsContracts[2].getVault(creatorAddress);
       const expectedVault = {
         '0': msgValue,
-        '1': '0',
-        '2': creatorAddress
+        '1': '0'
       };
       checkVault(vault, expectedVault);
     });
 
+    it("shouldn't be able to add ERC20 collateral to a 0x0 address", async () => {
+      await usdc.approve(optionsContracts[2].address, '10000000000000000', {
+        from: nonOwnerAddress,
+        gas: '1000000'
+      });
+      const msgValue = '10000000';
+      await expectRevert(
+        optionsContracts[2].addERC20Collateral(
+          '0x0000000000000000000000000000000000000000',
+          msgValue,
+          {
+            from: nonOwnerAddress,
+            gas: '100000'
+          }
+        ),
+        'Vault does not exist'
+      );
+    });
+
     it('should not be able to add ERC20 collateral to non-ERC20 collateralized options contract', async () => {
       try {
-        const vaultNum = 1;
         const msgValue = '10000000';
-        await optionsContracts[0].addERC20Collateral(vaultNum, '0', {
+        await optionsContracts[0].addERC20Collateral(firstOwnerAddress, '0', {
           from: firstOwnerAddress,
           gas: '100000',
           value: msgValue
@@ -365,7 +339,7 @@ contract('OptionsContract', accounts => {
       try {
         const vaultNum = 0;
         const msgValue = '10000000';
-        await optionsContracts[2].addETHCollateral(vaultNum, {
+        await optionsContracts[2].addETHCollateral(creatorAddress, {
           from: firstOwnerAddress,
           gas: '100000',
           value: msgValue
@@ -379,11 +353,9 @@ contract('OptionsContract', accounts => {
 
   describe('#issueOTokens()', () => {
     it('should allow you to mint correctly', async () => {
-      const vaultIndex = '1';
       const numTokens = '138888';
 
       const result = await optionsContracts[0].issueOTokens(
-        vaultIndex,
         numTokens,
         creatorAddress,
         {
@@ -391,50 +363,36 @@ contract('OptionsContract', accounts => {
           gas: '100000'
         }
       );
+
       const amtPTokens = await optionsContracts[0].balanceOf(creatorAddress);
       expect(amtPTokens.toString()).to.equal(numTokens);
 
       // Minting oTokens should emit an event correctly
-      expect(result.logs[1].event).to.equal('IssuedOTokens');
-      expect(result.logs[1].args.issuedTo).to.equal(creatorAddress);
+      expectEvent(result, 'IssuedOTokens', {
+        issuedTo: creatorAddress,
+        oTokensIssued: numTokens,
+        vaultOwner: creatorAddress
+      });
     });
 
-    it('only owner should of vault should be able to mint', async () => {
-      const vaultIndex = '1';
+    it('only owner should of a vault should be able to mint', async () => {
       const numTokens = '100';
-      try {
-        await optionsContracts[0].issueOTokens(
-          vaultIndex,
-          numTokens,
-          firstOwnerAddress,
-          {
-            from: firstOwnerAddress,
-            gas: '100000'
-          }
-        );
-      } catch (err) {
-        return;
-      }
-      truffleAssert.fails('should throw error');
-
-      // the balance of the contract caller should be 0. They should not have gotten tokens.
-      const amtPTokens = await optionsContracts[0].balanceOf(firstOwnerAddress);
-      expect(amtPTokens.toString()).to.equal('0');
+      await expectRevert(
+        optionsContracts[0].issueOTokens(numTokens, firstOwnerAddress, {
+          from: nonOwnerAddress,
+          gas: '100000'
+        }),
+        'Vault does not exist'
+      );
     });
 
     it('should only allow you to mint tokens if you have sufficient collateral', async () => {
-      const vaultIndex = '1';
       const numTokens = '2';
       try {
-        await optionsContracts[0].issueOTokens(
-          vaultIndex,
-          numTokens,
-          creatorAddress,
-          {
-            from: creatorAddress,
-            gas: '100000'
-          }
-        );
+        await optionsContracts[0].issueOTokens(numTokens, creatorAddress, {
+          from: creatorAddress,
+          gas: '100000'
+        });
       } catch (err) {
         return;
       }
@@ -446,130 +404,116 @@ contract('OptionsContract', accounts => {
       expect(amtPTokens.toString()).to.equal('138888');
     });
 
-    // TODO: Need to check a contract that expires
-    xit('should not be able to issue tokens after expiry');
-
     it('should be able to issue options in the erc20 contract', async () => {
-      const vaultIndex = '0';
       const numTokens = '10';
 
-      await optionsContracts[2].issueOTokens(
-        vaultIndex,
-        numTokens,
-        creatorAddress,
-        {
-          from: creatorAddress,
-          gas: '100000'
-        }
-      );
+      await optionsContracts[2].issueOTokens(numTokens, creatorAddress, {
+        from: creatorAddress,
+        gas: '100000'
+      });
       const amtPTokens = await optionsContracts[2].balanceOf(creatorAddress);
       expect(amtPTokens.toString()).to.equal(numTokens);
     });
   });
 
   describe('#burnOTokens()', () => {
-    it('should be able to burn put tokens', async () => {
-      const vaultIndex = '1';
+    it('should be able to burn oTokens', async () => {
       const numTokens = '10';
 
-      await optionsContracts[0].burnOTokens(vaultIndex, numTokens, {
+      const result = await optionsContracts[0].burnOTokens(numTokens, {
         from: creatorAddress,
         gas: '100000'
       });
       const amtPTokens = await optionsContracts[0].balanceOf(creatorAddress);
       expect(amtPTokens.toString()).to.equal('138878');
+
+      expectEvent(result, 'BurnOTokens', {
+        vaultOwner: creatorAddress,
+        oTokensBurned: numTokens
+      });
     });
 
-    xit('correct events should be emitted');
-
-    it('only owner should be able to burn tokens', async () => {
-      await optionsContracts[0].transfer(firstOwnerAddress, '10', {
+    it('only owner should be able to burn oTokens', async () => {
+      await optionsContracts[0].transfer(nonOwnerAddress, '10', {
         from: creatorAddress,
         gas: '100000'
       });
-      const amtPTokens = await optionsContracts[0].balanceOf(firstOwnerAddress);
+      const amtPTokens = await optionsContracts[0].balanceOf(nonOwnerAddress);
       expect(amtPTokens.toString()).to.equal('10');
 
-      const vaultIndex = '1';
       const numTokens = '10';
 
-      try {
-        await optionsContracts[0].burnOTokens(vaultIndex, numTokens, {
-          from: firstOwnerAddress,
+      await expectRevert(
+        optionsContracts[0].burnOTokens(numTokens, {
+          from: nonOwnerAddress,
           gas: '100000'
-        });
-      } catch (err) {
-        return;
-      }
-      truffleAssert.fails('should throw error');
+        }),
+        'Vault does not exist'
+      );
     });
   });
 
   describe('#removeCollateral()', () => {
     it('should be able to remove collateral if sufficiently collateralized', async () => {
-      const vaultIndex = '1';
       const numTokens = '1000';
 
-      await optionsContracts[0].removeCollateral(vaultIndex, numTokens, {
-        from: creatorAddress,
+      const result = await optionsContracts[0].removeCollateral(numTokens, {
+        from: firstOwnerAddress,
         gas: '100000'
       });
 
-      // Check the contract correctly updated the vault
-      const vault = await optionsContracts[0].getVaultByIndex(vaultIndex);
+      const vault = await optionsContracts[0].getVault(firstOwnerAddress);
       const expectedVault = {
-        '0': '19999000',
-        '1': '138878',
-        '2': creatorAddress
+        '0': '9999000',
+        '1': '0'
       };
       checkVault(vault, expectedVault);
 
       // TODO: Check that the owner correctly got their collateral back.
-      // TODO: check event emitted
+      expectEvent(result, 'RemoveCollateral', {
+        amtRemoved: numTokens,
+        vaultOwner: firstOwnerAddress
+      });
     });
 
     it('only owner should be able to remove collateral', async () => {
-      const vaultIndex = '0';
       const numTokens = '10';
-      try {
-        await optionsContracts[0].removeCollateral(vaultIndex, numTokens, {
-          from: firstOwnerAddress,
+      await expectRevert(
+        optionsContracts[0].removeCollateral(numTokens, {
+          from: nonOwnerAddress,
           gas: '100000'
-        });
-      } catch (err) {
-        return;
-      }
-
-      truffleAssert.fails('should throw error');
+        }),
+        'Vault does not exist'
+      );
     });
 
     it('should be able to remove more collateral if sufficient collateral', async () => {
-      const vaultIndex = '1';
       const numTokens = '500';
 
-      await optionsContracts[0].removeCollateral(vaultIndex, numTokens, {
+      const result = await optionsContracts[0].removeCollateral(numTokens, {
         from: creatorAddress,
         gas: '100000'
       });
 
-      // TODO: Check correct event emitted
+      expectEvent(result, 'RemoveCollateral', {
+        amtRemoved: numTokens,
+        vaultOwner: creatorAddress
+      });
 
       // Check the contract correctly updated the vault
-      const vault = await optionsContracts[0].getVaultByIndex(vaultIndex);
+      const vault = await optionsContracts[0].getVault(creatorAddress);
       const expectedVault = {
-        '0': '19998500',
-        '1': '138878',
-        '2': creatorAddress
+        '0': '19999500',
+        '1': '138878'
       };
       checkVault(vault, expectedVault);
     });
 
     it('should not be able to remove collateral if not sufficient collateral', async () => {
-      const vaultIndex = '1';
-      const numTokens = '70';
+      const numTokens = '7000';
 
       try {
-        await optionsContracts[0].removeCollateral(vaultIndex, numTokens, {
+        await optionsContracts[0].removeCollateral(numTokens, {
           from: creatorAddress,
           gas: '100000'
         });
@@ -580,47 +524,80 @@ contract('OptionsContract', accounts => {
       truffleAssert.fails('should throw error');
 
       // check that the collateral in the vault remains the same
-      const vault = await optionsContracts[0].getVaultByIndex(vaultIndex);
+      const vault = await optionsContracts[0].getVault(creatorAddress);
       const expectedVault = {
-        '0': '19998500',
-        '1': '138878',
-        '2': creatorAddress
+        '0': '19999500',
+        '1': '138878'
       };
       checkVault(vault, expectedVault);
     });
-
-    it('should not be able to remove collateral after expiry');
   });
 
   describe('#createOptions()', () => {
-    it('should be able to create new ETH options in a new vault', async () => {
+    it('should be able to create a new Vault, add ETH collateral and issue oTokens', async () => {
       const numOptions = '138888';
       const collateral = '20000000';
+
       const result = await optionsContracts[0].createETHCollateralOption(
         numOptions,
-        creatorAddress,
+        nonOwnerAddress,
         {
-          from: creatorAddress,
+          from: nonOwnerAddress,
           value: collateral
         }
       );
-      // Minting oTokens should emit an event correctly
-      expect(result.logs[3].event).to.equal('IssuedOTokens');
-      expect(result.logs[3].args.issuedTo).to.equal(creatorAddress);
+
+      expectEvent(result, 'VaultOpened', {
+        vaultOwner: nonOwnerAddress
+      });
+
+      expectEvent(result, 'ETHCollateralAdded', {
+        vaultOwner: nonOwnerAddress,
+        amount: collateral,
+        payer: nonOwnerAddress
+      });
+
+      expectEvent(result, 'IssuedOTokens', {
+        issuedTo: nonOwnerAddress,
+        oTokensIssued: numOptions,
+        vaultOwner: nonOwnerAddress
+      });
     });
-    it('should be able to create new ERC20 options in a new vault', async () => {
+
+    it('should be able to create a new Vault, add ERC20 collateral and issue oTokens', async () => {
       const numOptions = '100';
       const collateral = '20000000';
-      await usdc.mint(creatorAddress, '20000000');
-      await usdc.approve(optionsContracts[2].address, '10000000000000000');
+
+      await usdc.mint(nonOwnerAddress, '20000000');
+      await usdc.approve(optionsContracts[2].address, '10000000000000000', {
+        from: nonOwnerAddress,
+        gas: '4000000'
+      });
+
       const result = await optionsContracts[2].createERC20CollateralOption(
         numOptions,
         collateral,
-        creatorAddress,
+        nonOwnerAddress,
         {
-          from: creatorAddress
+          from: nonOwnerAddress
         }
       );
+
+      expectEvent(result, 'VaultOpened', {
+        vaultOwner: nonOwnerAddress
+      });
+
+      expectEvent(result, 'ERC20CollateralAdded', {
+        vaultOwner: nonOwnerAddress,
+        amount: collateral,
+        payer: nonOwnerAddress
+      });
+
+      expectEvent(result, 'IssuedOTokens', {
+        issuedTo: nonOwnerAddress,
+        oTokensIssued: numOptions,
+        vaultOwner: nonOwnerAddress
+      });
     });
   });
 });

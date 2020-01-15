@@ -20,6 +20,10 @@ contract OptionsExchange {
         UNISWAP_FACTORY = UniswapFactoryInterface(_uniswapFactory);
     }
 
+    /*** Events ***/
+    event SellOTokens(address seller, address payable receiver, address oTokenAddress, address payoutTokenAddress, uint256 oTokensToSell);
+    event BuyOTokens(address buyer, address payable receiver, address oTokenAddress, address paymentTokenAddress, uint256 oTokensToBuy);
+
     /**
     * @notice This function sells oTokens on Uniswap and sends back payoutTokens to the receiver
     * @param receiver The address to send the payout tokens back to
@@ -33,6 +37,8 @@ contract OptionsExchange {
         IERC20 payoutToken = IERC20(payoutTokenAddress);
         oToken.transferFrom(msg.sender, address(this), oTokensToSell);
         uniswapSellOToken(oToken, payoutToken, oTokensToSell, receiver);
+
+        emit SellOTokens(msg.sender, receiver, oTokenAddress, payoutTokenAddress, oTokensToSell);
     }
 
     /**
@@ -46,6 +52,8 @@ contract OptionsExchange {
         IERC20 oToken = IERC20(oTokenAddress);
         IERC20 paymentToken = IERC20(paymentTokenAddress);
         uniswapBuyOToken(paymentToken, oToken, oTokensToBuy, receiver);
+
+        emit BuyOTokens(msg.sender, receiver, oTokenAddress, paymentTokenAddress, oTokensToBuy);
     }
 
     /**
