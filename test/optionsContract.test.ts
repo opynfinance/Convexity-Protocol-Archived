@@ -1,4 +1,4 @@
-import { expect } from 'chai';
+import {expect} from 'chai';
 import {
   ERC20MintableInstance,
   OptionsFactoryInstance,
@@ -14,20 +14,16 @@ const truffleAssert = require('truffle-assertions');
 
 import Reverter from './utils/reverter';
 
-import { getUnixTime, addMonths } from 'date-fns';
+import {getUnixTime, addMonths} from 'date-fns';
 
-const {
-  time,
-  expectEvent,
-  expectRevert
-} = require('@openzeppelin/test-helpers');
+const {time, expectEvent, expectRevert} = require('@openzeppelin/test-helpers');
 
 function checkVault(
   vault: any,
   {
     '0': expectedCollateral,
     '1': expectedPutsOutstanding
-  }: { '0': string; '1': string }
+  }: {'0': string; '1': string}
 ) {
   expect(vault['0'].toString()).to.equal(expectedCollateral);
   expect(vault['1'].toString()).to.equal(expectedPutsOutstanding);
@@ -94,7 +90,7 @@ contract('OptionsContract', accounts => {
       'ETH',
       expiry,
       windowSize,
-      { from: creatorAddress, gas: '4000000' }
+      {from: creatorAddress, gas: '4000000'}
     );
 
     let optionsContractAddr = optionsContractResult.logs[1].args[0];
@@ -111,7 +107,7 @@ contract('OptionsContract', accounts => {
       'USDC',
       expiry,
       windowSize,
-      { from: creatorAddress, gas: '4000000' }
+      {from: creatorAddress, gas: '4000000'}
     );
 
     optionsContractAddr = optionsContractResult.logs[1].args[0];
@@ -598,7 +594,7 @@ contract('OptionsContract', accounts => {
           from: creatorAddress,
           gas: '100000'
         }),
-        "Can't transfer ownership to yourself"
+        'Cannot transferVaultOwnership to current owner'
       );
     });
 
@@ -611,7 +607,7 @@ contract('OptionsContract', accounts => {
             gas: '100000'
           }
         ),
-        "Can't transfer owner to the 0 address"
+        'Invalid new owner address'
       );
     });
   });

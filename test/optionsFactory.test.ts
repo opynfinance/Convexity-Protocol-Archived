@@ -1,4 +1,4 @@
-import { expect } from 'chai';
+import {expect} from 'chai';
 import {
   OptionsFactoryInstance,
   MockCompoundOracleInstance
@@ -11,9 +11,9 @@ const MockUniswapFactory = artifacts.require('MockUniswapFactory');
 const OptionsContract = artifacts.require('OptionsContract');
 const truffleAssert = require('truffle-assertions');
 
-import { getUnixTime, addMonths, addSeconds, fromUnixTime } from 'date-fns';
+import {getUnixTime, addMonths, addSeconds, fromUnixTime} from 'date-fns';
 
-const { expectRevert, time } = require('@openzeppelin/test-helpers');
+const {expectRevert, time} = require('@openzeppelin/test-helpers');
 
 contract('OptionsFactory', accounts => {
   const creatorAddress = accounts[0];
@@ -76,7 +76,7 @@ contract('OptionsFactory', accounts => {
         await optionsFactory.addAsset(
           'BAT',
           '0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359',
-          { from: firstOwnerAddress }
+          {from: firstOwnerAddress}
         );
       } catch (err) {
         return;
@@ -148,7 +148,7 @@ contract('OptionsFactory', accounts => {
         await optionsFactory.changeAsset(
           'BAT',
           '0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359',
-          { from: firstOwnerAddress }
+          {from: firstOwnerAddress}
         );
       } catch (err) {
         return;
@@ -177,7 +177,7 @@ contract('OptionsFactory', accounts => {
 
     it('fails if anyone but owner tries to delete asset', async () => {
       try {
-        await optionsFactory.deleteAsset('BAT', { from: firstOwnerAddress });
+        await optionsFactory.deleteAsset('BAT', {from: firstOwnerAddress});
       } catch (err) {
         return;
       }
@@ -186,8 +186,8 @@ contract('OptionsFactory', accounts => {
   });
 
   describe('#createOptionsContract()', () => {
-    it('should not allow to create an expided new options contract', async () => {
-      const expiredExpiry = getUnixTime(new Date());
+    it('should not allow to create an expired new options contract', async () => {
+      const expiredExpiry = '1579111873';
 
       await expectRevert(
         optionsFactory.createOptionsContract(
@@ -201,7 +201,7 @@ contract('OptionsFactory', accounts => {
           'ETH',
           expiredExpiry,
           expiredExpiry,
-          { from: creatorAddress, gas: '4000000' }
+          {from: creatorAddress, gas: '4000000'}
         ),
         'Cannot create an expired option'
       );
@@ -222,7 +222,7 @@ contract('OptionsFactory', accounts => {
           'ETH',
           expiry,
           bigWindowSize,
-          { from: creatorAddress, gas: '4000000' }
+          {from: creatorAddress, gas: '4000000'}
         ),
         'Invalid _windowSize'
       );
@@ -240,7 +240,7 @@ contract('OptionsFactory', accounts => {
         'ETH',
         expiry,
         windowSize,
-        { from: creatorAddress, gas: '4000000' }
+        {from: creatorAddress, gas: '4000000'}
       );
 
       // Test that the Factory stores addresses of any new options contract added.
@@ -269,7 +269,7 @@ contract('OptionsFactory', accounts => {
         'ETH',
         expiry,
         windowSize,
-        { from: firstOwnerAddress, gas: '4000000' }
+        {from: firstOwnerAddress, gas: '4000000'}
       );
 
       // Test that the Factory stores addresses of any new options contract added.
