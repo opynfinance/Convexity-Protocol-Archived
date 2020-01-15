@@ -138,6 +138,11 @@ contract OptionsContract is Ownable, ERC20 {
     )
         public
     {
+        require(isWithinExponentRange(_collExp), "collateral exponent not within expected range");
+        require(isWithinExponentRange(_underlyingExp), "underlying exponent not within expected range");
+        require(isWithinExponentRange(_strikeExp), "strike price exponent not within expected range");
+        require(isWithinExponentRange(_oTokenExchangeExp), "oToken exchange rate exponent not within expected range");
+
         collateral = _collateral;
         collateralExp = _collExp;
 
@@ -174,7 +179,6 @@ contract OptionsContract is Ownable, ERC20 {
         address owner
     );
     event TransferFee(address to, uint256 fees);
-
 
     /**
      * @dev Throws if called Options contract is expired.
@@ -253,7 +257,7 @@ contract OptionsContract is Ownable, ERC20 {
      * expiry to increase the amount of collateral in a Vault. Will fail if ETH is not the
      * collateral asset.
      * Remember that adding ETH collateral even if no oTokens have been created can put the owner at a
-     * risk of losing the collateral if an exercise event happens. 
+     * risk of losing the collateral if an exercise event happens.
      * Ensure that you issue and immediately sell oTokens to allow the owner to earn premiums.
      * (Either call the createAndSell function in the oToken contract or batch the
      * addERC20Collateral, issueOTokens and sell transactions and ensure they happen atomically to protect
@@ -584,6 +588,13 @@ contract OptionsContract is Ownable, ERC20 {
     function isUnsafe(address vaultOwner) public view returns (bool) {
         bool isUnsafe = !isSafe(getCollateral(vaultOwner), getOTokensIssued(vaultOwner));
         return isUnsafe;
+    }
+
+    /**
+     * @notice This function returns if an -30 <= exponent <= 30
+     */
+    function isWithinExponentRange(int32 val) internal returns (bool) {
+        return ((val <= 30) && (val >= -30));
     }
 
     /**
