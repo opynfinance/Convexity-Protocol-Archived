@@ -16,7 +16,11 @@ import Reverter from './utils/reverter';
 
 import { getUnixTime, addMonths } from 'date-fns';
 
-const { expectRevert, time, expectEvent, expectRevert } = require('@openzeppelin/test-helpers');
+const {
+  time,
+  expectEvent,
+  expectRevert
+} = require('@openzeppelin/test-helpers');
 
 function checkVault(
   vault: any,
@@ -95,25 +99,6 @@ contract('OptionsContract', accounts => {
 
     let optionsContractAddr = optionsContractResult.logs[1].args[0];
     optionsContracts.push(await oToken.at(optionsContractAddr));
-
-    // // create the expired options contract
-    // optionsContractResult = await optionsFactory.createOptionsContract(
-    //   'ETH',
-    //   -'18',
-    //   'DAI',
-    //   -'18',
-    //   -'17',
-    //   '90',
-    //   -'18',
-    //   'ETH',
-    //   '1',
-    //   '1',
-    //   { from: creatorAddress, gas: '4000000' }
-    // );
-
-    // const expiredOptionsAddr = optionsContractResult.logs[1].args[0];
-    // const expiredOptionsContract = await oToken.at(expiredOptionsAddr);
-    // optionsContracts.push(expiredOptionsContract);
 
     optionsContractResult = await optionsFactory.createOptionsContract(
       'USDC',
@@ -266,7 +251,7 @@ contract('OptionsContract', accounts => {
       });
 
       // test getVaultsByOwner
-      const vault = await optionsContracts[2].getVault(creatorAddress);
+      const vault = await optionsContracts[1].getVault(creatorAddress);
       const expectedVault = {
         '0': '0',
         '1': '0'
@@ -276,8 +261,8 @@ contract('OptionsContract', accounts => {
 
     it('should add ERC20 collateral successfully', async () => {
       const msgValue = '10000000';
-      await usdc.approve(optionsContracts[2].address, '10000000000000000');
-      const result = await optionsContracts[2].addERC20Collateral(
+      await usdc.approve(optionsContracts[1].address, '10000000000000000');
+      const result = await optionsContracts[1].addERC20Collateral(
         creatorAddress,
         msgValue,
         {
@@ -293,7 +278,7 @@ contract('OptionsContract', accounts => {
       });
 
       // test that the vault's balances have been updated.
-      const vault = await optionsContracts[2].getVault(creatorAddress);
+      const vault = await optionsContracts[1].getVault(creatorAddress);
       const expectedVault = {
         '0': msgValue,
         '1': '0'
@@ -302,13 +287,13 @@ contract('OptionsContract', accounts => {
     });
 
     it("shouldn't be able to add ERC20 collateral to a 0x0 address", async () => {
-      await usdc.approve(optionsContracts[2].address, '10000000000000000', {
+      await usdc.approve(optionsContracts[1].address, '10000000000000000', {
         from: nonOwnerAddress,
         gas: '1000000'
       });
       const msgValue = '10000000';
       await expectRevert(
-        optionsContracts[2].addERC20Collateral(
+        optionsContracts[1].addERC20Collateral(
           '0x0000000000000000000000000000000000000000',
           msgValue,
           {
@@ -338,7 +323,7 @@ contract('OptionsContract', accounts => {
       try {
         const vaultNum = 0;
         const msgValue = '10000000';
-        await optionsContracts[2].addETHCollateral(creatorAddress, {
+        await optionsContracts[1].addETHCollateral(creatorAddress, {
           from: firstOwnerAddress,
           gas: '100000',
           value: msgValue
@@ -405,11 +390,11 @@ contract('OptionsContract', accounts => {
 
     it('should be able to issue options in the erc20 contract', async () => {
       const numTokens = '10';
-      await optionsContracts[2].issueOTokens(numTokens, creatorAddress, {
+      await optionsContracts[1].issueOTokens(numTokens, creatorAddress, {
         from: creatorAddress,
         gas: '100000'
       });
-      const amtPTokens = await optionsContracts[2].balanceOf(creatorAddress);
+      const amtPTokens = await optionsContracts[1].balanceOf(creatorAddress);
       expect(amtPTokens.toString()).to.equal(numTokens);
     });
   });
@@ -454,7 +439,7 @@ contract('OptionsContract', accounts => {
   describe('#removeCollateral()', () => {
     it('should revert when trying to remove 0 collateral', async () => {
       await expectRevert(
-        optionsContracts[0].removeCollateral(1, 0, {
+        optionsContracts[0].removeCollateral(0, {
           from: creatorAddress,
           gas: '100000'
         }),
@@ -577,12 +562,12 @@ contract('OptionsContract', accounts => {
       const collateral = '20000000';
 
       await usdc.mint(nonOwnerAddress, '20000000');
-      await usdc.approve(optionsContracts[2].address, '10000000000000000', {
+      await usdc.approve(optionsContracts[1].address, '10000000000000000', {
         from: nonOwnerAddress,
         gas: '4000000'
       });
 
-      const result = await optionsContracts[2].createERC20CollateralOption(
+      const result = await optionsContracts[1].createERC20CollateralOption(
         numOptions,
         collateral,
         nonOwnerAddress,
@@ -612,7 +597,7 @@ contract('OptionsContract', accounts => {
   describe('#transferVaultOwnership()', () => {
     it('should revert when trying to transferVaultOwnership to current owner', async () => {
       await expectRevert(
-        optionsContracts[0].transferVaultOwnership(1, creatorAddress, {
+        optionsContracts[0].transferVaultOwnership(creatorAddress, {
           from: creatorAddress,
           gas: '100000'
         }),
@@ -623,7 +608,6 @@ contract('OptionsContract', accounts => {
     it('should revert when trying to transferVaultOwnership to current 0x0 address', async () => {
       await expectRevert(
         optionsContracts[0].transferVaultOwnership(
-          1,
           '0x0000000000000000000000000000000000000000',
           {
             from: creatorAddress,
@@ -657,11 +641,21 @@ contract('OptionsContract', accounts => {
       );
     });
 
-    // TODO: Add require(!hasExpired(), "Options contract expired"); check in OptionsContract
-    xit('should not be able to add ETH collateral to an expired options contract', async () => {
+    it('should not be able to add ETH collateral to an expired options contract', async () => {
       await expectRevert(
-        optionsContracts[0].addETHCollateral(0, {
+        optionsContracts[0].addETHCollateral(firstOwnerAddress, {
           from: firstOwnerAddress,
+          gas: '100000',
+          value: '10000000'
+        }),
+        'Options contract expired'
+      );
+    });
+
+    it('should not be able to add ERC20 collateral to an expired options contract', async () => {
+      await expectRevert(
+        optionsContracts[1].addETHCollateral(creatorAddress, {
+          from: creatorAddress,
           gas: '100000',
           value: '10000000'
         }),

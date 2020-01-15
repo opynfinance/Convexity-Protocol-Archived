@@ -264,7 +264,7 @@ contract OptionsContract is Ownable, ERC20 {
      * the end user).
      * @param vaultOwner the index of the Vault to which collateral will be added.
      */
-    function addETHCollateral(address vaultOwner) public payable returns (uint256) {
+    function addETHCollateral(address vaultOwner) public payable notExpired returns (uint256) {
         require(isETH(collateral), "ETH is not the specified collateral type");
         require(hasVault(vaultOwner), "Vault does not exist");
 
@@ -286,7 +286,7 @@ contract OptionsContract is Ownable, ERC20 {
      * @param vaultOwner the index of the Vault to which collateral will be added.
      * @param amt the amount of collateral to be transferred in.
      */
-    function addERC20Collateral(address vaultOwner, uint256 amt) public returns (uint256) {
+    function addERC20Collateral(address vaultOwner, uint256 amt) public notExpired returns (uint256) {
         require(
             collateral.transferFrom(msg.sender, address(this), amt),
             "Could not transfer in collateral tokens"
@@ -453,7 +453,7 @@ contract OptionsContract is Ownable, ERC20 {
     function transferVaultOwnership(address payable newOwner) public {
         require(hasVault(msg.sender), "Vault does not exist");
         require(newOwner != address(0), "Invalid new owner address");
-        require(nmsg.sender != newOwner, "Cannot transferVaultOwnership to current owner");
+        require(msg.sender != newOwner, "Cannot transferVaultOwnership to current owner");
 
         Vault storage oldVault = vaults[msg.sender];
 
