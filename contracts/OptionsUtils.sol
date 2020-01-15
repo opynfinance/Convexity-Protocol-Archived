@@ -15,13 +15,17 @@ contract OptionsUtils {
         0x02557a5E05DeFeFFD4cAe6D83eA3d173B272c904
     );
 
-    constructor (address _uniswapFactory, address _compoundOracle) public {
+    constructor(address _uniswapFactory, address _compoundOracle) public {
         UNISWAP_FACTORY = UniswapFactoryInterface(_uniswapFactory);
         COMPOUND_ORACLE = CompoundOracleInterface(_compoundOracle);
     }
 
     // TODO: for now gets Uniswap, later update to get other exchanges
-    function getExchange(address _token) public view returns (UniswapExchangeInterface) {
+    function getExchange(address _token)
+        public
+        view
+        returns (UniswapExchangeInterface)
+    {
         if (address(UNISWAP_FACTORY.getExchange(_token)) == address(0)) {
             revert("No payout exchange");
         }
