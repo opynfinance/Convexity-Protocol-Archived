@@ -33,7 +33,8 @@ contract OptionsContract is Ownable, ERC20 {
 
     OptionsExchange public optionsExchange;
 
-    mapping (address => Vault) vaults;
+
+    mapping internal (address => Vault) vaults;
 
     // 10 is 0.01 i.e. 1% incentive.
     Number public liquidationIncentive = Number(10, -3);
@@ -63,36 +64,36 @@ contract OptionsContract is Ownable, ERC20 {
 
     /* UNIX time.
     Exercise period starts at `(expiry - windowSize)` and ends at `expiry` */
-    uint256 windowSize;
+    uint256 internal windowSize;
 
     /* The amount of collateral that 1 weightedCollateral in a vault gives you. Scaled by a factor of 10^18 */
-    uint256 collateralWeight = 10**18;
+    uint256 internal collateralWeight = 10**18;
 
     /* The amount of oTokens that 1 weightedOToken in a vault gives you. Scaled by a factor of 10^18 */
-    uint256 oTokenWeight = 10**18;
+    uint256 internal oTokenWeight = 10**18;
 
     /* The total fees accumulated in the contract any time liquidate or exercise is called */
-    uint256 totalFee;
+    uint256 internal totalFee;
 
     /* The total amount of underlying that is added to the contract during the exercise window.
     This number can only increase and is only incremented in the exercise function. After expiry,
     this value is used to calculate the proportion of underlying paid out to the respective Vault
     owners in the claim collateral function */
-    uint256 totalUnderlying;
+    uint256 internal totalUnderlying;
 
     /* The totalCollateral is the collateral balance of the options contract on the first call to claimCollateral.
     (before repo owners start taking out their share of collateral). This value is used as the denominator in
     calculating the proportions of underlying that has to be paid out to the repo owners. */
-    uint256 totalCollateral;
+    uint256 internal totalCollateral;
 
     // The time of expiry of the options contract
     uint256 public expiry;
 
     // The precision of the collateral
-    int32 collateralExp = -18;
+    int32 public collateralExp = -18;
 
     // The precision of the underlying
-    int32 underlyingExp = -18;
+    int32 public underlyingExp = -18;
 
     // The collateral asset
     IERC20 public collateral;
