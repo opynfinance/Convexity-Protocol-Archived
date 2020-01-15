@@ -12,7 +12,15 @@ const MintableToken = artifacts.require('ERC20Mintable');
 
 const truffleAssert = require('truffle-assertions');
 
-const { expectEvent, expectRevert } = require('@openzeppelin/test-helpers');
+import Reverter from './utils/reverter';
+
+import { getUnixTime, addMonths } from 'date-fns';
+
+const {
+  time,
+  expectEvent,
+  expectRevert
+} = require('@openzeppelin/test-helpers');
 
 function checkVault(
   vault: any,
@@ -36,6 +44,8 @@ function checkVaultOwners(vaults: any, expected: string[]) {
 
 // Initialize the Options Factory, Options Exchange and other mock contracts
 contract('OptionsContract', accounts => {
+  const reverter = new Reverter(web3);
+
   const creatorAddress = accounts[0];
   const firstOwnerAddress = accounts[1];
   const nonOwnerAddress = accounts[2];
@@ -44,6 +54,10 @@ contract('OptionsContract', accounts => {
   let optionsFactory: OptionsFactoryInstance;
   let dai: ERC20MintableInstance;
   let usdc: ERC20MintableInstance;
+
+  const now = Date.now();
+  const expiry = getUnixTime(addMonths(now, 3));
+  const windowSize = expiry;
 
   before('set up contracts', async () => {
     // 1. Deploy mock contracts
@@ -78,33 +92,14 @@ contract('OptionsContract', accounts => {
       '90',
       -'18',
       'ETH',
-      '1589932800',
-      '1589932800',
+      expiry,
+      windowSize,
       { from: creatorAddress, gas: '4000000' }
     );
 
     let optionsContractAddr = optionsContractResult.logs[1].args[0];
     optionsContracts.push(await oToken.at(optionsContractAddr));
 
-    // create the expired options contract
-    optionsContractResult = await optionsFactory.createOptionsContract(
-      'ETH',
-      -'18',
-      'DAI',
-      -'18',
-      -'17',
-      '90',
-      -'18',
-      'ETH',
-      '1',
-      '1',
-      { from: creatorAddress, gas: '4000000' }
-    );
-
-    const expiredOptionsAddr = optionsContractResult.logs[1].args[0];
-    const expiredOptionsContract = await oToken.at(expiredOptionsAddr);
-    optionsContracts.push(expiredOptionsContract);
-
     optionsContractResult = await optionsFactory.createOptionsContract(
       'USDC',
       -'18',
@@ -114,14 +109,16 @@ contract('OptionsContract', accounts => {
       '90',
       -'18',
       'USDC',
-      '1589932800',
-      '1589932800',
+      expiry,
+      windowSize,
       { from: creatorAddress, gas: '4000000' }
     );
 
     optionsContractAddr = optionsContractResult.logs[1].args[0];
     const ERC20collateralOptContract = await oToken.at(optionsContractAddr);
     optionsContracts.push(ERC20collateralOptContract);
+
+    await reverter.snapshot();
   });
 
   describe('#openVault()', () => {
@@ -165,19 +162,6 @@ contract('OptionsContract', accounts => {
 
       // check proper events emitted
       expect(result.logs[0].event).to.equal('VaultOpened');
-    });
-
-    it('should not be able to open a vault in an expired options contract', async () => {
-      try {
-        await optionsContracts[1].openVault({
-          from: firstOwnerAddress,
-          gas: '100000'
-        });
-      } catch (err) {
-        return;
-      }
-
-      truffleAssert.fails('should throw error');
     });
   });
 
@@ -261,13 +245,13 @@ contract('OptionsContract', accounts => {
 
   describe('#addERC20Collateral()', () => {
     it('should open ERC20 vault correctly', async () => {
-      await optionsContracts[2].openVault({
+      await optionsContracts[1].openVault({
         from: creatorAddress,
         gas: '100000'
       });
 
       // test getVaultsByOwner
-      const vault = await optionsContracts[2].getVault(creatorAddress);
+      const vault = await optionsContracts[1].getVault(creatorAddress);
       const expectedVault = {
         '0': '0',
         '1': '0'
@@ -277,8 +261,8 @@ contract('OptionsContract', accounts => {
 
     it('should add ERC20 collateral successfully', async () => {
       const msgValue = '10000000';
-      await usdc.approve(optionsContracts[2].address, '10000000000000000');
-      const result = await optionsContracts[2].addERC20Collateral(
+      await usdc.approve(optionsContracts[1].address, '10000000000000000');
+      const result = await optionsContracts[1].addERC20Collateral(
         creatorAddress,
         msgValue,
         {
@@ -294,7 +278,7 @@ contract('OptionsContract', accounts => {
       });
 
       // test that the vault's balances have been updated.
-      const vault = await optionsContracts[2].getVault(creatorAddress);
+      const vault = await optionsContracts[1].getVault(creatorAddress);
       const expectedVault = {
         '0': msgValue,
         '1': '0'
@@ -303,13 +287,13 @@ contract('OptionsContract', accounts => {
     });
 
     it("shouldn't be able to add ERC20 collateral to a 0x0 address", async () => {
-      await usdc.approve(optionsContracts[2].address, '10000000000000000', {
+      await usdc.approve(optionsContracts[1].address, '10000000000000000', {
         from: nonOwnerAddress,
         gas: '1000000'
       });
       const msgValue = '10000000';
       await expectRevert(
-        optionsContracts[2].addERC20Collateral(
+        optionsContracts[1].addERC20Collateral(
           '0x0000000000000000000000000000000000000000',
           msgValue,
           {
@@ -339,7 +323,7 @@ contract('OptionsContract', accounts => {
       try {
         const vaultNum = 0;
         const msgValue = '10000000';
-        await optionsContracts[2].addETHCollateral(creatorAddress, {
+        await optionsContracts[1].addETHCollateral(creatorAddress, {
           from: firstOwnerAddress,
           gas: '100000',
           value: msgValue
@@ -406,12 +390,11 @@ contract('OptionsContract', accounts => {
 
     it('should be able to issue options in the erc20 contract', async () => {
       const numTokens = '10';
-
-      await optionsContracts[2].issueOTokens(numTokens, creatorAddress, {
+      await optionsContracts[1].issueOTokens(numTokens, creatorAddress, {
         from: creatorAddress,
         gas: '100000'
       });
-      const amtPTokens = await optionsContracts[2].balanceOf(creatorAddress);
+      const amtPTokens = await optionsContracts[1].balanceOf(creatorAddress);
       expect(amtPTokens.toString()).to.equal(numTokens);
     });
   });
@@ -454,6 +437,16 @@ contract('OptionsContract', accounts => {
   });
 
   describe('#removeCollateral()', () => {
+    it('should revert when trying to remove 0 collateral', async () => {
+      await expectRevert(
+        optionsContracts[0].removeCollateral(0, {
+          from: creatorAddress,
+          gas: '100000'
+        }),
+        'Cannot remove 0 collateral'
+      );
+    });
+
     it('should be able to remove collateral if sufficiently collateralized', async () => {
       const numTokens = '1000';
 
@@ -569,12 +562,12 @@ contract('OptionsContract', accounts => {
       const collateral = '20000000';
 
       await usdc.mint(nonOwnerAddress, '20000000');
-      await usdc.approve(optionsContracts[2].address, '10000000000000000', {
+      await usdc.approve(optionsContracts[1].address, '10000000000000000', {
         from: nonOwnerAddress,
         gas: '4000000'
       });
 
-      const result = await optionsContracts[2].createERC20CollateralOption(
+      const result = await optionsContracts[1].createERC20CollateralOption(
         numOptions,
         collateral,
         nonOwnerAddress,
@@ -598,6 +591,76 @@ contract('OptionsContract', accounts => {
         oTokensIssued: numOptions,
         vaultOwner: nonOwnerAddress
       });
+    });
+  });
+
+  describe('#transferVaultOwnership()', () => {
+    it('should revert when trying to transferVaultOwnership to current owner', async () => {
+      await expectRevert(
+        optionsContracts[0].transferVaultOwnership(creatorAddress, {
+          from: creatorAddress,
+          gas: '100000'
+        }),
+        'Cannot transferVaultOwnership to current owner'
+      );
+    });
+
+    it('should revert when trying to transferVaultOwnership to current 0x0 address', async () => {
+      await expectRevert(
+        optionsContracts[0].transferVaultOwnership(
+          '0x0000000000000000000000000000000000000000',
+          {
+            from: creatorAddress,
+            gas: '100000'
+          }
+        ),
+        'Invalid new owner address'
+      );
+    });
+  });
+
+  describe('expired OptionContract', () => {
+    before(async () => {
+      await reverter.revert();
+
+      await optionsContracts[0].openVault({
+        from: creatorAddress,
+        gas: '100000'
+      });
+
+      await time.increaseTo(expiry + 2);
+    });
+
+    it('should not be able to open a vault in an expired options contract', async () => {
+      await expectRevert(
+        optionsContracts[0].openVault({
+          from: creatorAddress,
+          gas: '100000'
+        }),
+        'Options contract expired'
+      );
+    });
+
+    it('should not be able to add ETH collateral to an expired options contract', async () => {
+      await expectRevert(
+        optionsContracts[0].addETHCollateral(firstOwnerAddress, {
+          from: firstOwnerAddress,
+          gas: '100000',
+          value: '10000000'
+        }),
+        'Options contract expired'
+      );
+    });
+
+    it('should not be able to add ERC20 collateral to an expired options contract', async () => {
+      await expectRevert(
+        optionsContracts[1].addETHCollateral(creatorAddress, {
+          from: creatorAddress,
+          gas: '100000',
+          value: '10000000'
+        }),
+        'Options contract expired'
+      );
     });
   });
 });
