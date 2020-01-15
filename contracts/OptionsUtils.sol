@@ -22,13 +22,13 @@ contract OptionsUtils {
 
     // TODO: for now gets Uniswap, later update to get other exchanges
     function getExchange(address _token) public view returns (UniswapExchangeInterface) {
+        if (address(UNISWAP_FACTORY.getExchange(_token)) == address(0)) {
+            revert("No payout exchange");
+        }
+
         UniswapExchangeInterface exchange = UniswapExchangeInterface(
             UNISWAP_FACTORY.getExchange(_token)
         );
-
-        if (address(exchange) == address(0)) {
-            revert("No payout exchange");
-        }
 
         return exchange;
     }

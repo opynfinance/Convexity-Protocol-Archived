@@ -10,14 +10,17 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 contract OptionsExchange {
 
     uint256 constant LARGE_BLOCK_SIZE = 1651753129000;
+    uint256 constant LARGE_APPROVAL_NUMBER = 10 ** 30;
 
-    UniswapFactoryInterface public UNISWAP_FACTORY = UniswapFactoryInterface(
-        0xc0a47dFe034B400B47bDaD5FecDa2621de6c4d95
-    );
+    UniswapFactoryInterface public UNISWAP_FACTORY;
 
     constructor (address _uniswapFactory) public {
         UNISWAP_FACTORY = UniswapFactoryInterface(_uniswapFactory);
     }
+
+    /*** Events ***/
+    event SellOTokens(address seller, address payable receiver, address oTokenAddress, address payoutTokenAddress, uint256 oTokensToSell);
+    event BuyOTokens(address buyer, address payable receiver, address oTokenAddress, address paymentTokenAddress, uint256 oTokensToBuy);
 
     /**
     * @notice This function sells oTokens on Uniswap and sends back payoutTokens to the receiver
@@ -32,6 +35,8 @@ contract OptionsExchange {
         IERC20 payoutToken = IERC20(payoutTokenAddress);
         oToken.transferFrom(msg.sender, address(this), oTokensToSell);
         uniswapSellOToken(oToken, payoutToken, oTokensToSell, receiver);
+
+        emit SellOTokens(msg.sender, receiver, oTokenAddress, payoutTokenAddress, oTokensToSell);
     }
 
     /**
@@ -45,6 +50,8 @@ contract OptionsExchange {
         IERC20 oToken = IERC20(oTokenAddress);
         IERC20 paymentToken = IERC20(paymentTokenAddress);
         uniswapBuyOToken(paymentToken, oToken, oTokensToBuy, receiver);
+
+        emit BuyOTokens(msg.sender, receiver, oTokenAddress, paymentTokenAddress, oTokensToBuy);
     }
 
     /**
@@ -141,7 +148,7 @@ contract OptionsExchange {
             paymentToken.transferFrom(msg.sender, address(this), premiumToPay);
 
             // Token to Token
-            paymentToken.approve(address(exchange), 10 ** 30);
+            paymentToken.approve(address(exchange), LARGE_APPROVAL_NUMBER);
             return exchange.tokenToTokenTransferInput(
                     premiumToPay,
                     1,
