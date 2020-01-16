@@ -184,6 +184,7 @@ contract OptionsContract is Ownable, ERC20 {
         uint256 amtCollateralToPay,
         address exerciser
     );
+
     event RedeemVaultBalance(
         uint256 amtCollateralRedeemed,
         uint256 amtUnderlyingRedeemed,
@@ -592,10 +593,8 @@ contract OptionsContract is Ownable, ERC20 {
     function transferVaultOwnership(address payable newOwner) public {
         require(hasVault(msg.sender), "Vault does not exist");
         require(newOwner != address(0), "Invalid new owner address");
-        require(
-            msg.sender != newOwner,
-            "Cannot transferVaultOwnership to current owner"
-        );
+        // prevent overriding vault of new owner
+        require(!hasVault(newOwner), "New owner already has a vault");
 
         Vault storage oldVault = vaults[msg.sender];
 
