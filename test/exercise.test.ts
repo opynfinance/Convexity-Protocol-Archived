@@ -200,7 +200,7 @@ contract('OptionsContract', accounts => {
 
       const initialETH = await balance.current(creatorAddress);
 
-      const txInfo = await optionsContracts.claimCollateral({
+      const txInfo = await optionsContracts.redeemVaultBalance({
         from: creatorAddress,
         gas: '1000000'
       });
@@ -209,9 +209,9 @@ contract('OptionsContract', accounts => {
       const finalETH = await balance.current(creatorAddress);
 
       // check the calculations on amount of collateral paid out and underlying transferred is correct
-      expectEvent(txInfo, 'ClaimedCollateral', {
-        amtCollateralClaimed: '19999550',
-        amtUnderlyingClaimed: '100000'
+      expectEvent(txInfo, 'RedeemVaultBalance', {
+        amtCollateralRedeemed: '19999550',
+        amtUnderlyingRedeemed: '100000'
       });
 
       const gasUsed = new BN(txInfo.receipt.gasUsed);
@@ -229,7 +229,7 @@ contract('OptionsContract', accounts => {
     it('only the owner of a vault should be able to collect collateral', async () => {
       const vaultIndex = '1';
       await expectRevert(
-        optionsContracts.claimCollateral({
+        optionsContracts.redeemVaultBalance({
           from: nonOwnerAddress,
           gas: '1000000'
         }),
@@ -243,15 +243,15 @@ contract('OptionsContract', accounts => {
 
     it('the second person should be able to collect their share of collateral', async () => {
       const vaultIndex = '1';
-      const tx = await optionsContracts.claimCollateral({
+      const tx = await optionsContracts.redeemVaultBalance({
         from: firstOwnerAddress,
         gas: '1000000'
       });
 
       // check the calculations on amount of collateral paid out and underlying transferred is correct
-      expectEvent(tx, 'ClaimedCollateral', {
-        amtCollateralClaimed: '10000000',
-        amtUnderlyingClaimed: '0'
+      expectEvent(tx, 'RedeemVaultBalance', {
+        amtCollateralRedeemed: '10000000',
+        amtUnderlyingRedeemed: '0'
       });
 
       const ownerDaiBal = await dai.balanceOf(firstOwnerAddress);

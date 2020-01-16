@@ -70,17 +70,6 @@ contract OptionsContract is Ownable, ERC20 {
     /* The total fees accumulated in the contract any time liquidate or exercise is called */
     uint256 internal totalFee;
 
-    /* The total amount of underlying that is added to the contract during the exercise window.
-    This number can only increase and is only incremented in the exercise function. After expiry,
-    this value is used to calculate the proportion of underlying paid out to the respective Vault
-    owners in the claim collateral function */
-    uint256 internal totalUnderlying;
-
-    /* The totalCollateral is the collateral balance of the options contract on the first call to claimCollateral.
-    (before repo owners start taking out their share of collateral). This value is used as the denominator in
-    calculating the proportions of underlying that has to be paid out to the repo owners. */
-    uint256 internal totalCollateral;
-
     // The time of expiry of the options contract
     uint256 public expiry;
 
@@ -195,9 +184,9 @@ contract OptionsContract is Ownable, ERC20 {
         uint256 amtCollateralToPay,
         address exerciser
     );
-    event ClaimedCollateral(
-        uint256 amtCollateralClaimed,
-        uint256 amtUnderlyingClaimed,
+    event RedeemVaultBalance(
+        uint256 amtCollateralRedeemed,
+        uint256 amtUnderlyingRedeemed,
         address payable vaultOwner
     );
     event BurnOTokens(address payable vaultOwner, uint256 oTokensBurned);
@@ -484,6 +473,7 @@ contract OptionsContract is Ownable, ERC20 {
      * `strikePrice * oTokens` amount of collateral out. The collateral paid out is taken from
      * the each vault owner starting with the first and iterating until the oTokens to exercise
      * are found.
+     * @param oTokensToExercise the number of oTokens being exercised.
      */
     function easyExercise(uint256 oTokensToExercise) public payable {
         for (uint256 i = 0; i < vaultOwners.length; i++) {
@@ -503,6 +493,22 @@ contract OptionsContract is Ownable, ERC20 {
                 }
             }
         }
+    }
+
+    /**
+     * @notice This function allows the vault owner to remove their share of underlying after an exercise
+     */
+    function removeUnderlying() public {
+        require(hasVault(msg.sender), "Vault does not exist");
+        Vault storage vault = vaults[msg.sender];
+
+        require(vault.underlying > 0, "No underlying balance");
+
+        uint256 underlyingToTransfer = vault.underlying;
+        vault.underlying = 0;
+
+        transferUnderlying(msg.sender, underlyingToTransfer);
+
     }
 
     /**
@@ -640,7 +646,7 @@ contract OptionsContract is Ownable, ERC20 {
      * from vaults that they own.
      * @dev The owner gets all of their collateral back if no exercise event took their collateral.
      */
-    function claimCollateral() public {
+    function redeemVaultBalance() public {
         require(hasExpired(), "Can't collect collateral until expiry");
         require(hasVault(msg.sender), "Vault does not exist");
 
@@ -658,7 +664,7 @@ contract OptionsContract is Ownable, ERC20 {
         transferCollateral(msg.sender, collateralToTransfer);
         transferUnderlying(msg.sender, underlyingToTransfer);
 
-        emit ClaimedCollateral(
+        emit RedeemVaultBalance(
             collateralToTransfer,
             underlyingToTransfer,
             msg.sender
