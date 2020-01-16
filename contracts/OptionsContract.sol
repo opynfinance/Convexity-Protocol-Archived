@@ -133,12 +133,9 @@ contract OptionsContract is Ownable, ERC20 {
         address _oracleAddress,
         uint256 _windowSize
     ) public {
+        require(block.timestamp < _expiry, "Can't deploy an expired contract");
         require(
-            block.timestamp < _expiry, 
-            "Can't deploy an expired contract"
-        );
-        require(
-            _windowSize <= _expiry, 
+            _windowSize <= _expiry,
             "Exercise window can't be longer than the contract's lifespan"
         );
         require(
@@ -175,21 +172,25 @@ contract OptionsContract is Ownable, ERC20 {
     }
 
     /*** Events ***/
-    event VaultOpened(address vaultOwner);
-    event ETHCollateralAdded(address vaultOwner, uint256 amount, address payer);
+    event VaultOpened(address payable vaultOwner);
+    event ETHCollateralAdded(
+        address payable vaultOwner,
+        uint256 amount,
+        address payer
+    );
     event ERC20CollateralAdded(
-        address vaultOwner,
+        address payable vaultOwner,
         uint256 amount,
         address payer
     );
     event IssuedOTokens(
         address issuedTo,
         uint256 oTokensIssued,
-        address vaultOwner
+        address payable vaultOwner
     );
     event Liquidate(
         uint256 amtCollateralToPay,
-        address vaultOwner,
+        address payable vaultOwner,
         address payable liquidator
     );
     event Exercise(
@@ -200,14 +201,14 @@ contract OptionsContract is Ownable, ERC20 {
     event ClaimedCollateral(
         uint256 amtCollateralClaimed,
         uint256 amtUnderlyingClaimed,
-        address vaultOwner
+        address payable vaultOwner
     );
-    event BurnOTokens(address vaultOwner, uint256 oTokensBurned);
+    event BurnOTokens(address payable vaultOwner, uint256 oTokensBurned);
     event TransferVaultOwnership(
         address payable oldOwner,
         address payable newOwner
     );
-    event RemoveCollateral(uint256 amtRemoved, address vaultOwner);
+    event RemoveCollateral(uint256 amtRemoved, address payable vaultOwner);
     event UpdateParameters(
         uint256 liquidationIncentive,
         uint256 liquidationFactor,
@@ -241,13 +242,21 @@ contract OptionsContract is Ownable, ERC20 {
         uint256 _transactionFee,
         uint256 _minCollateralizationRatio
     ) public onlyOwner {
-    
-        require(_liquidationIncentive <= 200, "Can't have >20% liquidation incentive");
-        require (_liquidationFactor <= 1000, "Can't liquidate more than 100% of the vault");
+        require(
+            _liquidationIncentive <= 200,
+            "Can't have >20% liquidation incentive"
+        );
+        require(
+            _liquidationFactor <= 1000,
+            "Can't liquidate more than 100% of the vault"
+        );
         require(_transactionFee <= 100, "Can't have transaction fee > 10%");
         require(_liquidationFee <= 100, "Can't have liquidation fee > 10%");
-        require (_minCollateralizationRatio >= 10, "Can't have minCollateralizationRatio < 1");
-            
+        require(
+            _minCollateralizationRatio >= 10,
+            "Can't have minCollateralizationRatio < 1"
+        );
+
         liquidationIncentive.value = _liquidationIncentive;
         liquidationFactor.value = _liquidationFactor;
         liquidationFee.value = _liquidationFee;
@@ -309,7 +318,7 @@ contract OptionsContract is Ownable, ERC20 {
      * the end user).
      * @param vaultOwner the index of the Vault to which collateral will be added.
      */
-    function addETHCollateral(address vaultOwner)
+    function addETHCollateral(address payable vaultOwner)
         public
         payable
         notExpired
@@ -336,7 +345,7 @@ contract OptionsContract is Ownable, ERC20 {
      * @param vaultOwner the index of the Vault to which collateral will be added.
      * @param amt the amount of collateral to be transferred in.
      */
-    function addERC20Collateral(address vaultOwner, uint256 amt)
+    function addERC20Collateral(address payable vaultOwner, uint256 amt)
         public
         notExpired
         returns (uint256)
@@ -504,7 +513,7 @@ contract OptionsContract is Ownable, ERC20 {
      * @notice Returns the vault for a given address
      * @param vaultOwner the owner of the Vault to return
      */
-    function getVault(address vaultOwner)
+    function getVault(address payable vaultOwner)
         public
         view
         returns (uint256, uint256, bool)
@@ -549,7 +558,10 @@ contract OptionsContract is Ownable, ERC20 {
      */
     function transferVaultOwnership(address payable newOwner) public {
         require(hasVault(msg.sender), "Vault does not exist");
+        // prevent overriding vault of new owner
+        require(!hasVault(newOwner), "New Owner can't have a vault");
         require(newOwner != address(0), "Invalid new owner address");
+
         require(
             msg.sender != newOwner,
             "Cannot transferVaultOwnership to current owner"
@@ -648,7 +660,7 @@ contract OptionsContract is Ownable, ERC20 {
      * This function returns the maximum amount of collateral liquidatable if the given vault is unsafe
      * @param vaultOwner The index of the vault to be liquidated
      */
-    function maxCollateralLiquidatable(address vaultOwner)
+    function maxCollateralLiquidatable(address payable vaultOwner)
         public
         view
         returns (uint256)
@@ -669,7 +681,7 @@ contract OptionsContract is Ownable, ERC20 {
      * @param vaultOwner The index of the vault to be liquidated
      * @param oTokensToLiquidate The number of oTokens being taken out of circulation
      */
-    function liquidate(address vaultOwner, uint256 oTokensToLiquidate)
+    function liquidate(address payable vaultOwner, uint256 oTokensToLiquidate)
         public
         notExpired
     {
@@ -747,7 +759,7 @@ contract OptionsContract is Ownable, ERC20 {
      * @param vaultOwner The number of the vault to check
      * @return true or false
      */
-    function isUnsafe(address vaultOwner) public view returns (bool) {
+    function isUnsafe(address payable vaultOwner) public view returns (bool) {
         bool isUnsafe = !isSafe(
             getCollateral(vaultOwner),
             getOTokensIssued(vaultOwner)
@@ -765,7 +777,11 @@ contract OptionsContract is Ownable, ERC20 {
     /**
      * @notice This function calculates and returns the amount of collateral in the vault
     */
-    function getCollateral(address vaultOwner) internal view returns (uint256) {
+    function getCollateral(address payable vaultOwner)
+        internal
+        view
+        returns (uint256)
+    {
         Vault storage vault = vaults[vaultOwner];
         return vault.weightedCollateral.mul(collateralWeight).div(10**18);
     }
@@ -773,7 +789,7 @@ contract OptionsContract is Ownable, ERC20 {
     /**
      * @notice This function calculates and returns the amount of puts issued by the Vault
     */
-    function getOTokensIssued(address vaultOwner)
+    function getOTokensIssued(address payable vaultOwner)
         internal
         view
         returns (uint256)
@@ -787,7 +803,7 @@ contract OptionsContract is Ownable, ERC20 {
      * @param vaultOwner the index of the vault
      * @param amt the amount of collateral to add
      */
-    function _addCollateral(address vaultOwner, uint256 amt)
+    function _addCollateral(address payable vaultOwner, uint256 amt)
         private
         notExpired
         returns (uint256)
