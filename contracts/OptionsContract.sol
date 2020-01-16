@@ -411,7 +411,7 @@ contract OptionsContract is Ownable, ERC20 {
 
         require(hasVault(vaultToExerciseFrom), "Vault does not exist");
 
-        Vault storage vault = vaults[msg.sender];
+        Vault storage vault = vaults[vaultToExerciseFrom];
         require(oTokensToExercise > 0, "Can't exercise 0 oTokens");
         // Check correct amount of oTokens passed in)
         require(
@@ -475,6 +475,34 @@ contract OptionsContract is Ownable, ERC20 {
 
         emit Exercise(amtUnderlyingToPay, amtCollateralToPay, msg.sender);
 
+    }
+
+    /**
+     * @notice Called by anyone holding the oTokens and underlying during the
+     * exercise window i.e. from `expiry - windowSize` time to `expiry` time. The caller
+     * transfers in their oTokens and corresponding amount of underlying and gets
+     * `strikePrice * oTokens` amount of collateral out. The collateral paid out is taken from
+     * the each vault owner starting with the first and iterating until the oTokens to exercise
+     * are found.
+     */
+    function easyExercise(uint256 oTokensToExercise) public payable {
+        for (uint256 i = 0; i < vaultOwners.length; i++) {
+            address payable vaultOwner = vaultOwners[i];
+            Vault storage vault = vaults[vaultOwner];
+            if (isSafe(vault.collateral, vault.oTokensIssued)) {
+                if (oTokensToExercise == 0) {
+                    break;
+                } else if (vault.oTokensIssued >= oTokensToExercise) {
+                    exercise(oTokensToExercise, vaultOwner);
+                    break;
+                } else {
+                    oTokensToExercise = oTokensToExercise.sub(
+                        vault.oTokensIssued
+                    );
+                    exercise(vault.oTokensIssued, vaultOwner);
+                }
+            }
+        }
     }
 
     /**
@@ -647,7 +675,7 @@ contract OptionsContract is Ownable, ERC20 {
         returns (uint256)
     {
         if (isUnsafe(vaultOwner)) {
-            Vault storage vault = vaults[msg.sender];
+            Vault storage vault = vaults[vaultOwner];
             return vault.collateral.mul(liquidationFactor.value);
         } else {
             return 0;
@@ -714,11 +742,8 @@ contract OptionsContract is Ownable, ERC20 {
         );
 
         // deduct the collateral and oTokensIssued
-        uint256 amtcollateralToPay = amtCollateralToPay.add(protocolFee);
-        vault.collateral = vault.collateral.sub(amtcollateralToPay);
-
-        uint256 oTokensIssuedToDeduct = oTokensToLiquidate.mul(10**18);
-        vault.oTokensIssued = vault.oTokensIssued.sub(oTokensIssuedToDeduct);
+        vault.collateral = vault.collateral.sub(amtCollateralToPay);
+        vault.oTokensIssued = vault.oTokensIssued.sub(oTokensToLiquidate);
 
         // transfer the collateral and burn the _oTokens
         _burn(msg.sender, oTokensToLiquidate);

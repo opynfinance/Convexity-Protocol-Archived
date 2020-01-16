@@ -128,7 +128,8 @@ contract('OptionsContract', accounts => {
       const vault = await optionsContracts[0].getVault(creatorAddress);
       expect(vault['0'].toString()).to.equal('0');
       expect(vault['1'].toString()).to.equal('0');
-      expect(vault['2']).to.equal(true);
+      expect(vault['2'].toString()).to.equal('0');
+      expect(vault['3']).to.equal(true);
 
       // check proper events emitted
       expect(result.logs[0].event).to.equal('VaultOpened');
@@ -154,7 +155,8 @@ contract('OptionsContract', accounts => {
       const vault = await optionsContracts[0].getVault(firstOwnerAddress);
       expect(vault['0'].toString()).to.equal('0');
       expect(vault['1'].toString()).to.equal('0');
-      expect(vault['2']).to.equal(true);
+      expect(vault['2'].toString()).to.equal('0');
+      expect(vault['3']).to.equal(true);
     });
   });
 
