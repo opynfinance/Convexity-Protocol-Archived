@@ -445,7 +445,7 @@ contract OptionsContract is Ownable, ERC20 {
 
         uint256 totalCollateralToPay = amtCollateralToPay.add(amtFee);
         require(
-            totalCollateralToPay >= vault.collateral,
+            totalCollateralToPay <= vault.collateral,
             "Vault underwater, can't exercise"
         );
 

@@ -1,4 +1,4 @@
-import { expect } from 'chai';
+import {expect} from 'chai';
 import {
   ERC20MintableInstance,
   MockCompoundOracleInstance,
@@ -54,8 +54,8 @@ contract('OptionsContract', accounts => {
     // 1.2 Mock Dai contract
     dai = await MintableToken.new();
     await dai.mint(creatorAddress, '10000000');
-    await dai.mint(firstExerciser, '100000', { from: creatorAddress });
-    await dai.mint(secondExerciser, '100000', { from: creatorAddress });
+    await dai.mint(firstExerciser, '100000', {from: creatorAddress});
+    await dai.mint(secondExerciser, '100000', {from: creatorAddress});
 
     // 1.3 Mock Dai contract
     usdc = await MintableToken.new();
@@ -81,7 +81,7 @@ contract('OptionsContract', accounts => {
       'USDC',
       '1589932800',
       windowSize,
-      { from: creatorAddress, gas: '4000000' }
+      {from: creatorAddress, gas: '4000000'}
     );
 
     const optionsContractAddr = optionsContractResult.logs[1].args[0];
@@ -154,7 +154,7 @@ contract('OptionsContract', accounts => {
       await dai.approve(
         optionsContracts[0].address,
         '10000000000000000000000',
-        { from: firstExerciser }
+        {from: firstExerciser}
       );
 
       // call exercise
@@ -162,12 +162,12 @@ contract('OptionsContract', accounts => {
       await optionsContracts[0].approve(
         optionsContracts[0].address,
         '10000000000000000',
-        { from: firstExerciser }
+        {from: firstExerciser}
       );
 
       const initialETH = await balance.current(firstExerciser);
 
-      const txInfo = await optionsContracts[0].exercise(amtToExercise, {
+      const txInfo = await optionsContracts[0].easyExercise(amtToExercise, {
         from: firstExerciser,
         gas: '1000000'
       });
@@ -220,6 +220,13 @@ contract('OptionsContract', accounts => {
       expect(result).to.be.true;
     });
 
+    it('balance of first vault should have changed', async () => {
+      const vault = await optionsContracts[0].getVault(firstVaultOwnerAddress);
+      expect(vault['0'].toString()).to.equal('19999550');
+      expect(vault['1'].toString()).to.equal('249990');
+      expect(vault['2'].toString()).to.equal('100000');
+    });
+
     it('secondExerciser should be able to exercise 10 oTokens', async () => {
       const underlyingToPay = new BN(100000);
       const collateralToPay = new BN(900);
@@ -231,7 +238,7 @@ contract('OptionsContract', accounts => {
       await dai.approve(
         optionsContracts[0].address,
         '10000000000000000000000',
-        { from: secondExerciser }
+        {from: secondExerciser}
       );
 
       // call exercise
@@ -239,23 +246,23 @@ contract('OptionsContract', accounts => {
       await optionsContracts[0].approve(
         optionsContracts[0].address,
         '10000000000000000',
-        { from: secondExerciser }
+        {from: secondExerciser}
       );
 
       const initialETH = await balance.current(secondExerciser);
 
-      const txInfo = await optionsContracts[0].exercise(amtToExercise, {
+      const txInfo = await optionsContracts[0].easyExercise(amtToExercise, {
         from: secondExerciser,
         gas: '1000000'
       });
-
-      const tx = await web3.eth.getTransaction(txInfo.tx);
-      const finalETH = await balance.current(secondExerciser);
 
       expectEvent(txInfo, 'Exercise', {
         amtUnderlyingToPay: underlyingToPay,
         amtCollateralToPay: collateralToPay
       });
+
+      const tx = await web3.eth.getTransaction(txInfo.tx);
+      const finalETH = await balance.current(secondExerciser);
 
       const oTokenBalance = await optionsContracts[0].balanceOf(
         secondExerciser
@@ -281,8 +288,8 @@ contract('OptionsContract', accounts => {
         gas: '1000000'
       });
 
-      const collateralClaimed = new BN(9999550);
-      const underlyingClaimed = new BN(66666);
+      const collateralClaimed = new BN(10000000);
+      const underlyingClaimed = new BN(0);
 
       const initialDaiBalance = new BN(
         (await dai.balanceOf(secondVaultOwnerAddress)).toString()
@@ -312,8 +319,8 @@ contract('OptionsContract', accounts => {
     });
 
     it('firstVaultOwnerAddress should be able to claim after expiry', async () => {
-      const collateralClaimed = new BN(19999100);
-      const underlyingClaimed = new BN(133333);
+      const collateralClaimed = new BN(19998650);
+      const underlyingClaimed = new BN(200000);
 
       const initialDaiBalance = new BN(
         (await dai.balanceOf(firstVaultOwnerAddress)).toString()

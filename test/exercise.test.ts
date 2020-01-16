@@ -1,4 +1,4 @@
-import { expect } from 'chai';
+import {expect} from 'chai';
 import {
   ERC20MintableInstance,
   OptionsContractInstance,
@@ -62,14 +62,14 @@ contract('OptionsContract', accounts => {
       'USDC',
       '1589932800',
       '1589932800',
-      { from: creatorAddress, gas: '4000000' }
+      {from: creatorAddress, gas: '4000000'}
     );
 
     const optionsContractAddr = optionsContractResult.logs[1].args[0];
     optionsContracts = await OptionsContract.at(optionsContractAddr);
 
     // Open two vaults
-    await optionsContracts.openVault({ from: creatorAddress, gas: '100000' });
+    await optionsContracts.openVault({from: creatorAddress, gas: '100000'});
     await optionsContracts.openVault({
       from: firstOwnerAddress,
       gas: '100000'
@@ -129,7 +129,7 @@ contract('OptionsContract', accounts => {
       // ensure the person has enough underyling
       const ownerDaiBal = await dai.balanceOf(secondOwnerAddress);
       expect(ownerDaiBal.toString()).to.equal('0');
-      await dai.mint(secondOwnerAddress, '100000', { from: creatorAddress });
+      await dai.mint(secondOwnerAddress, '100000', {from: creatorAddress});
       await dai.approve(optionsContracts.address, '10000000000000000000000', {
         from: secondOwnerAddress
       });
@@ -143,12 +143,12 @@ contract('OptionsContract', accounts => {
       await optionsContracts.approve(
         optionsContracts.address,
         '10000000000000000',
-        { from: secondOwnerAddress }
+        {from: secondOwnerAddress}
       );
 
       initialETH = await balance.current(secondOwnerAddress);
 
-      txInfo = await optionsContracts.exercise(amtToExercise, {
+      txInfo = await optionsContracts.easyExercise(amtToExercise, {
         from: secondOwnerAddress,
         gas: '1000000'
       });
@@ -210,20 +210,20 @@ contract('OptionsContract', accounts => {
 
       // check the calculations on amount of collateral paid out and underlying transferred is correct
       expectEvent(txInfo, 'ClaimedCollateral', {
-        amtCollateralClaimed: '19999700',
-        amtUnderlyingClaimed: '66666'
+        amtCollateralClaimed: '19999550',
+        amtUnderlyingClaimed: '100000'
       });
 
       const gasUsed = new BN(txInfo.receipt.gasUsed);
       const gasPrice = new BN(tx.gasPrice);
       const expectedEndETHBalance = initialETH
         .sub(gasUsed.mul(gasPrice))
-        .add(new BN(19999700));
+        .add(new BN(19999550));
       expect(finalETH.toString()).to.equal(expectedEndETHBalance.toString());
 
       // check the person's underlying balance increased
       const ownerDaiBal = await dai.balanceOf(creatorAddress);
-      expect(ownerDaiBal.toString()).to.equal('66666');
+      expect(ownerDaiBal.toString()).to.equal('100000');
     });
 
     it('only the owner of a vault should be able to collect collateral', async () => {
@@ -250,12 +250,12 @@ contract('OptionsContract', accounts => {
 
       // check the calculations on amount of collateral paid out and underlying transferred is correct
       expectEvent(tx, 'ClaimedCollateral', {
-        amtCollateralClaimed: '9999850',
-        amtUnderlyingClaimed: '33333'
+        amtCollateralClaimed: '10000000',
+        amtUnderlyingClaimed: '0'
       });
 
       const ownerDaiBal = await dai.balanceOf(firstOwnerAddress);
-      // expect(ownerDaiBal.toString()).to.equal('33333');
+      expect(ownerDaiBal.toString()).to.equal('0');
     });
   });
 });
