@@ -26,8 +26,8 @@ contract OptionsContract is Ownable, ERC20 {
 
     // Keeps track of the weighted collateral and weighted debt for each vault.
     struct Vault {
-        uint256 weightedCollateral;
-        uint256 weightedOTokens;
+        uint256 collateral;
+        uint256 oTokensIssued;
         uint256 underlying;
         bool owned;
     }
@@ -54,7 +54,7 @@ contract OptionsContract is Ownable, ERC20 {
 
     /* 16 means 1.6. The minimum ratio of a Vault's collateral to insurance promised.
     The ratio is calculated as below:
-    vault.weightedCollateral / (Vault.weightedOTokens * strikePrice) */
+    vault.collateral / (Vault.oTokensIssued * strikePrice) */
     Number public minCollateralizationRatio = Number(16, -1);
 
     // The amount of insurance promised per oToken
@@ -62,12 +62,6 @@ contract OptionsContract is Ownable, ERC20 {
 
     // The amount of underlying that 1 oToken protects.
     Number public oTokenExchangeRate;
-
-    /* The amount of collateral that 1 weightedCollateral in a vault gives you. Scaled by a factor of 10^18 */
-    uint256 internal collateralWeight = 10**18;
-
-    /* The amount of oTokens that 1 weightedOToken in a vault gives you. Scaled by a factor of 10^18 */
-    uint256 internal oTokenWeight = 10**18;
 
     /* UNIX time.
     Exercise period starts at `(expiry - windowSize)` and ends at `expiry` */
@@ -393,6 +387,18 @@ contract OptionsContract is Ownable, ERC20 {
         return (block.timestamp >= expiry);
     }
 
+    /**
+     * @notice Called by anyone holding the oTokens and underlying during the
+     * exercise window i.e. from `expiry - windowSize` time to `expiry` time. The caller
+     * transfers in their oTokens and corresponding amount of underlying and gets
+     * `strikePrice * oTokens` amount of collateral out. The collateral paid out is taken from
+     * the specified vault holder. At the end of the expiry window, the vault holder can redeem their balance
+     * of collateral. The vault owner can withdraw their underlying at any time.
+     * The user has to allow the contract to handle their oTokens and underlying on his behalf before these functions are called.
+     * @param oTokensToExercise the number of oTokens being exercised.
+     * @param vaultToExerciseFrom the address of the vaultOwner to take collateral from.
+     * @dev oTokenExchangeRate is the number of underlying tokens that 1 oToken protects.
+     */
     function exercise(
         uint256 oTokensToExercise,
         address payable vaultToExerciseFrom
@@ -409,7 +415,7 @@ contract OptionsContract is Ownable, ERC20 {
         require(oTokensToExercise > 0, "Can't exercise 0 oTokens");
         // Check correct amount of oTokens passed in)
         require(
-            oTokensToExercise <= vault.weightedOTokens,
+            oTokensToExercise <= vault.oTokensIssued,
             "Can't exercise more oTokens than the owner has"
         );
         // Ensure person calling has enough oTokens
@@ -439,15 +445,13 @@ contract OptionsContract is Ownable, ERC20 {
 
         uint256 totalCollateralToPay = amtCollateralToPay.add(amtFee);
         require(
-            totalCollateralToPay >= vault.weightedCollateral,
+            totalCollateralToPay >= vault.collateral,
             "Vault underwater, can't exercise"
         );
 
         // 3. Update collateral + oToken balances
-        vault.weightedCollateral = vault.weightedCollateral.sub(
-            totalCollateralToPay
-        );
-        vault.weightedOTokens = vault.weightedOTokens.sub(oTokensToExercise);
+        vault.collateral = vault.collateral.sub(totalCollateralToPay);
+        vault.oTokensIssued = vault.oTokensIssued.sub(oTokensToExercise);
 
         // 4. Transfer in underlying, burn oTokens + pay out collateral
         // 4.1 Transfer in underlying
@@ -472,83 +476,6 @@ contract OptionsContract is Ownable, ERC20 {
         emit Exercise(amtUnderlyingToPay, amtCollateralToPay, msg.sender);
 
     }
-    /**
-     * @notice Called by anyone holding the oTokens and underlying during the
-     * exercise window i.e. from `expiry - windowSize` time to `expiry` time. The caller
-     * transfers in their oTokens and corresponding amount of underlying and gets
-     * `strikePrice * oTokens` amount of collateral out. The collateral paid out is taken from
-     * all vault holders. At the end of the expiry window, vault holders can redeem their proportional
-     * share of collateral based on how much collateral is left after all exercise calls have been made.
-     * The user has to allow the contract to handle their oTokens and underlying on his behalf before these functions are called.
-     * @param oTokensToExercise the number of oTokens being exercised.
-     * @dev oTokenExchangeRate is the number of underlying tokens that 1 oToken protects.
-     */
-    function exercise(uint256 oTokensToExercise) public payable {
-        // 1. before exercise window: revert
-        require(
-            isExerciseWindow(),
-            "Can't exercise outside of the exercise window"
-        );
-        // 2. during exercise window: exercise
-        // 2.1 ensure person calling has enough oTokens
-        require(
-            balanceOf(msg.sender) >= oTokensToExercise,
-            "Not enough oTokens"
-        );
-
-        // 2.2 check they have corresponding number of underlying (and transfer in)
-        uint256 amtUnderlyingToPay = underlyingToTransfer(oTokensToExercise);
-        if (isETH(underlying)) {
-            require(msg.value == amtUnderlyingToPay, "Incorrect msg.value");
-        } else {
-            require(
-                underlying.transferFrom(
-                    msg.sender,
-                    address(this),
-                    amtUnderlyingToPay
-                ),
-                "Could not transfer in tokens"
-            );
-        }
-
-        totalUnderlying = totalUnderlying.add(amtUnderlyingToPay);
-
-        // 2.3 payout enough collateral to get (strikePrice * oTokens) amount of collateral
-        uint256 amtCollateralToPay = calculateCollateralToPay(
-            oTokensToExercise,
-            Number(1, 0)
-        );
-
-        // 2.4 take a small fee on every exercise
-        uint256 amtFee = calculateCollateralToPay(
-            oTokensToExercise,
-            transactionFee
-        );
-        totalFee = totalFee.add(amtFee);
-
-        // 2.5 Calculate the oToken weight and collateral weight.
-        // collateralWeight = newCollateralBalance / currCollateralBalance * collateralWeight
-        uint256 currCollateralBalance = address(this).balance;
-        uint256 newCollateralBalance = currCollateralBalance.sub(
-            amtCollateralToPay.add(amtFee)
-        );
-        collateralWeight = collateralWeight.mul(newCollateralBalance).div(
-            currCollateralBalance
-        );
-
-        // oTokenWeight = newOTokenSupply / currOTokenSupply * oTokenWeight
-        uint256 currOTokenSupply = totalSupply();
-        uint256 newOTokenSupply = currOTokenSupply.sub(oTokensToExercise);
-        oTokenWeight = oTokenWeight.mul(newOTokenSupply).div(currOTokenSupply);
-
-        // 2.6 burn oTokens
-        _burn(msg.sender, oTokensToExercise);
-
-        // 2.7 Pay out collateral
-        transferCollateral(msg.sender, amtCollateralToPay);
-
-        emit Exercise(amtUnderlyingToPay, amtCollateralToPay, msg.sender);
-    }
 
     /**
      * @notice This function is called to issue the option tokens. Remember that issuing oTokens even if they
@@ -570,23 +497,11 @@ contract OptionsContract is Ownable, ERC20 {
         Vault storage vault = vaults[msg.sender];
 
         // checks that the vault is sufficiently collateralized
-        uint256 weightedOTokensToIssue = oTokensToIssue.mul(10**18).div(
-            oTokenWeight
-        );
-        uint256 newWeightedOTokensBalance = vault.weightedOTokens.add(
-            weightedOTokensToIssue
-        );
-        uint256 newOTokensBalance = newWeightedOTokensBalance
-            .mul(oTokenWeight)
-            .div(10**18);
-
-        require(
-            isSafe(getCollateral(msg.sender), newOTokensBalance),
-            "unsafe to mint"
-        );
+        uint256 newOTokensBalance = vault.oTokensIssued.add(oTokensToIssue);
+        require(isSafe(vault.collateral, newOTokensBalance), "unsafe to mint");
 
         // issue the oTokens
-        vault.weightedOTokens = newWeightedOTokensBalance;
+        vault.oTokensIssued = newOTokensBalance;
         _mint(receiver, oTokensToIssue);
 
         emit IssuedOTokens(receiver, oTokensToIssue, msg.sender);
@@ -600,12 +515,13 @@ contract OptionsContract is Ownable, ERC20 {
     function getVault(address payable vaultOwner)
         public
         view
-        returns (uint256, uint256, bool)
+        returns (uint256, uint256, uint256, bool)
     {
         Vault storage vault = vaults[vaultOwner];
         return (
-            getCollateral(vaultOwner),
-            getOTokensIssued(vaultOwner),
+            vault.collateral,
+            vault.oTokensIssued,
+            vault.underlying,
             vault.owned
         );
     }
@@ -629,10 +545,9 @@ contract OptionsContract is Ownable, ERC20 {
 
         Vault storage vault = vaults[msg.sender];
 
-        uint256 weightedTokensToBurn = amtToBurn.mul(10**18).div(oTokenWeight);
-        vault.weightedOTokens = vault.weightedOTokens.sub(weightedTokensToBurn);
-
+        vault.oTokensIssued = vault.oTokensIssued.sub(amtToBurn);
         _burn(msg.sender, amtToBurn);
+
         emit BurnOTokens(msg.sender, amtToBurn);
     }
 
@@ -651,8 +566,8 @@ contract OptionsContract is Ownable, ERC20 {
         Vault storage oldVault = vaults[msg.sender];
 
         vaults[newOwner] = Vault(
-            oldVault.weightedCollateral,
-            oldVault.weightedOTokens,
+            oldVault.collateral,
+            oldVault.oTokensIssued,
             oldVault.underlying,
             true
         );
@@ -678,23 +593,15 @@ contract OptionsContract is Ownable, ERC20 {
         );
 
         // check that vault will remain safe after removing collateral
-        uint256 weightedCollateralToRemove = amtToRemove.mul(10**18).div(
-            collateralWeight
-        );
-        uint256 newWeightedCollateralBalance = vault.weightedCollateral.sub(
-            weightedCollateralToRemove
-        );
-        uint256 newCollateralBalance = newWeightedCollateralBalance
-            .mul(collateralWeight)
-            .div(10**18);
+        uint256 newCollateralBalance = vault.collateral.sub(amtToRemove);
 
         require(
-            isSafe(newCollateralBalance, getOTokensIssued(msg.sender)),
+            isSafe(newCollateralBalance, vault.oTokensIssued),
             "Vault is unsafe"
         );
 
         // remove the collateral
-        vault.weightedCollateral = newWeightedCollateralBalance;
+        vault.collateral = newCollateralBalance;
         transferCollateral(msg.sender, amtToRemove);
 
         emit RemoveCollateral(amtToRemove, msg.sender);
@@ -703,30 +610,22 @@ contract OptionsContract is Ownable, ERC20 {
     /**
      * @notice after expiry, each vault holder can get back their proportional share of collateral
      * from vaults that they own.
-     * @dev The amount of collateral any owner gets back is calculated as:
-     * vault.weightedCollateral * collateralWeight
+     * @dev The owner gets all of their collateral back if no exercise event took their collateral.
      */
     function claimCollateral() public {
         require(hasExpired(), "Can't collect collateral until expiry");
         require(hasVault(msg.sender), "Vault does not exist");
 
-        // pay out people proportional collateral
+        // pay out owner their share
         Vault storage vault = vaults[msg.sender];
 
-        if (totalCollateral == 0) {
-            totalCollateral = address(this).balance.sub(totalFee);
-        }
-
         // To deal with lower precision
-        uint256 collateralToTransfer = getCollateral(msg.sender).div(10).mul(
-            10
-        );
-        uint256 underlyingToTransfer = getCollateral(msg.sender)
-            .mul(totalUnderlying)
-            .div(totalCollateral);
+        uint256 collateralToTransfer = vault.collateral;
+        uint256 underlyingToTransfer = vault.underlying;
 
-        vault.weightedCollateral = 0;
-        vault.weightedOTokens = 0;
+        vault.collateral = 0;
+        vault.oTokensIssued = 0;
+        vault.underlying = 0;
 
         transferCollateral(msg.sender, collateralToTransfer);
         transferUnderlying(msg.sender, underlyingToTransfer);
@@ -748,7 +647,8 @@ contract OptionsContract is Ownable, ERC20 {
         returns (uint256)
     {
         if (isUnsafe(vaultOwner)) {
-            return getCollateral(vaultOwner).mul(liquidationFactor.value);
+            Vault storage vault = vaults[msg.sender];
+            return vault.collateral.mul(liquidationFactor.value);
         } else {
             return 0;
         }
@@ -758,7 +658,7 @@ contract OptionsContract is Ownable, ERC20 {
      * @notice This function can be called by anyone who notices a vault is undercollateralized.
      * The caller gets a reward for reducing the amount of oTokens in circulation.
      * @dev Liquidator comes with _oTokens. They get _oTokens * strikePrice * (incentive + fee)
-     * amount of collateral out. They can liquidate a max of liquidationFactor * vault.weightedCollateral out
+     * amount of collateral out. They can liquidate a max of liquidationFactor * vault.collateral out
      * in one function call i.e. partial liquidations.
      * @param vaultOwner The index of the vault to be liquidated
      * @param oTokensToLiquidate The number of oTokens being taken out of circulation
@@ -813,21 +713,12 @@ contract OptionsContract is Ownable, ERC20 {
             "Can only liquidate liquidation factor at any given time"
         );
 
-        // deduct the collateral and weightedOTokens
-        uint256 amtWeightedCollateralToPay = (
-            amtCollateralToPay.add(protocolFee)
-        )
-            .mul(10**18)
-            .div(collateralWeight);
-        vault.weightedCollateral = vault.weightedCollateral.sub(
-            amtWeightedCollateralToPay
-        );
-        uint256 weightedOTokensToDeduct = oTokensToLiquidate.mul(10**18).div(
-            oTokenWeight
-        );
-        vault.weightedOTokens = vault.weightedOTokens.sub(
-            weightedOTokensToDeduct
-        );
+        // deduct the collateral and oTokensIssued
+        uint256 amtcollateralToPay = amtCollateralToPay.add(protocolFee);
+        vault.collateral = vault.collateral.sub(amtcollateralToPay);
+
+        uint256 oTokensIssuedToDeduct = oTokensToLiquidate.mul(10**18);
+        vault.oTokensIssued = vault.oTokensIssued.sub(oTokensIssuedToDeduct);
 
         // transfer the collateral and burn the _oTokens
         _burn(msg.sender, oTokensToLiquidate);
@@ -865,7 +756,7 @@ contract OptionsContract is Ownable, ERC20 {
         returns (uint256)
     {
         Vault storage vault = vaults[vaultOwner];
-        return vault.weightedCollateral.mul(collateralWeight).div(10**18);
+        return vault.collateral;
     }
 
     /**
@@ -877,7 +768,7 @@ contract OptionsContract is Ownable, ERC20 {
         returns (uint256)
     {
         Vault storage vault = vaults[vaultOwner];
-        return vault.weightedOTokens.mul(oTokenWeight).div(10**18);
+        return vault.oTokensIssued;
     }
 
     /**
@@ -891,22 +782,18 @@ contract OptionsContract is Ownable, ERC20 {
         returns (uint256)
     {
         Vault storage vault = vaults[vaultOwner];
+        vault.collateral = vault.collateral.add(amt);
 
-        uint256 weightedCollateralToAdd = amt.mul(10**18).div(collateralWeight);
-        vault.weightedCollateral = vault.weightedCollateral.add(
-            weightedCollateralToAdd
-        );
-
-        return vault.weightedCollateral;
+        return vault.collateral;
     }
 
     /**
-     * @notice checks if a hypothetical vault is safe with the given collateralAmt and weightedOTokens
+     * @notice checks if a hypothetical vault is safe with the given collateralAmt and oTokensIssued
      * @param collateralAmt The amount of collateral the hypothetical vault has
-     * @param weightedOTokens The amount of oTokens generated by the hypothetical vault
+     * @param oTokensIssued The amount of oTokens generated by the hypothetical vault
      * @return true or false
      */
-    function isSafe(uint256 collateralAmt, uint256 weightedOTokens)
+    function isSafe(uint256 collateralAmt, uint256 oTokensIssued)
         internal
         view
         returns (bool)
@@ -915,8 +802,8 @@ contract OptionsContract is Ownable, ERC20 {
         uint256 ethToCollateralPrice = getPrice(address(collateral));
         uint256 ethToStrikePrice = getPrice(address(strike));
 
-        // check `weightedOTokens * minCollateralizationRatio * strikePrice <= collAmt * collateralToStrikePrice`
-        uint256 leftSideVal = weightedOTokens
+        // check `oTokensIssued * minCollateralizationRatio * strikePrice <= collAmt * collateralToStrikePrice`
+        uint256 leftSideVal = oTokensIssued
             .mul(minCollateralizationRatio.value)
             .mul(strikePrice.value);
         int32 leftSideExp = minCollateralizationRatio.exponent +
