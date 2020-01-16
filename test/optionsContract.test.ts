@@ -594,7 +594,7 @@ contract('OptionsContract', accounts => {
           from: creatorAddress,
           gas: '100000'
         }),
-        'Cannot transferVaultOwnership to current owner'
+        'New owner already has a vault'
       );
     });
 
