@@ -35,6 +35,8 @@ contract OptionsContract is Ownable, ERC20 {
 
     mapping(address => Vault) internal vaults;
 
+    address payable[] public vaultOwners;
+
     // 10 is 0.01 i.e. 1% incentive.
     Number public liquidationIncentive = Number(10, -3);
 
@@ -301,6 +303,7 @@ contract OptionsContract is Ownable, ERC20 {
         require(!hasVault(msg.sender), "Vault already created");
 
         vaults[msg.sender] = Vault(0, 0, true);
+        vaultOwners.push(msg.sender);
 
         emit VaultOpened(msg.sender);
         return true;
