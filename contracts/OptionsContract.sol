@@ -28,6 +28,7 @@ contract OptionsContract is Ownable, ERC20 {
     struct Vault {
         uint256 weightedCollateral;
         uint256 weightedOTokens;
+        uint256 underlying;
         bool owned;
     }
 
@@ -302,7 +303,7 @@ contract OptionsContract is Ownable, ERC20 {
     function openVault() public notExpired returns (bool) {
         require(!hasVault(msg.sender), "Vault already created");
 
-        vaults[msg.sender] = Vault(0, 0, true);
+        vaults[msg.sender] = Vault(0, 0, 0, true);
         vaultOwners.push(msg.sender);
 
         emit VaultOpened(msg.sender);
@@ -392,7 +393,85 @@ contract OptionsContract is Ownable, ERC20 {
         return (block.timestamp >= expiry);
     }
 
-    // function exercise(uint256 oTokensToExercise, address )
+    function exercise(
+        uint256 oTokensToExercise,
+        address payable vaultToExerciseFrom
+    ) public payable {
+        // 1. before exercise window: revert
+        require(
+            isExerciseWindow(),
+            "Can't exercise outside of the exercise window"
+        );
+
+        require(hasVault(vaultToExerciseFrom), "Vault does not exist");
+
+        Vault storage vault = vaults[msg.sender];
+        require(oTokensToExercise > 0, "Can't exercise 0 oTokens");
+        // Check correct amount of oTokens passed in)
+        require(
+            oTokensToExercise <= vault.weightedOTokens,
+            "Can't exercise more oTokens than the owner has"
+        );
+        // Ensure person calling has enough oTokens
+        require(
+            balanceOf(msg.sender) >= oTokensToExercise,
+            "Not enough oTokens"
+        );
+
+        // 1. Check sufficient underlying
+        // 1.1 update underlying balances
+        uint256 amtUnderlyingToPay = underlyingToTransfer(oTokensToExercise);
+        vault.underlying = vault.underlying.add(amtUnderlyingToPay);
+
+        // 2. Calculate Collateral to pay
+        // 2.1 Payout enough collateral to get (strikePrice * oTokens) amount of collateral
+        uint256 amtCollateralToPay = calculateCollateralToPay(
+            oTokensToExercise,
+            Number(1, 0)
+        );
+
+        // 2.2 Take a small fee on every exercise
+        uint256 amtFee = calculateCollateralToPay(
+            oTokensToExercise,
+            transactionFee
+        );
+        totalFee = totalFee.add(amtFee);
+
+        uint256 totalCollateralToPay = amtCollateralToPay.add(amtFee);
+        require(
+            totalCollateralToPay >= vault.weightedCollateral,
+            "Vault underwater, can't exercise"
+        );
+
+        // 3. Update collateral + oToken balances
+        vault.weightedCollateral = vault.weightedCollateral.sub(
+            totalCollateralToPay
+        );
+        vault.weightedOTokens = vault.weightedOTokens.sub(oTokensToExercise);
+
+        // 4. Transfer in underlying, burn oTokens + pay out collateral
+        // 4.1 Transfer in underlying
+        if (isETH(underlying)) {
+            require(msg.value == amtUnderlyingToPay, "Incorrect msg.value");
+        } else {
+            require(
+                underlying.transferFrom(
+                    msg.sender,
+                    address(this),
+                    amtUnderlyingToPay
+                ),
+                "Could not transfer in tokens"
+            );
+        }
+        // 4.2 burn oTokens
+        _burn(msg.sender, oTokensToExercise);
+
+        // 4.3 Pay out collateral
+        transferCollateral(msg.sender, amtCollateralToPay);
+
+        emit Exercise(amtUnderlyingToPay, amtCollateralToPay, msg.sender);
+
+    }
     /**
      * @notice Called by anyone holding the oTokens and underlying during the
      * exercise window i.e. from `expiry - windowSize` time to `expiry` time. The caller
@@ -574,6 +653,7 @@ contract OptionsContract is Ownable, ERC20 {
         vaults[newOwner] = Vault(
             oldVault.weightedCollateral,
             oldVault.weightedOTokens,
+            oldVault.underlying,
             true
         );
         delete vaults[msg.sender];
