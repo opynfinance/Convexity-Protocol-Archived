@@ -227,9 +227,40 @@ contract('OptionsContract', accounts => {
       expect(vault['2'].toString()).to.equal('100000');
     });
 
+    it('secondExerciser will not be able to exercise because all vaults are unsafe', async () => {
+      const amtToExercise = '10';
+
+      await dai.approve(
+        optionsContracts[0].address,
+        '10000000000000000000000',
+        {from: secondExerciser}
+      );
+
+      // call exercise
+      // ensure you approve before burn
+      await optionsContracts[0].approve(
+        optionsContracts[0].address,
+        '10000000000000000',
+        {from: secondExerciser}
+      );
+
+      await expectRevert(
+        optionsContracts[0].easyExercise(amtToExercise, {
+          from: secondExerciser,
+          gas: '1000000'
+        }),
+        'Insufficient collateral to exercise now'
+      );
+    });
+
     it('secondExerciser should be able to exercise 10 oTokens', async () => {
+      compoundOracle.updatePrice(200, {
+        from: creatorAddress,
+        gas: '1000000'
+      });
+
       const underlyingToPay = new BN(100000);
-      const collateralToPay = new BN(900);
+      const collateralToPay = new BN(450);
       const amtToExercise = '10';
       const initialDaiBalance = new BN(
         (await dai.balanceOf(secondExerciser)).toString()
@@ -282,13 +313,31 @@ contract('OptionsContract', accounts => {
       expect(finalETH.toString()).to.equal(expectedEndETHBalance.toString());
     });
 
+    it('secondVaultOwnerAddress should be able to withdraw underlying before expiry', async () => {
+      const underlyingRedeemed = new BN(100000);
+      const initialDaiBalance = new BN(
+        (await dai.balanceOf(secondVaultOwnerAddress)).toString()
+      );
+
+      await optionsContracts[0].removeUnderlying({
+        from: secondVaultOwnerAddress
+      });
+
+      const finalDaiBalance = new BN(
+        (await dai.balanceOf(secondVaultOwnerAddress)).toString()
+      );
+      expect(initialDaiBalance.add(underlyingRedeemed).toString()).to.equal(
+        finalDaiBalance.toString()
+      );
+    });
+
     it('secondVaultOwnerAddress should be able to redeem after expiry', async () => {
       await compoundOracle.updatePrice(200, {
         from: creatorAddress,
         gas: '1000000'
       });
 
-      const collateralRedeemed = new BN(10000000);
+      const collateralRedeemed = new BN(9999550);
       const underlyingRedeemed = new BN(0);
 
       const initialDaiBalance = new BN(
@@ -319,8 +368,8 @@ contract('OptionsContract', accounts => {
     });
 
     it('firstVaultOwnerAddress should be able to redeem after expiry', async () => {
-      const collateralRedeemed = new BN(19998650);
-      const underlyingRedeemed = new BN(200000);
+      const collateralRedeemed = new BN(19999550);
+      const underlyingRedeemed = new BN(100000);
 
       const initialDaiBalance = new BN(
         (await dai.balanceOf(firstVaultOwnerAddress)).toString()
