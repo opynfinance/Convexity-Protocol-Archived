@@ -36,7 +36,7 @@ contract OptionsContract is Ownable, ERC20 {
 
     mapping(address => Vault) internal vaults;
 
-    address payable[] public vaultOwners;
+    address payable[] internal vaultOwners;
 
     // 10 is 0.01 i.e. 1% incentive.
     Number public liquidationIncentive = Number(10, -3);
@@ -78,8 +78,6 @@ contract OptionsContract is Ownable, ERC20 {
 
     // The precision of the underlying
     int32 public underlyingExp = -18;
-
-    uint256 internal indexToExerciseFrom = 0;
 
     // The collateral asset
     IERC20 public collateral;
@@ -192,10 +190,6 @@ contract OptionsContract is Ownable, ERC20 {
         address payable vaultOwner
     );
     event BurnOTokens(address payable vaultOwner, uint256 oTokensBurned);
-    event TransferVaultOwnership(
-        address payable oldOwner,
-        address payable newOwner
-    );
     event RemoveCollateral(uint256 amtRemoved, address payable vaultOwner);
     event UpdateParameters(
         uint256 liquidationIncentive,
@@ -213,6 +207,22 @@ contract OptionsContract is Ownable, ERC20 {
     modifier notExpired() {
         require(!hasExpired(), "Options contract expired");
         _;
+    }
+
+    /**
+     * @notice This function gets the array of vaultOwners
+     */
+    function getVaultOwners() public view returns (address payable[] memory) {
+        address payable[] memory owners;
+        uint256 index = 0;
+        for (uint256 i = 0; i < vaultOwners.length; i++) {
+            if (hasVault(vaultOwners[i])) {
+                owners[index] = vaultOwners[i];
+                index++;
+            }
+        }
+
+        return owners;
     }
 
     /**
@@ -283,7 +293,7 @@ contract OptionsContract is Ownable, ERC20 {
     }
 
     /**
-     * @notice Creates a new empty Vault and sets the owner of the Vault to be the msg.sender.
+     * @notice Creates a new empty Vault and sets the owner of the vault to be the msg.sender.
      */
     function openVault() public notExpired returns (bool) {
         require(!hasVault(msg.sender), "Vault already created");
@@ -413,66 +423,6 @@ contract OptionsContract is Ownable, ERC20 {
     }
 
     /**
-     * @notice Called by anyone holding the oTokens and underlying during the
-     * exercise window i.e. from `expiry - windowSize` time to `expiry` time. The caller
-     * transfers in their oTokens and corresponding amount of underlying and gets
-     * `strikePrice * oTokens` amount of collateral out. The collateral paid out is taken from
-     * the each vault owner starting with the first and iterating until the oTokens to exercise
-     * are found.
-     * NOTE: This uses a for loop and hence could run out of gas!
-     * NOTE: if too many vaults are underwater, may not be able to exercise all the oTokens
-     * @param oTokensToExercise the number of oTokens being exercised.
-     */
-    function easyExercise(uint256 oTokensToExercise) public payable {
-        uint256 i = indexToExerciseFrom;
-        for (i; i < vaultOwners.length; i++) {
-            address payable vaultOwner = vaultOwners[i];
-            Vault storage vault = vaults[vaultOwner];
-            if (isSafe(vault.collateral, vault.oTokensIssued)) {
-                if (oTokensToExercise == 0) {
-                    indexToExerciseFrom = i.add(1);
-                    return;
-                } else if (vault.oTokensIssued >= oTokensToExercise) {
-                    _exercise(oTokensToExercise, vaultOwner);
-                    indexToExerciseFrom = i.add(1);
-                    return;
-                } else {
-                    oTokensToExercise = oTokensToExercise.sub(
-                        vault.oTokensIssued
-                    );
-                    _exercise(vault.oTokensIssued, vaultOwner);
-                }
-            }
-        }
-
-        for (i = 0; i < indexToExerciseFrom; i++) {
-            address payable vaultOwner = vaultOwners[i];
-            Vault storage vault = vaults[vaultOwner];
-            if (isSafe(vault.collateral, vault.oTokensIssued)) {
-                if (oTokensToExercise == 0) {
-                    indexToExerciseFrom = i.add(1);
-                    return;
-                } else if (vault.oTokensIssued >= oTokensToExercise) {
-                    _exercise(oTokensToExercise, vaultOwner);
-                    indexToExerciseFrom = i.add(1);
-                    return;
-                } else {
-                    oTokensToExercise = oTokensToExercise.sub(
-                        vault.oTokensIssued
-                    );
-                    _exercise(vault.oTokensIssued, vaultOwner);
-                }
-            }
-        }
-
-        require(
-            oTokensToExercise == 0,
-            "Insufficient collateral to exercise now"
-        );
-
-    }
-
-    /**
      * @notice This function allows the vault owner to remove their share of underlying after an exercise
      */
     function removeUnderlying() public {
@@ -560,30 +510,6 @@ contract OptionsContract is Ownable, ERC20 {
         _burn(msg.sender, amtToBurn);
 
         emit BurnOTokens(msg.sender, amtToBurn);
-    }
-
-    /**
-     * @notice allows the owner to transfer ownership of their vault to someone else
-     * @param newOwner address of the new owner
-     */
-    function transferVaultOwnership(address payable newOwner) public {
-        require(hasVault(msg.sender), "Vault does not exist");
-        require(newOwner != address(0), "Invalid new owner address");
-        // prevent overriding vault of new owner
-        require(!hasVault(newOwner), "New owner already has a vault");
-
-        Vault storage oldVault = vaults[msg.sender];
-
-        vaults[newOwner] = Vault(
-            oldVault.collateral,
-            oldVault.oTokensIssued,
-            oldVault.underlying,
-            true
-        );
-        delete vaults[msg.sender];
-
-        emit TransferVaultOwnership(msg.sender, newOwner);
-
     }
 
     /**

@@ -167,10 +167,14 @@ contract('OptionsContract', accounts => {
 
       const initialETH = await balance.current(firstExerciser);
 
-      const txInfo = await optionsContracts[0].easyExercise(amtToExercise, {
-        from: firstExerciser,
-        gas: '1000000'
-      });
+      const txInfo = await optionsContracts[0].exercise(
+        amtToExercise,
+        [firstVaultOwnerAddress],
+        {
+          from: firstExerciser,
+          gas: '1000000'
+        }
+      );
 
       const tx = await web3.eth.getTransaction(txInfo.tx);
       const finalETH = await balance.current(firstExerciser);
@@ -227,32 +231,6 @@ contract('OptionsContract', accounts => {
       expect(vault['2'].toString()).to.equal('100000');
     });
 
-    it('secondExerciser will not be able to exercise because all vaults are unsafe', async () => {
-      const amtToExercise = '10';
-
-      await dai.approve(
-        optionsContracts[0].address,
-        '10000000000000000000000',
-        {from: secondExerciser}
-      );
-
-      // call exercise
-      // ensure you approve before burn
-      await optionsContracts[0].approve(
-        optionsContracts[0].address,
-        '10000000000000000',
-        {from: secondExerciser}
-      );
-
-      await expectRevert(
-        optionsContracts[0].easyExercise(amtToExercise, {
-          from: secondExerciser,
-          gas: '1000000'
-        }),
-        'Insufficient collateral to exercise now'
-      );
-    });
-
     it('secondExerciser should be able to exercise 10 oTokens', async () => {
       compoundOracle.updatePrice(200, {
         from: creatorAddress,
@@ -282,10 +260,14 @@ contract('OptionsContract', accounts => {
 
       const initialETH = await balance.current(secondExerciser);
 
-      const txInfo = await optionsContracts[0].easyExercise(amtToExercise, {
-        from: secondExerciser,
-        gas: '1000000'
-      });
+      const txInfo = await optionsContracts[0].exercise(
+        amtToExercise,
+        [secondVaultOwnerAddress],
+        {
+          from: secondExerciser,
+          gas: '1000000'
+        }
+      );
 
       expectEvent(txInfo, 'Exercise', {
         amtUnderlyingToPay: underlyingToPay,
