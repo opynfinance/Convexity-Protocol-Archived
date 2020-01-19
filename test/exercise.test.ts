@@ -148,10 +148,14 @@ contract('OptionsContract', accounts => {
 
       initialETH = await balance.current(secondOwnerAddress);
 
-      txInfo = await optionsContracts.easyExercise(amtToExercise, {
-        from: secondOwnerAddress,
-        gas: '1000000'
-      });
+      txInfo = await optionsContracts.exercise(
+        amtToExercise,
+        [creatorAddress],
+        {
+          from: secondOwnerAddress,
+          gas: '1000000'
+        }
+      );
 
       const tx = await web3.eth.getTransaction(txInfo.tx);
       finalETH = await balance.current(secondOwnerAddress);
