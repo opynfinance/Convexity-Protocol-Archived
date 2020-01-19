@@ -589,31 +589,6 @@ contract('OptionsContract', accounts => {
     });
   });
 
-  describe('#transferVaultOwnership()', () => {
-    it('should revert when trying to transferVaultOwnership to current owner', async () => {
-      await expectRevert(
-        optionsContracts[0].transferVaultOwnership(creatorAddress, {
-          from: creatorAddress,
-          gas: '100000'
-        }),
-        'New owner already has a vault'
-      );
-    });
-
-    it('should revert when trying to transferVaultOwnership to current 0x0 address', async () => {
-      await expectRevert(
-        optionsContracts[0].transferVaultOwnership(
-          '0x0000000000000000000000000000000000000000',
-          {
-            from: creatorAddress,
-            gas: '100000'
-          }
-        ),
-        'Invalid new owner address'
-      );
-    });
-  });
-
   describe('expired OptionContract', () => {
     before(async () => {
       await reverter.revert();
