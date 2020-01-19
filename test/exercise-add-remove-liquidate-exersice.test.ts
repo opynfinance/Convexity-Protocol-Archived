@@ -948,8 +948,8 @@ contract('OptionsContract', accounts => {
         gas: '1000000'
       });
 
-      const collateralRedeemed = new BN(9999410);
-      const underlyingRedeemed = new BN(96938);
+      const collateralRedeemed = new BN(9999091);
+      const underlyingRedeemed = new BN(100000);
 
       const initialDaiBalance = new BN(
         (await dai.balanceOf(secondVaultOwnerAddress)).toString()
@@ -979,8 +979,8 @@ contract('OptionsContract', accounts => {
     });
 
     it('firstVaultOwnerAddress should be able to claim after expiry', async () => {
-      const collateralRedeemed = new BN(10630960);
-      const underlyingRedeemed = new BN(103061);
+      const collateralRedeemed = new BN(10722238);
+      const underlyingRedeemed = new BN(100000);
 
       const initialDaiBalance = new BN(
         (await dai.balanceOf(firstVaultOwnerAddress)).toString()
@@ -1022,7 +1022,7 @@ contract('OptionsContract', accounts => {
       const gasPrice = new BN(tx.gasPrice);
       const expectedEndETHBalance = initialETH
         .sub(gasUsed.mul(gasPrice))
-        .add(new BN('90967'));
+        .add(new BN('13'));
       expect(finalETH.toString()).to.equal(expectedEndETHBalance.toString());
     });
   });
