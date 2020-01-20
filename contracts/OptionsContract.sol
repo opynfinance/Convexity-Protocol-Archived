@@ -401,15 +401,19 @@ contract OptionsContract is Ownable, ERC20 {
             );
             Vault storage vault = vaults[vaultOwner];
             if (oTokensToExercise == 0) {
-                break;
+                return;
             } else if (vault.oTokensIssued >= oTokensToExercise) {
                 _exercise(oTokensToExercise, vaultOwner);
-                break;
+                return;
             } else {
                 oTokensToExercise = oTokensToExercise.sub(vault.oTokensIssued);
                 _exercise(vault.oTokensIssued, vaultOwner);
             }
         }
+        require(
+            oTokensToExercise == 0,
+            "Specified vaults have insufficient collateral"
+        );
     }
 
     /**
