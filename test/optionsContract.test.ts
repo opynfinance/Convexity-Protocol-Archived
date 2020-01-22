@@ -128,7 +128,8 @@ contract('OptionsContract', accounts => {
       const vault = await optionsContracts[0].getVault(creatorAddress);
       expect(vault['0'].toString()).to.equal('0');
       expect(vault['1'].toString()).to.equal('0');
-      expect(vault['2']).to.equal(true);
+      expect(vault['2'].toString()).to.equal('0');
+      expect(vault['3']).to.equal(true);
 
       // check proper events emitted
       expect(result.logs[0].event).to.equal('VaultOpened');
@@ -154,7 +155,8 @@ contract('OptionsContract', accounts => {
       const vault = await optionsContracts[0].getVault(firstOwnerAddress);
       expect(vault['0'].toString()).to.equal('0');
       expect(vault['1'].toString()).to.equal('0');
-      expect(vault['2']).to.equal(true);
+      expect(vault['2'].toString()).to.equal('0');
+      expect(vault['3']).to.equal(true);
     });
   });
 
@@ -584,31 +586,6 @@ contract('OptionsContract', accounts => {
         oTokensIssued: numOptions,
         vaultOwner: nonOwnerAddress
       });
-    });
-  });
-
-  describe('#transferVaultOwnership()', () => {
-    it('should revert when trying to transferVaultOwnership to current owner', async () => {
-      await expectRevert(
-        optionsContracts[0].transferVaultOwnership(creatorAddress, {
-          from: creatorAddress,
-          gas: '100000'
-        }),
-        'New owner already has a vault'
-      );
-    });
-
-    it('should revert when trying to transferVaultOwnership to current 0x0 address', async () => {
-      await expectRevert(
-        optionsContracts[0].transferVaultOwnership(
-          '0x0000000000000000000000000000000000000000',
-          {
-            from: creatorAddress,
-            gas: '100000'
-          }
-        ),
-        'Invalid new owner address'
-      );
     });
   });
 
