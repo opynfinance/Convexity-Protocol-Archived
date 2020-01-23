@@ -178,7 +178,8 @@ contract OptionsContract is Ownable, ERC20 {
     event Exercise(
         uint256 amtUnderlyingToPay,
         uint256 amtCollateralToPay,
-        address exerciser
+        address payable exerciser,
+        address payable vaultExercisedFrom
     );
     event RedeemVaultBalance(
         uint256 amtCollateralRedeemed,
@@ -194,7 +195,11 @@ contract OptionsContract is Ownable, ERC20 {
         uint256 minCollateralizationRatio,
         address owner
     );
-    event TransferFee(address to, uint256 fees);
+    event TransferFee(address payable to, uint256 fees);
+    event RemoveUnderlying(
+        uint256 amountUnderlying,
+        address payable vaultOwner
+    );
 
     /**
      * @dev Throws if called Options contract is expired.
@@ -429,6 +434,7 @@ contract OptionsContract is Ownable, ERC20 {
         vault.underlying = 0;
 
         transferUnderlying(msg.sender, underlyingToTransfer);
+        emit RemoveUnderlying(underlyingToTransfer, msg.sender);
 
     }
 
@@ -776,7 +782,12 @@ contract OptionsContract is Ownable, ERC20 {
         // 4.3 Pay out collateral
         transferCollateral(msg.sender, amtCollateralToPay);
 
-        emit Exercise(amtUnderlyingToPay, amtCollateralToPay, msg.sender);
+        emit Exercise(
+            amtUnderlyingToPay,
+            amtCollateralToPay,
+            msg.sender,
+            vaultToExerciseFrom
+        );
 
     }
 
