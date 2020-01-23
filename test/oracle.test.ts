@@ -39,7 +39,7 @@ contract('OptionsContract', accounts => {
   });
 
   describe('test the prices', async () => {
-    it('test all the underlying token prices', async () => {
+    xit('test all the underlying token prices', async () => {
       console.log(
         'BAT Price ' + (await oracle.getPrice(batAddress)).toString()
       );
@@ -60,7 +60,7 @@ contract('OptionsContract', accounts => {
       );
     });
 
-    it('test all the cToken prices', async () => {
+    xit('test all the cToken prices', async () => {
       console.log(
         'cBAT Price ' + (await oracle.getPrice(cBATAddress)).toString()
       );
