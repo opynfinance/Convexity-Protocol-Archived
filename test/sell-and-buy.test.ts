@@ -1,4 +1,4 @@
-// import { expect } from 'chai';
+// import {expect} from 'chai';
 // import {
 //   ERC20MintableInstance,
 //   oTokenInstance,
@@ -20,17 +20,20 @@
 //   const firstRepoOwnerAddress = accounts[1];
 //   const secondRepoOwnerAddress = accounts[2];
 
+//   // Rinkeby Dai Address
 //   const daiAddress = '0x5592ec0cfb4dbc12d3ab100b257153436a1f0fea';
+//   // Rinkeby USDC Address
 //   const usdcAddress = '0x4dbcdf9b62e891a7cec5a2568c3f4faf9e8abe2b';
 
-//   const optionsFactoryAddress = '0x34Da8b34c82988e7FF8F98CA35963057fC0ec9bb';
+//   // Rinkeby Addreesses
+//   const optionsFactoryAddress = '0x31C0C162EdCecFB25ea7270A23D1440215F32742';
 //   const optionsContractAddresses = [
-//     '0xE8Cd37379BF7739E5ca0D8E5a7a118cF89f439fD',
-//     '0x57cC8708eFEB7f7D42E4d73ab9120BC275f1DB59',
-//     '0x59D5652Ac7aE3008f59AE7b71eD66C98edA317d6'
+//     '0xBCAd7b9ce2D5B6964029d191D127665A19AdD2ff',
+//     '0x9eE5a39DEe5AAE2f20AD748d3b0a127B967a0607',
+//     '0xc65d275BBDb58fBF87E772d26BCB0cA4f88F9eBD'
 //   ];
 //   const uniswapFactoryAddress = '0xf5D915570BC477f9B8D6C0E980aA81757A3AaC36';
-//   const optionsExchangeAddress = '0x40c471C6B31E752F39Fd0232Ad5daE42240eeD67';
+//   const optionsExchangeAddress = '0xC2dDcd9b379282915851B4E1160d5B163284f89D';
 
 //   const optionsContracts: oTokenInstance[] = [];
 //   let optionsFactory: OptionsFactoryInstance;
@@ -83,7 +86,7 @@
 //         'USDC',
 //         '1589976000',
 //         windowSize,
-//         { from: creatorAddress, gas: '4000000' }
+//         {from: creatorAddress, gas: '4000000'}
 //       );
 
 //       let optionsContractAddr = optionsContractResult.logs[1].args[0];
@@ -101,7 +104,7 @@
 //         'USDC',
 //         '1589976000',
 //         windowSize,
-//         { from: creatorAddress, gas: '4000000' }
+//         {from: creatorAddress, gas: '4000000'}
 //       );
 
 //       optionsContractAddr = optionsContractResult.logs[1].args[0];
@@ -119,7 +122,7 @@
 //         'USDC',
 //         '1589976000',
 //         windowSize,
-//         { from: creatorAddress, gas: '4000000' }
+//         {from: creatorAddress, gas: '4000000'}
 //       );
 
 //       optionsContractAddr = optionsContractResult.logs[1].args[0];
@@ -143,7 +146,7 @@
 //   });
 
 //   describe('add liquidity on uniswap', () => {
-//     it('create the uniswap exchange', async () => {
+//     xit('create the uniswap exchange', async () => {
 //       if (!contractsDeployed) {
 //         let i;
 //         for (i = 0; i < optionsContracts.length; i++) {
@@ -156,7 +159,7 @@
 //       if (!contractsDeployed) {
 //         const numOptions = '1000000000000';
 //         const collateral = '2000000000000000000';
-//         for (let i = 1; i < optionsContracts.length; i++) {
+//         for (let i = 0; i < optionsContracts.length; i++) {
 //           const result = await optionsContracts[i].createETHCollateralOption(
 //             numOptions,
 //             creatorAddress,
@@ -175,7 +178,7 @@
 
 //     it('should be able to add liquidity to Uniswap', async () => {
 //       if (!contractsDeployed) {
-//         for (let i = 1; i < optionsContracts.length; i++) {
+//         for (let i = 0; i < optionsContracts.length; i++) {
 //           const uniswapExchangeAddr = await uniswapFactory.getExchange(
 //             optionsContracts[i].address
 //           );
@@ -203,7 +206,7 @@
 //   });
 
 //   describe('Should be able to buy and sell oTokens', async () => {
-//     xit('should be able to create and sell oTokens for ETH', async () => {
+//     it('should be able to create and sell oTokens for ETH', async () => {
 //       const numOptions = '13888';
 //       const collateral = '2000000';
 //       await optionsContracts[0].createAndSellETHCollateralOption(
@@ -216,7 +219,7 @@
 //       );
 //     });
 
-//     xit('should be able to create and sell oTokens for ERC20s', async () => {
+//     it('should be able to create and sell oTokens for ERC20s', async () => {
 //       const numOptions = '13888';
 //       const collateral = '2000000';
 //       await optionsContracts[0].createETHCollateralOption(
@@ -242,7 +245,7 @@
 //       );
 //     });
 
-//     xit('should be able to buy oTokens with ETH', async () => {
+//     it('should be able to buy oTokens with ETH', async () => {
 //       await optionsExchange.buyOTokens(
 //         creatorAddress,
 //         optionsContracts[0].address,
@@ -254,7 +257,7 @@
 //       );
 //     });
 
-//     xit('should be able to buy oTokens with ERC20s', async () => {
+//     it('should be able to buy oTokens with ERC20s', async () => {
 //       const paymentTokenAddr = '0x2448eE2641d78CC42D7AD76498917359D961A783';
 //       const paymentToken = await MintableToken.at(paymentTokenAddr);
 //       // set to optionsCotnracs[0].address
