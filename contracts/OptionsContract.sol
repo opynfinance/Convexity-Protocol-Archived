@@ -820,8 +820,8 @@ contract OptionsContract is Ownable, ERC20 {
         returns (bool)
     {
         // get price from Oracle
-        uint256 ethToCollateralPrice = getPrice(address(collateral));
-        uint256 ethToStrikePrice = getPrice(address(strike));
+        uint256 collateralToEthPrice = getPrice(address(collateral));
+        uint256 strikeToEthPrice = getPrice(address(strike));
 
         // check `oTokensIssued * minCollateralizationRatio * strikePrice <= collAmt * collateralToStrikePrice`
         uint256 leftSideVal = oTokensIssued
@@ -830,8 +830,8 @@ contract OptionsContract is Ownable, ERC20 {
         int32 leftSideExp = minCollateralizationRatio.exponent +
             strikePrice.exponent;
 
-        uint256 rightSideVal = (collateralAmt.mul(ethToStrikePrice)).div(
-            ethToCollateralPrice
+        uint256 rightSideVal = (collateralAmt.mul(collateralToEthPrice)).div(
+            strikeToEthPrice
         );
         int32 rightSideExp = collateralExp;
 
@@ -849,6 +849,41 @@ contract OptionsContract is Ownable, ERC20 {
         return stillSafe;
     }
 
+    function maxOTokensIssuable(uint256 collateralAmt)
+        public
+        returns (uint256)
+    {
+        // get price from Oracle
+        uint256 collateralToEthPrice = getPrice(address(collateral));
+        uint256 strikeToEthPrice = getPrice(address(strike));
+
+        // oTokensIssued  <= collAmt * collateralToStrikePrice / minCollateralizationRatio * strikePrice
+        uint256 denomVal = minCollateralizationRatio.value.mul(
+            strikePrice.value
+        );
+        int32 denomExp = minCollateralizationRatio.exponent +
+            strikePrice.exponent;
+
+        uint256 numeratorVal = (collateralAmt.mul(collateralToEthPrice)).div(
+            strikeToEthPrice
+        );
+        int32 numeratorExp = collateralExp;
+
+        uint256 exp = 0;
+        uint256 numOptions = 0;
+
+        if (numeratorExp < denomExp) {
+            exp = uint256(denomExp - numeratorExp);
+            numOptions = numeratorVal.div(denomVal.mul(10**exp));
+        } else {
+            exp = uint256(numeratorExp - denomExp);
+            numOptions = numeratorVal.mul(10**exp).div(denomVal);
+        }
+
+        return numOptions;
+
+    }
+
     /**
      * @notice This function calculates the amount of collateral to be paid out.
      * @dev The amount of collateral to paid out is determined by:
@@ -863,14 +898,14 @@ contract OptionsContract is Ownable, ERC20 {
         Number memory proportion
     ) internal returns (uint256) {
         // Get price from oracle
-        uint256 ethToCollateralPrice = getPrice(address(collateral));
-        uint256 ethToStrikePrice = getPrice(address(strike));
+        uint256 collateralToEthPrice = getPrice(address(collateral));
+        uint256 strikeToEthPrice = getPrice(address(strike));
 
         // calculate how much should be paid out
         uint256 amtCollateralToPayInEthNum = _oTokens
             .mul(strikePrice.value)
             .mul(proportion.value)
-            .mul(ethToCollateralPrice);
+            .mul(strikeToEthPrice);
         int32 amtCollateralToPayExp = strikePrice.exponent +
             proportion.exponent -
             collateralExp;
@@ -878,12 +913,12 @@ contract OptionsContract is Ownable, ERC20 {
         if (amtCollateralToPayExp > 0) {
             uint32 exp = uint32(amtCollateralToPayExp);
             amtCollateralToPay = amtCollateralToPayInEthNum.mul(10**exp).div(
-                ethToStrikePrice
+                collateralToEthPrice
             );
         } else {
             uint32 exp = uint32(-1 * amtCollateralToPayExp);
             amtCollateralToPay = (amtCollateralToPayInEthNum.div(10**exp)).div(
-                ethToStrikePrice
+                collateralToEthPrice
             );
         }
 

@@ -1,4 +1,4 @@
-import { expect } from 'chai';
+import {expect} from 'chai';
 import {
   ERC20MintableInstance,
   MockCompoundOracleInstance,
@@ -25,7 +25,7 @@ function checkVault(
   {
     '0': expectedCollateral,
     '1': expectedPutsOutstanding
-  }: { '0': string; '1': string }
+  }: {'0': string; '1': string}
 ) {
   expect(vault['0'].toString()).to.equal(expectedCollateral);
   expect(vault['1'].toString()).to.equal(expectedPutsOutstanding);
@@ -65,8 +65,8 @@ contract('OptionsContract', accounts => {
     // 1.2 Mock Dai contract
     dai = await MintableToken.new();
     await dai.mint(creatorAddress, '10000000');
-    await dai.mint(firstExerciser, '100000', { from: creatorAddress });
-    await dai.mint(secondExerciser, '100000', { from: creatorAddress });
+    await dai.mint(firstExerciser, '100000', {from: creatorAddress});
+    await dai.mint(secondExerciser, '100000', {from: creatorAddress});
 
     // 1.3 Mock Dai contract
     usdc = await MintableToken.new();
@@ -93,7 +93,7 @@ contract('OptionsContract', accounts => {
       'USDC',
       '1589932800',
       windowSize,
-      { from: creatorAddress, gas: '4000000' }
+      {from: creatorAddress, gas: '4000000'}
     );
 
     const optionsContractAddr = optionsContractResult.logs[1].args[0];
@@ -138,7 +138,9 @@ contract('OptionsContract', accounts => {
       let result = await optionsContracts[0].isUnsafe(firstVaultOwnerAddress);
       expect(result).to.be.false;
 
-      await compoundOracle.updatePrice(100, {
+      const newETHToUSDPrice = 100;
+      const newPrice = Math.floor((1 / newETHToUSDPrice) * 10 ** 18).toString();
+      await compoundOracle.updatePrice(newPrice, {
         from: creatorAddress,
         gas: '1000000'
       });
@@ -243,7 +245,9 @@ contract('OptionsContract', accounts => {
     });
 
     it('should not be able to liquidate if safe', async () => {
-      await compoundOracle.updatePrice(200, {
+      const newETHToUSDPrice = 200;
+      const newPrice = Math.floor((1 / newETHToUSDPrice) * 10 ** 18).toString();
+      await compoundOracle.updatePrice(newPrice, {
         from: creatorAddress,
         gas: '1000000'
       });

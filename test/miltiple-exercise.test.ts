@@ -201,7 +201,9 @@ contract('OptionsContract', accounts => {
     });
 
     it('vault 1 should be unsafe after Compund Oracle drops price', async () => {
-      await compoundOracle.updatePrice(100, {
+      const newETHToUSDPrice = 100;
+      const newPrice = Math.floor((1 / newETHToUSDPrice) * 10 ** 18).toString();
+      await compoundOracle.updatePrice(newPrice, {
         from: creatorAddress,
         gas: '1000000'
       });
@@ -212,7 +214,9 @@ contract('OptionsContract', accounts => {
     });
 
     it('vault 2 should be unsafe after Compund Oracle drops price', async () => {
-      compoundOracle.updatePrice(100, {
+      const newETHToUSDPrice = 100;
+      const newPrice = Math.floor((1 / newETHToUSDPrice) * 10 ** 18).toString();
+      await compoundOracle.updatePrice(newPrice, {
         from: creatorAddress,
         gas: '1000000'
       });
@@ -232,7 +236,9 @@ contract('OptionsContract', accounts => {
     });
 
     it('secondExerciser should be able to exercise 10 oTokens', async () => {
-      compoundOracle.updatePrice(200, {
+      const newETHToUSDPrice = 200;
+      const newPrice = Math.floor((1 / newETHToUSDPrice) * 10 ** 18).toString();
+      await compoundOracle.updatePrice(newPrice, {
         from: creatorAddress,
         gas: '1000000'
       });
@@ -314,7 +320,9 @@ contract('OptionsContract', accounts => {
     });
 
     it('secondVaultOwnerAddress should be able to redeem after expiry', async () => {
-      await compoundOracle.updatePrice(200, {
+      const newETHToUSDPrice = 200;
+      const newPrice = Math.floor((1 / newETHToUSDPrice) * 10 ** 18).toString();
+      await compoundOracle.updatePrice(newPrice, {
         from: creatorAddress,
         gas: '1000000'
       });

@@ -15,7 +15,7 @@ module.exports = function (deployer) {
     const uniswapFactoryAddr = uniswapFactory.address;
 
     const compoundOracle = await deployer.deploy(MockCompoundOracle);
-    // Rinkeby
+    // // Rinkeby
     // const uniswapFactoryAddr = "0xf5D915570BC477f9B8D6C0E980aA81757A3AaC36";
 
     // const compoundOracleAddress = "0x332b6e69f21acdba5fb3e8dac56ff81878527e06";
