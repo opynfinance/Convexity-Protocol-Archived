@@ -18,14 +18,6 @@ import {getUnixTime, addMonths} from 'date-fns';
 
 const {time, expectEvent, expectRevert} = require('@openzeppelin/test-helpers');
 
-// Egs. collateral = 200 * 10^-18, strikePrice = 9 * 10^-15.
-function calculateMaxOptionsToCreate(
-  collateral: number,
-  strikePrice: number
-): number {
-  return (collateral * 200) / (1.6 * strikePrice);
-}
-
 function checkVault(
   vault: any,
   {
@@ -531,9 +523,8 @@ contract('OptionsContract', accounts => {
 
   describe('#createOptions()', () => {
     it('should be able to create a new Vault, add ETH collateral and issue oTokens', async () => {
-      const collateral = '20000000';
-      const strikePrice = (90 * 10) ^ -18;
       const numOptions = '138888';
+      const collateral = '20000000';
 
       const result = await optionsContracts[0].createETHCollateralOption(
         numOptions,
