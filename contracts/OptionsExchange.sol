@@ -29,7 +29,8 @@ contract OptionsExchange {
         address payable receiver,
         address oTokenAddress,
         address paymentTokenAddress,
-        uint256 oTokensToBuy
+        uint256 oTokensToBuy,
+        uint256 premiumPaid
     );
 
     /**
@@ -76,14 +77,6 @@ contract OptionsExchange {
         IERC20 oToken = IERC20(oTokenAddress);
         IERC20 paymentToken = IERC20(paymentTokenAddress);
         uniswapBuyOToken(paymentToken, oToken, oTokensToBuy, receiver);
-
-        emit BuyOTokens(
-            msg.sender,
-            receiver,
-            oTokenAddress,
-            paymentTokenAddress,
-            oTokensToBuy
-        );
     }
 
     /**
@@ -200,6 +193,16 @@ contract OptionsExchange {
 
             // Token to Token
             paymentToken.approve(address(exchange), LARGE_APPROVAL_NUMBER);
+
+            emit BuyOTokens(
+                msg.sender,
+                _transferTo,
+                address(oToken),
+                address(paymentToken),
+                _amt,
+                premiumToPay
+            );
+
             return
                 exchange.tokenToTokenTransferInput(
                     premiumToPay,
@@ -216,6 +219,16 @@ contract OptionsExchange {
             );
 
             uint256 ethToTransfer = exchange.getEthToTokenOutputPrice(_amt);
+
+            emit BuyOTokens(
+                msg.sender,
+                _transferTo,
+                address(oToken),
+                address(paymentToken),
+                _amt,
+                ethToTransfer
+            );
+
             return
                 exchange.ethToTokenTransferOutput.value(ethToTransfer)(
                     _amt,
