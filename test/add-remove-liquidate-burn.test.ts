@@ -240,8 +240,8 @@ contract('OptionsContract', accounts => {
         gas: '1000000'
       });
 
-      // const result = await optionsContracts[0].isUnsafe(firstVaultOwnerAddress);
-      // expect(result).to.be.true;
+      const result = await optionsContracts[0].isUnsafe(firstVaultOwnerAddress);
+      expect(result).to.be.true;
     });
 
     it('vault 2 should be unsafe after Compund Oracle drops price', async () => {

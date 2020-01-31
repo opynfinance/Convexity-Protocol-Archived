@@ -54,14 +54,14 @@ contract('OptionsContract', accounts => {
   const uniswapFactoryAddress = '0xf5D915570BC477f9B8D6C0E980aA81757A3AaC36';
 
   // Rinkeby Addreesses
-  const optionsExchangeAddress = '0x5E4ecFfbcaD9b71e5a212F43239112f2081e24B3';
-  const optionsFactoryAddress = '0xd88E08dccbdE741d93E072219331d3d0F9eB4cf6';
+  const optionsExchangeAddress = '0x9837AD4759B1292b0296773a8D88EBF793cdD7B2';
+  const optionsFactoryAddress = '0x308B6BC6A50B6a5a2Fe4953Aa09Fe6E32F903391';
   const optionsContractAddresses = [
-    '0x5C520a8dF9b5df067B14F0133194BAf7d4116639',
-    '0x47Bb0a613fe6D966846d927d4F7E65090bB7cC19',
-    '0x6176dd847201356fa0501F57915f3f9D6B570865'
+    '0x71EFDA21aBC791FdbBa1F5E808C5b0C1FeEf281f',
+    '0xC4fa5ce3d8945D851b93e7D52dd89E7F3787FDDE',
+    '0x182bD91b2DAAeA48113935fbb1e6F13EFe7E6e6f'
   ];
-  const oracleAddress = '0x8889BB482D0A9e63dFE68C5B0CEFa4F4c365CB5D';
+  const oracleAddress = '0xEb46648930e87beeCC13B580f75bc83ce8a71410';
 
   const optionsContracts: oTokenInstance[] = [];
   let optionsFactory: OptionsFactoryInstance;
@@ -187,7 +187,7 @@ contract('OptionsContract', accounts => {
       }
     });
 
-    xit('should be able to create oTokens', async () => {
+    it('should be able to create oTokens', async () => {
       if (!contractsDeployed) {
         const collateral = '2000000000000000';
         const strikePrices = [9 * 10 ** -15, 2 * 10 ** -10, 208 * 10 ** -12];
@@ -292,7 +292,7 @@ contract('OptionsContract', accounts => {
       );
     });
 
-    it('should be able to sell oTokens for ERC20', async () => {
+    xit('should be able to sell oTokens for ERC20', async () => {
       await optionsContracts[0].approve(
         optionsExchange.address,
         '1000000000000000000000'
