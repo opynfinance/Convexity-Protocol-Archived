@@ -1,4 +1,4 @@
-import { expect } from 'chai';
+import {expect} from 'chai';
 import {
   ERC20MintableInstance,
   MockCompoundOracleInstance,
@@ -52,7 +52,7 @@ contract('OptionsContract', accounts => {
     // 1.3 Mock Dai contract
     dai = await MintableToken.new();
     await dai.mint(creatorAddress, '10000000');
-    await dai.mint(tokenHolder, '100000', { from: creatorAddress });
+    await dai.mint(tokenHolder, '100000', {from: creatorAddress});
     // 1.4 Mock Dai contract
     usdc = await MintableToken.new();
     await usdc.mint(creatorAddress, '10000000');
@@ -79,7 +79,7 @@ contract('OptionsContract', accounts => {
       'USDC',
       '1589932800',
       '1589932800',
-      { from: creatorAddress, gas: '4000000' }
+      {from: creatorAddress, gas: '4000000'}
     );
 
     const optionsContractAddr = optionsContractResult.logs[1].args[0];
@@ -160,7 +160,9 @@ contract('OptionsContract', accounts => {
     });
 
     it('vault 1 should be unsafe after Compund Oracle drops price', async () => {
-      await compoundOracle.updatePrice(100, {
+      const newETHToUSDPrice = 100;
+      const newPrice = Math.floor((1 / newETHToUSDPrice) * 10 ** 18).toString();
+      await compoundOracle.updatePrice(newPrice, {
         from: creatorAddress,
         gas: '1000000'
       });
@@ -177,7 +179,9 @@ contract('OptionsContract', accounts => {
     });
 
     it('vault 1 should be safe after Compund Oracle increases price', async () => {
-      await compoundOracle.updatePrice(200, {
+      const newETHToUSDPrice = 200;
+      const newPrice = Math.floor((1 / newETHToUSDPrice) * 10 ** 18).toString();
+      await compoundOracle.updatePrice(newPrice, {
         from: creatorAddress,
         gas: '1000000'
       });
@@ -229,7 +233,9 @@ contract('OptionsContract', accounts => {
     });
 
     it('vault 1 should be unsafe after Compund Oracle drops price', async () => {
-      await compoundOracle.updatePrice(100, {
+      const newETHToUSDPrice = 100;
+      const newPrice = Math.floor((1 / newETHToUSDPrice) * 10 ** 18).toString();
+      await compoundOracle.updatePrice(newPrice, {
         from: creatorAddress,
         gas: '1000000'
       });
@@ -275,7 +281,9 @@ contract('OptionsContract', accounts => {
     });
 
     it('vault 1 should remain unsafe after Compund Oracle reices price', async () => {
-      await compoundOracle.updatePrice(150, {
+      const newETHToUSDPrice = 150;
+      const newPrice = Math.floor((1 / newETHToUSDPrice) * 10 ** 18).toString();
+      await compoundOracle.updatePrice(newPrice, {
         from: creatorAddress,
         gas: '1000000'
       });
