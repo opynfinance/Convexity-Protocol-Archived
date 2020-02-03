@@ -522,9 +522,11 @@ contract('OptionsContract', accounts => {
   });
 
   describe('#createOptions()', () => {
-    it('should be able to create a new Vault, add ETH collateral and issue oTokens', async () => {
-      const numOptions = '138888';
+    it('should be able to create a new Vault, add ETH collateral and issue maxOTokensIssuable', async () => {
       const collateral = '20000000';
+      const numOptions = (
+        await optionsContracts[0].maxOTokensIssuable(collateral)
+      ).toString();
 
       const result = await optionsContracts[0].createETHCollateralOption(
         numOptions,
@@ -553,8 +555,10 @@ contract('OptionsContract', accounts => {
     });
 
     it('should be able to create a new Vault, add ERC20 collateral and issue oTokens', async () => {
-      const numOptions = '100';
       const collateral = '20000000';
+      const numOptions = (
+        await optionsContracts[1].maxOTokensIssuable(collateral)
+      ).toString();
 
       await usdc.mint(nonOwnerAddress, '20000000');
       await usdc.approve(optionsContracts[1].address, '10000000000000000', {

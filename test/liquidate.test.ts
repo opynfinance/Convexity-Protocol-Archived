@@ -120,11 +120,6 @@ contract('OptionsContract', accounts => {
       }
     );
 
-    await optionsContracts[0].transfer(firstExerciser, '10', {
-      from: firstVaultOwnerAddress,
-      gas: '100000'
-    });
-
     await optionsContracts[0].transfer(tokenHolder, '101030', {
       from: firstVaultOwnerAddress,
       gas: '100000'
@@ -205,12 +200,21 @@ contract('OptionsContract', accounts => {
       const result = await optionsContracts[0].isUnsafe(firstVaultOwnerAddress);
       expect(result).to.be.true;
 
-      const expectedCollateralToPay = new BN(909);
+      const numOptions = (
+        await optionsContracts[0].maxOTokensLiquidatable(firstVaultOwnerAddress)
+      ).toString();
+
+      await optionsContracts[0].transfer(tokenHolder, numOptions, {
+        from: firstVaultOwnerAddress,
+        gas: '100000'
+      });
+
+      const expectedCollateralToPay = new BN(5409004);
       const initialETH = await balance.current(tokenHolder);
 
       const txInfo = await optionsContracts[0].liquidate(
         firstVaultOwnerAddress,
-        '10',
+        numOptions,
         {
           from: tokenHolder,
           gas: '200000'
@@ -234,18 +238,18 @@ contract('OptionsContract', accounts => {
       // check that the vault balances have changed
       const vault = await optionsContracts[0].getVault(firstVaultOwnerAddress);
       const expectedVault = {
-        '0': '10817282',
-        '1': '148980'
+        '0': '5409187',
+        '1': '89485'
       };
       checkVault(vault, expectedVault);
 
       // check that the liquidator balances have changed
       const amtPTokens2 = await optionsContracts[0].balanceOf(tokenHolder);
-      expect(amtPTokens2.toString()).to.equal('10');
+      expect(amtPTokens2.toString()).to.equal('20');
     });
 
     it('should not be able to liquidate if safe', async () => {
-      const newETHToUSDPrice = 200;
+      const newETHToUSDPrice = 250;
       const newPrice = Math.floor((1 / newETHToUSDPrice) * 10 ** 18).toString();
       await compoundOracle.updatePrice(newPrice, {
         from: creatorAddress,

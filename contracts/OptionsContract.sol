@@ -577,14 +577,24 @@ contract OptionsContract is Ownable, ERC20 {
      * This function returns the maximum amount of collateral liquidatable if the given vault is unsafe
      * @param vaultOwner The index of the vault to be liquidated
      */
-    function maxCollateralLiquidatable(address payable vaultOwner)
+    function maxOTokensLiquidatable(address payable vaultOwner)
         public
         view
         returns (uint256)
     {
         if (isUnsafe(vaultOwner)) {
             Vault storage vault = vaults[vaultOwner];
-            return vault.collateral.mul(liquidationFactor.value);
+            uint256 maxCollateralLiquidatable = vault
+                .collateral
+                .mul(liquidationFactor.value)
+                .div(10**uint256(-liquidationFactor.exponent));
+
+            uint256 one = 10**uint256(-liquidationIncentive.exponent);
+            Number memory liqIncentive = Number(
+                liquidationIncentive.value.add(one),
+                liquidationIncentive.exponent
+            );
+            return calculateOTokens(maxCollateralLiquidatable, liqIncentive);
         } else {
             return 0;
         }
@@ -624,9 +634,10 @@ contract OptionsContract is Ownable, ERC20 {
         uint256 amtCollateralToPay = amtCollateral.add(amtIncentive);
 
         // calculate the maximum amount of collateral that can be liquidated
-        uint256 maxCollateralLiquidatable = maxCollateralLiquidatable(
-            vaultOwner
+        uint256 maxCollateralLiquidatable = vault.collateral.mul(
+            liquidationFactor.value
         );
+
         if (liquidationFactor.exponent > 0) {
             maxCollateralLiquidatable = maxCollateralLiquidatable.mul(
                 10**uint256(liquidationFactor.exponent)
@@ -851,18 +862,25 @@ contract OptionsContract is Ownable, ERC20 {
 
     function maxOTokensIssuable(uint256 collateralAmt)
         public
+        view
+        returns (uint256)
+    {
+        return calculateOTokens(collateralAmt, minCollateralizationRatio);
+
+    }
+
+    function calculateOTokens(uint256 collateralAmt, Number memory proportion)
+        internal
+        view
         returns (uint256)
     {
         // get price from Oracle
         uint256 collateralToEthPrice = getPrice(address(collateral));
         uint256 strikeToEthPrice = getPrice(address(strike));
 
-        // oTokensIssued  <= collAmt * collateralToStrikePrice / minCollateralizationRatio * strikePrice
-        uint256 denomVal = minCollateralizationRatio.value.mul(
-            strikePrice.value
-        );
-        int32 denomExp = minCollateralizationRatio.exponent +
-            strikePrice.exponent;
+        // oTokensIssued  <= collAmt * collateralToStrikePrice / proportion * strikePrice
+        uint256 denomVal = proportion.value.mul(strikePrice.value);
+        int32 denomExp = proportion.exponent + strikePrice.exponent;
 
         uint256 numeratorVal = (collateralAmt.mul(collateralToEthPrice)).div(
             strikeToEthPrice
@@ -881,7 +899,6 @@ contract OptionsContract is Ownable, ERC20 {
         }
 
         return numOptions;
-
     }
 
     /**
