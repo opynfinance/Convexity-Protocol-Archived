@@ -1,5 +1,6 @@
 // This enables us to use TypeScript in the unit tests.
 require('ts-node/register');
+const mnemonic = require('./secret.js');
 
 // const HDWalletProvider = require("truffle-hdwallet-provider-privkey");
 var secrets = {
@@ -12,7 +13,6 @@ const infuraKey = "24b56cc40ae44ea9862df8d2dd1ec2ed";
 //
 // const fs = require('fs');
 // const mnemonic = fs.readFileSync(".secret").toString().trim();
-const mnemonic = "cycle increase miracle mouse oblige alien life wire proof vacant section coffee";
 // if (process.env.NODE_ENV !== 'test') {
 //   secrets = require("./secrets.json");
 // }

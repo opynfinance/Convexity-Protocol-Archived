@@ -14,7 +14,8 @@ module.exports = function (deployer) {
       // Rinkeby
       uniswapFactoryAddr = "0xf5D915570BC477f9B8D6C0E980aA81757A3AaC36";
       compoundOracleAddress = "0x332b6e69f21acdba5fb3e8dac56ff81878527e06";
-      compoundOracle = await deployer.deploy(Oracle, compoundOracleAddress);
+      // compoundOracle = await deployer.deploy(Oracle, compoundOracleAddress);
+      compoundOracle = await deployer.deploy(MockCompoundOracle);
     } else if ((await web3.eth.net.getId()) == 42) {
       await deployer.deploy(StringComparator);
       await deployer.link(StringComparator, OptionsFactory);
