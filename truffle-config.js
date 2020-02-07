@@ -2,14 +2,12 @@
 require('ts-node/register');
 const mnemonic = require('./secret.js');
 
-// const HDWalletProvider = require("truffle-hdwallet-provider-privkey");
 var secrets = {
   secret: '',
   api_key: ''
 }
 
 const HDWalletProvider = require('truffle-hdwallet-provider');
-const infuraKey = "24b56cc40ae44ea9862df8d2dd1ec2ed";
 //
 // const fs = require('fs');
 // const mnemonic = fs.readFileSync(".secret").toString().trim();
