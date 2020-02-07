@@ -7,13 +7,9 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract OptionsUtils {
     // defauls are for mainnet
-    UniswapFactoryInterface public UNISWAP_FACTORY = UniswapFactoryInterface(
-        0xc0a47dFe034B400B47bDaD5FecDa2621de6c4d95
-    );
+    UniswapFactoryInterface public UNISWAP_FACTORY;
 
-    CompoundOracleInterface public COMPOUND_ORACLE = CompoundOracleInterface(
-        0x02557a5E05DeFeFFD4cAe6D83eA3d173B272c904
-    );
+    CompoundOracleInterface public COMPOUND_ORACLE;
 
     constructor(address _uniswapFactory, address _compoundOracle) public {
         UNISWAP_FACTORY = UniswapFactoryInterface(_uniswapFactory);

@@ -1,11 +1,11 @@
 import {expect} from 'chai';
 import {
   ERC20MintableInstance,
-  OptionsContractInstance,
+  oTokenInstance,
   OptionsFactoryInstance
 } from '../build/types/truffle-types';
 
-const OptionsContract = artifacts.require('OptionsContract');
+const oToken = artifacts.require('oToken');
 const OptionsFactory = artifacts.require('OptionsFactory');
 const MockCompoundOracle = artifacts.require('MockCompoundOracle');
 const MintableToken = artifacts.require('ERC20Mintable');
@@ -25,9 +25,10 @@ contract('OptionsContract', accounts => {
   const creatorAddress = accounts[0];
   const firstOwnerAddress = accounts[1];
   const secondOwnerAddress = accounts[2];
-  const nonOwnerAddress = accounts[3];
+  const thirdOwnerAddress = accounts[3];
+  const nonOwnerAddress = accounts[4];
 
-  let optionsContracts: OptionsContractInstance;
+  let optionsContracts: oTokenInstance;
   let optionsFactory: OptionsFactoryInstance;
   let dai: ERC20MintableInstance;
 
@@ -66,7 +67,7 @@ contract('OptionsContract', accounts => {
     );
 
     const optionsContractAddr = optionsContractResult.logs[1].args[0];
-    optionsContracts = await OptionsContract.at(optionsContractAddr);
+    optionsContracts = await oToken.at(optionsContractAddr);
 
     // Open two vaults
     await optionsContracts.openVault({from: creatorAddress, gas: '100000'});
@@ -106,6 +107,21 @@ contract('OptionsContract', accounts => {
       from: firstOwnerAddress,
       gas: '100000'
     });
+
+    // Issue Max oTokens allowed
+    const collateral = '15000000';
+    const numOptions = (
+      await optionsContracts.maxOTokensIssuable(collateral)
+    ).toString();
+
+    await optionsContracts.createETHCollateralOption(
+      numOptions,
+      thirdOwnerAddress,
+      {
+        from: thirdOwnerAddress,
+        value: collateral
+      }
+    );
   });
 
   describe('#exercise() during expiry window', () => {

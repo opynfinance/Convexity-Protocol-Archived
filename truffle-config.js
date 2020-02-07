@@ -1,18 +1,16 @@
 // This enables us to use TypeScript in the unit tests.
 require('ts-node/register');
+const mnemonic = require('./secret.js');
 
-// const HDWalletProvider = require("truffle-hdwallet-provider-privkey");
 var secrets = {
   secret: '',
   api_key: ''
 }
 
 const HDWalletProvider = require('truffle-hdwallet-provider');
-const infuraKey = "24b56cc40ae44ea9862df8d2dd1ec2ed";
 //
 // const fs = require('fs');
 // const mnemonic = fs.readFileSync(".secret").toString().trim();
-const mnemonic = "cycle increase miracle mouse oblige alien life wire proof vacant section coffee";
 // if (process.env.NODE_ENV !== 'test') {
 //   secrets = require("./secrets.json");
 // }
@@ -53,14 +51,22 @@ module.exports = {
       // network_id: 2111,   // This network is yours, in the cloud.
       // production: true    // Treats this network as if it was a public net. (default: false)
     // }
-//     kovan: {
-//       provider: () => {
-//         return new HDWalletProvider(secrets.secret, "https://kovan.infura.io/v3/" + secrets.api_key);
-//       },
-//       network_id: 42,
-//       gas: 6700000,
-//       gasPrice: 10000000000
-//     },
+    kovan: {
+      provider: () => {
+        return new HDWalletProvider(mnemonic, "https://kovan.infura.io/v3/ae145ebad7c8499db7901246fd1271f7");
+      },
+      network_id: 42,
+      gas: 6700000,
+      gasPrice: 10000000000
+    },
+    ropsten: {
+      provider: () => {
+        return new HDWalletProvider(mnemonic, "https://ropsten.infura.io/v3/ae145ebad7c8499db7901246fd1271f7");
+      },
+      network_id: 3,
+      gas: 6700000,
+      gasPrice: 10000000000
+    }
   },
 
   // Set default mocha options here, use special reporters etc.

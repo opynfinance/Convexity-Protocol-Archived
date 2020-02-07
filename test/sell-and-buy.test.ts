@@ -6,8 +6,10 @@ import {
   OptionsExchangeInstance,
   UniswapFactoryInterfaceInstance,
   UniswapExchangeInterfaceInstance,
-  CompoundOracleInterfaceInstance
+  CompoundOracleInterfaceInstance,
+  MockCompoundOracleInstance
 } from '../build/types/truffle-types';
+import {Address} from 'cluster';
 
 const OptionsFactory = artifacts.require('OptionsFactory');
 const MintableToken = artifacts.require('ERC20Mintable');
@@ -15,7 +17,8 @@ const UniswapFactory = artifacts.require('UniswapFactoryInterface');
 const UniswapExchange = artifacts.require('UniswapExchangeInterface');
 const OptionsExchange = artifacts.require('OptionsExchange.sol');
 const oToken = artifacts.require('oToken');
-const Oracle = artifacts.require('Oracle.sol');
+// const Oracle = artifacts.require('Oracle.sol');
+const Oracle = artifacts.require('MockCompoundOracle');
 
 // Egs. collateral = 200 * 10^-18, strikePrice = 9 * 10^-15.
 // returns number of oTokens
@@ -47,21 +50,16 @@ contract('OptionsContract', accounts => {
   const firstRepoOwnerAddress = accounts[1];
   const secondRepoOwnerAddress = accounts[2];
 
-  // Rinkeby Dai Address
-  const daiAddress = '0x5592ec0cfb4dbc12d3ab100b257153436a1f0fea';
-  // Rinkeby USDC Address
-  const usdcAddress = '0x4DBCdF9B62e891a7cec5A2568C3F4FAF9E8Abe2b';
-  const uniswapFactoryAddress = '0xf5D915570BC477f9B8D6C0E980aA81757A3AaC36';
+  let daiAddress: string;
+  let usdcAddress: string;
+  let cUSDCAddress: string;
+  let cDaiAddress: string;
+  let uniswapFactoryAddress: string;
 
-  // Rinkeby Addreesses
-  const optionsExchangeAddress = '0x9837AD4759B1292b0296773a8D88EBF793cdD7B2';
-  const optionsFactoryAddress = '0x308B6BC6A50B6a5a2Fe4953Aa09Fe6E32F903391';
-  const optionsContractAddresses = [
-    '0x71EFDA21aBC791FdbBa1F5E808C5b0C1FeEf281f',
-    '0xC4fa5ce3d8945D851b93e7D52dd89E7F3787FDDE',
-    '0x182bD91b2DAAeA48113935fbb1e6F13EFe7E6e6f'
-  ];
-  const oracleAddress = '0xEb46648930e87beeCC13B580f75bc83ce8a71410';
+  let optionsExchangeAddress: string;
+  let optionsFactoryAddress: string;
+  let optionsContractAddresses: string[];
+  let oracleAddress: string;
 
   const optionsContracts: oTokenInstance[] = [];
   let optionsFactory: OptionsFactoryInstance;
@@ -69,22 +67,50 @@ contract('OptionsContract', accounts => {
   let usdc: ERC20MintableInstance;
   let uniswapFactory: UniswapFactoryInterfaceInstance;
   let optionsExchange: OptionsExchangeInstance;
-  let oracle: CompoundOracleInterfaceInstance;
+  let oracle: MockCompoundOracleInstance;
 
   const windowSize = 1611446400;
-  const contractsDeployed = true;
+  const contractsDeployed = false;
 
   before('set up contracts', async () => {
+    if ((await web3.eth.net.getId()) == 4) {
+      // Rinkeby Dai Address
+      daiAddress = '0x5592ec0cfb4dbc12d3ab100b257153436a1f0fea';
+      usdcAddress = '0x4DBCdF9B62e891a7cec5A2568C3F4FAF9E8Abe2b';
+      cUSDCAddress = '0x5b281a6dda0b271e91ae35de655ad301c976edb1';
+      cDaiAddress = '0x6d7f0754ffeb405d23c51ce938289d4835be3b14';
+      uniswapFactoryAddress = '0xf5D915570BC477f9B8D6C0E980aA81757A3AaC36';
+
+      // Rinkeby Addreesses
+      optionsExchangeAddress = '0x9837AD4759B1292b0296773a8D88EBF793cdD7B2';
+      optionsFactoryAddress = '0x308B6BC6A50B6a5a2Fe4953Aa09Fe6E32F903391';
+      optionsContractAddresses = [
+        '0x71EFDA21aBC791FdbBa1F5E808C5b0C1FeEf281f',
+        '0xC4fa5ce3d8945D851b93e7D52dd89E7F3787FDDE',
+        '0x182bD91b2DAAeA48113935fbb1e6F13EFe7E6e6f'
+      ];
+      oracleAddress = '0xEb46648930e87beeCC13B580f75bc83ce8a71410';
+    } else if ((await web3.eth.net.getId()) == 42) {
+      // Kovan Addresses
+      daiAddress = '0x4F96Fe3b7A6Cf9725f59d353F723c1bDb64CA6Aa';
+      usdcAddress = '0x75B0622Cec14130172EaE9Cf166B92E5C112FaFF';
+      cUSDCAddress = '0xcfC9bB230F00bFFDB560fCe2428b4E05F3442E35';
+      cDaiAddress = '0xe7bc397DBd069fC7d0109C0636d06888bb50668c';
+      uniswapFactoryAddress = '0xD3E51Ef092B2845f10401a0159B2B96e8B6c3D30';
+    } else if ((await web3.eth.net.getId()) == 3) {
+      // Ropsten Addresses
+      daiAddress = '0xB5E5D0F8C0cbA267CD3D7035d6AdC8eBA7Df7Cdd';
+      usdcAddress = '0x8a9447df1FB47209D36204e6D56767a33bf20f9f';
+      cUSDCAddress = '0x43a1363afb28235720fcbdf0c2dab7759091f7e0';
+      cDaiAddress = '0x2b536482a01e620ee111747f8334b395a42a555e';
+      uniswapFactoryAddress = '0x0865A608E75FbD2ba087d08A5C7cAabcd977C1aD';
+    }
     if (!contractsDeployed) {
       oracle = await Oracle.deployed();
       // 1.2 Mock Dai contract
-      dai = await MintableToken.at(
-        '0x5592ec0cfb4dbc12d3ab100b257153436a1f0fea'
-      );
+      dai = await MintableToken.at(daiAddress);
       // 1.3 USDC contract
-      usdc = await MintableToken.at(
-        '0x4dbcdf9b62e891a7cec5a2568c3f4faf9e8abe2b'
-      );
+      usdc = await MintableToken.at(usdcAddress);
 
       // 2. Deploy our contracts
       // Deploy the Options Exchange
@@ -95,14 +121,8 @@ contract('OptionsContract', accounts => {
 
       await optionsFactory.addAsset('DAI', dai.address);
       await optionsFactory.addAsset('USDC', usdc.address);
-      await optionsFactory.addAsset(
-        'cDAI',
-        '0x6d7f0754ffeb405d23c51ce938289d4835be3b14'
-      );
-      await optionsFactory.addAsset(
-        'cUSDC',
-        '0x5b281a6dda0b271e91ae35de655ad301c976edb1'
-      );
+      await optionsFactory.addAsset('cDAI', cDaiAddress);
+      await optionsFactory.addAsset('cUSDC', cUSDCAddress);
 
       // Create the unexpired options contract
       let optionsContractResult = await optionsFactory.createOptionsContract(
@@ -280,7 +300,7 @@ contract('OptionsContract', accounts => {
   });
 
   describe('Should be able to buy and sell oTokens', async () => {
-    xit('should be able to buy oTokens with ETH', async () => {
+    it('should be able to buy oTokens with ETH', async () => {
       await optionsExchange.buyOTokens(
         creatorAddress,
         optionsContracts[0].address,
@@ -291,7 +311,17 @@ contract('OptionsContract', accounts => {
         }
       );
     });
+    xit('vault should be unsafe when price drops', async () => {
+      const newETHToUSDPrice = 100;
+      const newPrice = Math.floor((1 / newETHToUSDPrice) * 10 ** 18).toString();
+      await oracle.updatePrice(newPrice, {
+        from: creatorAddress,
+        gas: '1000000'
+      });
 
+      const result = await optionsContracts[0].isUnsafe(creatorAddress);
+      expect(result).to.be.true;
+    });
     xit('should be able to sell oTokens for ERC20', async () => {
       await optionsContracts[0].approve(
         optionsExchange.address,
