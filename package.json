@@ -38,7 +38,7 @@
     "compile:types": "typechain --target=truffle --outDir build/types/truffle-types \"build/contracts/*.json\"",
     "build": "npm run compile:contracts && npm run compile:types",
     "pretest": "npm run build",
-    "test": "truffle test",
+    "test": "truffle test --network mainnet ./test/sell-and-buy.test.ts",
     "test:kovan":"truffle test --network kovan ./test/sell-and-buy.test.ts",
     "test:ropsten":"truffle test --network ropsten ./test/sell-and-buy.test.ts",
     "test:rinkeby": "truffle test --network rinkeby ./test/sell-and-buy.test.ts",

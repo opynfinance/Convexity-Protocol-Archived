@@ -30,6 +30,75 @@
     "type": "fallback"
   },
   {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "name": "seller",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "name": "receiver",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "name": "oTokenAddress",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "name": "payoutTokenAddress",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "name": "oTokensToSell",
+        "type": "uint256"
+      }
+    ],
+    "name": "SellOTokens",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "name": "buyer",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "name": "receiver",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "name": "oTokenAddress",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "name": "paymentTokenAddress",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "name": "oTokensToBuy",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "name": "premiumPaid",
+        "type": "uint256"
+      }
+    ],
+    "name": "BuyOTokens",
+    "type": "event"
+  },
+  {
     "constant": false,
     "inputs": [
       {
