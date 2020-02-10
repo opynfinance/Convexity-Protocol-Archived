@@ -184,12 +184,16 @@ contract OptionsExchange {
                 address(paymentToken)
             );
 
-            uint256 premiumToPay = premiumToPay(
+            uint256 paymentTokensToTransfer = premiumToPay(
                 address(oToken),
                 address(paymentToken),
                 _amt
             );
-            paymentToken.transferFrom(msg.sender, address(this), premiumToPay);
+            paymentToken.transferFrom(
+                msg.sender,
+                address(this),
+                paymentTokensToTransfer
+            );
 
             // Token to Token
             paymentToken.approve(address(exchange), LARGE_APPROVAL_NUMBER);
@@ -200,12 +204,12 @@ contract OptionsExchange {
                 address(oToken),
                 address(paymentToken),
                 _amt,
-                premiumToPay
+                paymentTokensToTransfer
             );
 
             return
                 exchange.tokenToTokenTransferInput(
-                    premiumToPay,
+                    paymentTokensToTransfer,
                     1,
                     1,
                     LARGE_BLOCK_SIZE,

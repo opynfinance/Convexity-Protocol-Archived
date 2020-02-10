@@ -88,8 +88,13 @@ contract OptionsContract is Ownable, ERC20 {
     // The Oracle used for the contract
     CompoundOracleInterface public COMPOUND_ORACLE;
 
+    // The name of  the contract
     string public name;
+
+    // The symbol of  the contract
     string public symbol;
+
+    // The number of decimals of the contract
     uint8 public decimals;
 
     /**
@@ -271,6 +276,11 @@ contract OptionsContract is Ownable, ERC20 {
         );
     }
 
+    /**
+     * @notice Can only be called by owner. Used to set the name, symbol and decimals of the contract
+     * @param _name The name of the contract
+     * @param _symbol The symbol of the contract
+     */
     function setDetails(string memory _name, string memory _symbol)
         public
         onlyOwner
@@ -375,7 +385,7 @@ contract OptionsContract is Ownable, ERC20 {
     /**
      * @notice Returns the amount of underlying to be transferred during an exercise call
      */
-    function underlyingToTransfer(uint256 oTokensToExercise)
+    function underlyingRequiredToExercise(uint256 oTokensToExercise)
         public
         view
         returns (uint256)
@@ -687,17 +697,17 @@ contract OptionsContract is Ownable, ERC20 {
      * @return true or false
      */
     function isUnsafe(address payable vaultOwner) public view returns (bool) {
-        bool isUnsafe = !isSafe(
+        bool stillUnsafe = !isSafe(
             getCollateral(vaultOwner),
             getOTokensIssued(vaultOwner)
         );
-        return isUnsafe;
+        return stillUnsafe;
     }
 
     /**
      * @notice This function returns if an -30 <= exponent <= 30
      */
-    function isWithinExponentRange(int32 val) internal returns (bool) {
+    function isWithinExponentRange(int32 val) internal pure returns (bool) {
         return ((val <= 30) && (val >= -30));
     }
 
@@ -764,7 +774,9 @@ contract OptionsContract is Ownable, ERC20 {
 
         // 1. Check sufficient underlying
         // 1.1 update underlying balances
-        uint256 amtUnderlyingToPay = underlyingToTransfer(oTokensToExercise);
+        uint256 amtUnderlyingToPay = underlyingRequiredToExercise(
+            oTokensToExercise
+        );
         vault.underlying = vault.underlying.add(amtUnderlyingToPay);
 
         // 2. Calculate Collateral to pay
@@ -943,7 +955,7 @@ contract OptionsContract is Ownable, ERC20 {
     function calculateCollateralToPay(
         uint256 _oTokens,
         Number memory proportion
-    ) internal returns (uint256) {
+    ) internal view returns (uint256) {
         // Get price from oracle
         uint256 collateralToEthPrice = getPrice(address(collateral));
         uint256 strikeToEthPrice = getPrice(address(strike));
