@@ -88,6 +88,15 @@ contract OptionsContract is Ownable, ERC20 {
     // The Oracle used for the contract
     CompoundOracleInterface public COMPOUND_ORACLE;
 
+    // The name of  the contract
+    string public name;
+
+    // The symbol of  the contract
+    string public symbol;
+
+    // The number of decimals of the contract
+    uint8 public decimals;
+
     /**
     * @param _collateral The collateral asset
     * @param _collExp The precision of the collateral (-18 if ETH)
@@ -268,6 +277,24 @@ contract OptionsContract is Ownable, ERC20 {
     }
 
     /**
+     * @notice Can only be called by owner. Used to set the name, symbol and decimals of the contract
+     * @param _name The name of the contract
+     * @param _symbol The symbol of the contract
+     */
+    function setDetails(string memory _name, string memory _symbol)
+        public
+        onlyOwner
+    {
+        name = _name;
+        symbol = _symbol;
+        decimals = uint8(-1 * oTokenExchangeRate.exponent);
+        require(
+            decimals >= 0,
+            "1 oToken cannot protect less than the smallest unit of the asset"
+        );
+    }
+
+    /**
      * @notice Can only be called by owner. Used to take out the protocol fees from the contract.
      * @param _address The address to send the fee to.
      */
@@ -358,7 +385,7 @@ contract OptionsContract is Ownable, ERC20 {
     /**
      * @notice Returns the amount of underlying to be transferred during an exercise call
      */
-    function underlyingToTransfer(uint256 oTokensToExercise)
+    function underlyingRequiredToExercise(uint256 oTokensToExercise)
         public
         view
         returns (uint256)
@@ -670,17 +697,17 @@ contract OptionsContract is Ownable, ERC20 {
      * @return true or false
      */
     function isUnsafe(address payable vaultOwner) public view returns (bool) {
-        bool isUnsafe = !isSafe(
+        bool stillUnsafe = !isSafe(
             getCollateral(vaultOwner),
             getOTokensIssued(vaultOwner)
         );
-        return isUnsafe;
+        return stillUnsafe;
     }
 
     /**
      * @notice This function returns if an -30 <= exponent <= 30
      */
-    function isWithinExponentRange(int32 val) internal returns (bool) {
+    function isWithinExponentRange(int32 val) internal pure returns (bool) {
         return ((val <= 30) && (val >= -30));
     }
 
@@ -747,7 +774,9 @@ contract OptionsContract is Ownable, ERC20 {
 
         // 1. Check sufficient underlying
         // 1.1 update underlying balances
-        uint256 amtUnderlyingToPay = underlyingToTransfer(oTokensToExercise);
+        uint256 amtUnderlyingToPay = underlyingRequiredToExercise(
+            oTokensToExercise
+        );
         vault.underlying = vault.underlying.add(amtUnderlyingToPay);
 
         // 2. Calculate Collateral to pay
@@ -860,6 +889,10 @@ contract OptionsContract is Ownable, ERC20 {
         return stillSafe;
     }
 
+    /**
+     * This function returns the maximum amount of oTokens that can safely be issued against the specified amount of collateral.
+     * @param collateralAmt The amount of collateral against which oTokens will be issued.
+     */
     function maxOTokensIssuable(uint256 collateralAmt)
         public
         view
@@ -869,6 +902,15 @@ contract OptionsContract is Ownable, ERC20 {
 
     }
 
+    /**
+     * @notice This function is used to calculate the amount of tokens that can be issued.
+     * @dev The amount of oTokens is determined by:
+     * oTokensIssued  <= collateralAmt * collateralToStrikePrice / (proportion * strikePrice)
+     * @param collateralAmt The amount of collateral
+     * @param proportion The proportion of the collateral to pay out. If 100% of collateral
+     * should be paid out, pass in Number(1, 0). The proportion might be less than 100% if
+     * you are calculating fees.
+     */
     function calculateOTokens(uint256 collateralAmt, Number memory proportion)
         internal
         view
@@ -878,7 +920,7 @@ contract OptionsContract is Ownable, ERC20 {
         uint256 collateralToEthPrice = getPrice(address(collateral));
         uint256 strikeToEthPrice = getPrice(address(strike));
 
-        // oTokensIssued  <= collAmt * collateralToStrikePrice / proportion * strikePrice
+        // oTokensIssued  <= collAmt * collateralToStrikePrice / (proportion * strikePrice)
         uint256 denomVal = proportion.value.mul(strikePrice.value);
         int32 denomExp = proportion.exponent + strikePrice.exponent;
 
@@ -904,7 +946,7 @@ contract OptionsContract is Ownable, ERC20 {
     /**
      * @notice This function calculates the amount of collateral to be paid out.
      * @dev The amount of collateral to paid out is determined by:
-     * `proportion` * `strikePrice` * `oTokens` amount of collateral.
+     * (proportion * strikePrice * strikeToCollateralPrice * oTokens) amount of collateral.
      * @param _oTokens The number of oTokens.
      * @param proportion The proportion of the collateral to pay out. If 100% of collateral
      * should be paid out, pass in Number(1, 0). The proportion might be less than 100% if
@@ -913,7 +955,7 @@ contract OptionsContract is Ownable, ERC20 {
     function calculateCollateralToPay(
         uint256 _oTokens,
         Number memory proportion
-    ) internal returns (uint256) {
+    ) internal view returns (uint256) {
         // Get price from oracle
         uint256 collateralToEthPrice = getPrice(address(collateral));
         uint256 strikeToEthPrice = getPrice(address(strike));
