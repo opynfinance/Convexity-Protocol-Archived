@@ -110,13 +110,13 @@ contract('OptionsContract', accounts => {
       cDaiAddress = '0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643';
       uniswapFactoryAddress = '0xc0a47dFe034B400B47bDaD5FecDa2621de6c4d95';
 
-      optionsExchangeAddress = '0x1460771B713E8e58e350F9d82F7b83ACB6b2e75f';
-      optionsFactoryAddress = '0x62F55E419D7cA4C34d607A42F6C3771918a1Ff90';
+      optionsExchangeAddress = '0x5778f2824a114F6115dc74d432685d3336216017';
+      optionsFactoryAddress = '0xb529964F86fbf99a6aA67f72a27e59fA3fa4FEaC';
       optionsContractAddresses = [
-        '0x9aC585788C6A52caAc0f8cCdC1Df77Eb62f8aCC8',
-        '0x8413FC80aC9a43A85bdDDE99710f522fA30B005B'
+        '0xddaC4AED7c8F73032b388EFe2c778FC194BC81ed',
+        '0x8ED9f862363fFdFD3a07546e618214b6D59F03d4'
       ];
-      oracleAddress = '0x317166AB2bF19152D16871C8Cf1B33583e26932B';
+      oracleAddress = '0x7054e08461e3eCb7718B63540adDB3c3A1746415';
     }
     if (!contractsDeployed) {
       oracle = await Oracle.deployed();
@@ -193,12 +193,12 @@ contract('OptionsContract', accounts => {
   });
 
   describe('set symbol + names', () => {
-    it('set the symbol, name and test it is non-null', async () => {
+    xit('set the symbol, name and test it is non-null', async () => {
       // if(!contractsDeployed) {
       let i;
       const details = [
-        {name: 'Opyn Compound Dai', symbol: 'ocDai'},
-        {name: 'Opyn Compound USDC', symbol: 'ocUSDC'}
+        {name: 'Opyn cDai Insurance', symbol: 'ocDai'},
+        {name: 'Opyn cUSDC Insurance', symbol: 'ocUSDC'}
       ];
       for (i = 0; i < optionsContracts.length; i++) {
         optionsContracts[i].setDetails(details[i].name, details[i].symbol);
@@ -341,7 +341,7 @@ contract('OptionsContract', accounts => {
         await optionsExchange.premiumToPay(
           optionsContracts[0].address,
           '0x0000000000000000000000000000000000000000',
-          '2'
+          '1'
         )
       ).toString();
 
@@ -349,7 +349,7 @@ contract('OptionsContract', accounts => {
         creatorAddress,
         optionsContracts[0].address,
         '0x0000000000000000000000000000000000000000',
-        '2',
+        '1',
         {
           value: premiumToPay
         }
