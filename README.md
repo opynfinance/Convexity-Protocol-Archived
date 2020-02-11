@@ -1,11 +1,31 @@
 # Convexity Protocol
 
-This vault contains all the smart contracts for the Opyn.co Convexity Protocol. Convexity allows options sellers to earn premiums on their collateral and options buyers to protect themselves against technical, financial and systemic risks that the underlying token faces.
+This vault contains all the smart contracts for Opyn's Convexity Protocol. Convexity allows options sellers to earn premiums on their collateral and options buyers to protect themselves against technical, financial and systemic risks that the underlying token faces.
 
 Convexity is a protocol that uses protective put options as insurance. At a high level, the insurance buyer pays the insurance provider some premium ahead of time to get access to oTokens. An example of an oToken is the ocDai token which might protect the holder of the token from Jan 1 2020 to Jan 1 2021 against any disasters that Compound's cDai faces. In the case of a disaster, the holder of the oToken can turn in their oToken and their cDai and in exchange take the collateral locked in the Convexity Protocol by insurance providers. If there is no disaster, it is strictly worse for the holder of cDai to give up their cDai in exchange for collateral locked on the Convexity protocol, thus the insurance providers earn a premium on their collateral
 
 Before diving into the codebase, please read:
 - [The Convexity Protocol White Paper](https://drive.google.com/file/d/1YsrGBUpZoPvFLtcwkEYkxNhogWCU772D/view)
+
+# Resources
+1. [The Convexity Protocol White Paper](https://drive.google.com/file/d/1YsrGBUpZoPvFLtcwkEYkxNhogWCU772D/view)
+2. [Open Zeppelin Audit Report](https://blog.openzeppelin.com/private-report-jan-6/)
+3. [Gitbooks Documentation] (https://opyn.gitbook.io/opyn/)
+4. [Website] (https://www.opyn.co/)
+
+# Installing
+1. Run `git clone` to clone this repo.
+2. Run `cd OptionsProtocol` .
+3. Run `npm install` to install all dependencies.
+
+# Testing and Deployment
+## Local Testnet
+1. Open a terminal window and run `ganache-cli` to first have ganache running
+2. In a new terminal window, run `npm test` to execute the test suite.
+
+## Deploying on Rinkeby / Kovan / Ropsten
+1. Set up a local file in ./OptionsProtocol called secret.js. In this file, insert the mnemonic to the address that is deploying the contracts.
+2. Run `npm run-script test:rinkeby` to deploy the contracts to the Rinkeby network. This script runs the file ./test/sell-and-buy.test.ts. It creates new ocDai and ocUSDC markets, adds liquidity to these markets and creates and sells the oTokens minted on Uniswap.
 
 # Functionality
 The main functionality offered by the convexity protocol is as below:
@@ -59,10 +79,4 @@ Any oToken holder can call `exercise (oTokens)` during the exercise window and i
 ##### Claim Collateral
 After the contract expires, the insurance providers can collect their collateral back. The amount they receive is calculated as `vault.collateral / totalCollateral * (totalCollateral - totalExercised)`. The oTokens expire so don't have to be burned as they no longer have any value. vaults can't be unsafe after expiry because they no longer have a promised insurance amount.
 ![image info](./images/claim.png)
-# Installing dependencies
 
-Run `npm install` to install all dependencies.
-
-# Testing
-Run `ganache-cli` to first have ganache running
-Run `npm test` to execute the test suite.
