@@ -9,7 +9,7 @@ Before diving into the codebase, please read:
 
 # Resources
 1. [The Convexity Protocol White Paper](https://drive.google.com/file/d/1YsrGBUpZoPvFLtcwkEYkxNhogWCU772D/view)
-2. [Open Zeppelin Audit Report](https://blog.openzeppelin.com/private-report-jan-6/)
+2. [Open Zeppelin Audit Report](https://blog.openzeppelin.com/opyn-contracts-audit/)
 3. [Gitbooks Documentation](https://opyn.gitbook.io/opyn/)
 4. [Website](https://www.opyn.co/)
 
