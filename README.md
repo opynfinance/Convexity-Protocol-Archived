@@ -13,6 +13,13 @@ Before diving into the codebase, please read:
 3. [Gitbooks Documentation](https://opyn.gitbook.io/opyn/)
 4. [Website](https://www.opyn.co/)
 
+# Securtiy
+Security is a top priority for us at Opyn. As an insurance platform, we care most about furthering the trust users have in DeFi. 
+
+As part of that, we have rigorous tests for all of our contracts and have done an audit with Open Zeppelin. We are planning on launching an official bug bounty program soon. Even through rigorous testing and audits, there is still a chance that vulnerabilities may exist. We at Opyn, want to ensure we can fix them as soon as possible
+
+We care about building out a safe and secure DeFi. You can help us further this mission, by letting us know if you find a vulnerability by emailing aparna@opyn.co. 
+
 # Installing
 1. Run `git clone` to clone this repo.
 2. Run `cd OptionsProtocol` .
@@ -74,11 +81,9 @@ If that condition fails, a liquidator can come with `_oTokens`. The liquidator g
 #### Exercise the oTokens during the expiry window
 ##### Exercise
 Any oToken holder can call `exercise (oTokens, vaultsToExerciseFrom[])` during the exercise window and in return get out strike price amount of collateral. Note that since they are receiving the payment in the collateral asset, they should exchange it immediately for the strike asset to protect themselves against volatility.  If the oToken holder wants to exercise before the exercise window, they can sell their oTokens on any exchange like Uniswap etc.
-![image info](./images/exercise.png)
 
 ##### Redeem Vault Balance
 After the contract expires, the insurance providers can collect their collateral back. The amount they receive depends on how many times their vault was exercised from. The oTokens expire so don't have to be burned as they no longer have any value. Vaults can't be unsafe after expiry because they no longer have a promised insurance amount.
-![image info](./images/claim.png)
 
 The vault owner can withdraw their share of underlying at any time, if their vault was exercised, by calling the `removeUnderlying()` function. 
 
