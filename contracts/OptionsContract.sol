@@ -860,8 +860,13 @@ contract OptionsContract is Ownable, ERC20 {
         returns (bool)
     {
         // get price from Oracle
-        uint256 collateralToEthPrice = getPrice(address(collateral));
-        uint256 strikeToEthPrice = getPrice(address(strike));
+        uint256 collateralToEthPrice = 1;
+        uint256 strikeToEthPrice = 1;
+
+        if (collateral != strike) {
+            collateralToEthPrice = getPrice(address(collateral));
+            strikeToEthPrice = getPrice(address(strike));
+        }
 
         // check `oTokensIssued * minCollateralizationRatio * strikePrice <= collAmt * collateralToStrikePrice`
         uint256 leftSideVal = oTokensIssued
@@ -917,8 +922,13 @@ contract OptionsContract is Ownable, ERC20 {
         returns (uint256)
     {
         // get price from Oracle
-        uint256 collateralToEthPrice = getPrice(address(collateral));
-        uint256 strikeToEthPrice = getPrice(address(strike));
+        uint256 collateralToEthPrice = 1;
+        uint256 strikeToEthPrice = 1;
+
+        if (collateral != strike) {
+            collateralToEthPrice = getPrice(address(collateral));
+            strikeToEthPrice = getPrice(address(strike));
+        }
 
         // oTokensIssued  <= collAmt * collateralToStrikePrice / (proportion * strikePrice)
         uint256 denomVal = proportion.value.mul(strikePrice.value);
@@ -957,8 +967,13 @@ contract OptionsContract is Ownable, ERC20 {
         Number memory proportion
     ) internal view returns (uint256) {
         // Get price from oracle
-        uint256 collateralToEthPrice = getPrice(address(collateral));
-        uint256 strikeToEthPrice = getPrice(address(strike));
+        uint256 collateralToEthPrice = 1;
+        uint256 strikeToEthPrice = 1;
+
+        if (collateral != strike) {
+            collateralToEthPrice = getPrice(address(collateral));
+            strikeToEthPrice = getPrice(address(strike));
+        }
 
         // calculate how much should be paid out
         uint256 amtCollateralToPayInEthNum = _oTokens
