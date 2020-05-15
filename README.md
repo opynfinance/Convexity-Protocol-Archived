@@ -16,9 +16,9 @@ Before diving into the codebase, please read:
 # Security
 Security is a top priority for us at Opyn. As an insurance platform, we care most about furthering the trust users have in DeFi. 
 
-As part of that, we have rigorous tests for all of our contracts and have done an audit with Open Zeppelin. We are planning on launching an official bug bounty program soon. Even through rigorous testing and audits, there is still a chance that vulnerabilities may exist. We at Opyn, want to ensure we can fix them as soon as possible
+As part of that, we have rigorous tests for all of our contracts and have done an audit with Open Zeppelin. You can also find our bounty program [here](https://opyn.gitbook.io/opyn/security). Even through rigorous testing and audits, there is still a chance that vulnerabilities may exist. We at Opyn, want to ensure we can fix them as soon as possible
 
-We care about building out a safe and secure DeFi. You can help us further this mission, by letting us know if you find a vulnerability by emailing aparna@opyn.co. 
+We care about building out a safe and secure DeFi. You can help us further this mission, by letting us know if you find a vulnerability by emailing security@opyn.co. 
 
 # Installing
 1. Run `git clone` to clone this repo.
