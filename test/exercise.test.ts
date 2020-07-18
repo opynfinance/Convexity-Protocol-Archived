@@ -10,7 +10,7 @@ const OptionsFactory = artifacts.require('OptionsFactory');
 const MockCompoundOracle = artifacts.require('MockCompoundOracle');
 const MintableToken = artifacts.require('ERC20Mintable');
 
-const truffleAssert = require('truffle-assertions');
+import {getUnixTime, addMonths} from 'date-fns';
 
 const {
   BN,
@@ -31,6 +31,10 @@ contract('OptionsContract', accounts => {
   let optionsContracts: oTokenInstance;
   let optionsFactory: OptionsFactoryInstance;
   let dai: ERC20MintableInstance;
+
+  const now = Date.now();
+  const expiry = getUnixTime(addMonths(now, 3));
+  const windowSize = expiry;
 
   before('set up contracts', async () => {
     // 1. Deploy mock contracts
@@ -61,8 +65,8 @@ contract('OptionsContract', accounts => {
       '9',
       -'15',
       'USDC',
-      '1589932800',
-      '1589932800',
+      expiry,
+      windowSize,
       {from: creatorAddress, gas: '4000000'}
     );
 
@@ -77,7 +81,7 @@ contract('OptionsContract', accounts => {
     });
 
     // Add Collateral to both vaults
-    let vaultNum = '0';
+    // let vaultNum = '0';
     let msgValue = '20000000';
     await optionsContracts.addETHCollateral(creatorAddress, {
       from: creatorAddress,
@@ -85,7 +89,7 @@ contract('OptionsContract', accounts => {
       value: msgValue
     });
 
-    vaultNum = '1';
+    // vaultNum = '1';
     msgValue = '10000000';
     await optionsContracts.addETHCollateral(firstOwnerAddress, {
       from: firstOwnerAddress,
@@ -94,18 +98,16 @@ contract('OptionsContract', accounts => {
     });
 
     // Mint tokens
-    vaultNum = '0';
+    // vaultNum = '0';
     let numTokens = '25000';
-    optionsContracts.issueOTokens(numTokens, creatorAddress, {
-      from: creatorAddress,
-      gas: '100000'
+    await optionsContracts.issueOTokens(numTokens, creatorAddress, {
+      from: creatorAddress
     });
 
-    vaultNum = '1';
+    // vaultNum = '1';
     numTokens = '10000';
-    optionsContracts.issueOTokens(numTokens, firstOwnerAddress, {
-      from: firstOwnerAddress,
-      gas: '100000'
+    await optionsContracts.issueOTokens(numTokens, firstOwnerAddress, {
+      from: firstOwnerAddress
     });
 
     // Issue Max oTokens allowed
@@ -129,7 +131,6 @@ contract('OptionsContract', accounts => {
     let finalETH: BN;
     let gasUsed: BN;
     let gasPrice: BN;
-    let txInfo: any;
 
     it('should be able to call exercise', async () => {
       const amtToExercise = '10';
@@ -164,7 +165,7 @@ contract('OptionsContract', accounts => {
 
       initialETH = await balance.current(secondOwnerAddress);
 
-      txInfo = await optionsContracts.exercise(
+      const txInfo = await optionsContracts.exercise(
         amtToExercise,
         [creatorAddress],
         {
@@ -214,9 +215,7 @@ contract('OptionsContract', accounts => {
 
   describe('#exercise() after expiry window', () => {
     it('first person should be able to collect their share of collateral', async () => {
-      const vaultIndex = '0';
-
-      await time.increaseTo(1589932800);
+      await time.increaseTo(expiry);
 
       const initialETH = await balance.current(creatorAddress);
 
@@ -247,7 +246,6 @@ contract('OptionsContract', accounts => {
     });
 
     it('only the owner of a vault should be able to collect collateral', async () => {
-      const vaultIndex = '1';
       await expectRevert(
         optionsContracts.redeemVaultBalance({
           from: nonOwnerAddress,
@@ -257,12 +255,31 @@ contract('OptionsContract', accounts => {
       );
     });
 
-    it(
-      'once collateral has been collected, should not be able to collect again'
-    );
+    it('once collateral has been collected, should not be able to collect again', async () => {
+      const ownerETHBalBefore = await balance.current(creatorAddress);
+      const ownerDaiBalBefore = await dai.balanceOf(creatorAddress);
+
+      const txInfo = await optionsContracts.redeemVaultBalance({
+        from: creatorAddress,
+        gas: '1000000'
+      });
+      const tx = await web3.eth.getTransaction(txInfo.tx);
+
+      // check ETH balance after = balance before - gas
+      const gasUsed = new BN(txInfo.receipt.gasUsed);
+      const gasPrice = new BN(tx.gasPrice);
+      const ownerETHBalAfter = await balance.current(creatorAddress);
+      const ownerDaiBalAfter = await dai.balanceOf(creatorAddress);
+      expect(ownerETHBalBefore.sub(gasUsed.mul(gasPrice)).toString()).to.equal(
+        ownerETHBalAfter.toString()
+      );
+      // check underlying balance stays the same
+      expect(ownerDaiBalBefore.toString()).to.equal(
+        ownerDaiBalAfter.toString()
+      );
+    });
 
     it('the second person should be able to collect their share of collateral', async () => {
-      const vaultIndex = '1';
       const tx = await optionsContracts.redeemVaultBalance({
         from: firstOwnerAddress,
         gas: '1000000'

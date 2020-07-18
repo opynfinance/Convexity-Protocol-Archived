@@ -12,6 +12,7 @@ const MockCompoundOracle = artifacts.require('MockCompoundOracle');
 const MintableToken = artifacts.require('ERC20Mintable');
 
 import Reverter from './utils/reverter';
+import {getUnixTime, addMonths} from 'date-fns';
 
 const {
   BN,
@@ -21,12 +22,12 @@ const {
 } = require('@openzeppelin/test-helpers');
 
 function checkVault(
-  vault: any,
+  vault: any, // eslint-disable-line
   {
     '0': expectedCollateral,
     '1': expectedPutsOutstanding
   }: {'0': string; '1': string}
-) {
+): void {
   expect(vault['0'].toString()).to.equal(expectedCollateral);
   expect(vault['1'].toString()).to.equal(expectedPutsOutstanding);
 }
@@ -36,7 +37,7 @@ contract('OptionsContract', accounts => {
 
   const creatorAddress = accounts[0];
   const firstVaultOwnerAddress = accounts[1];
-  const secondVaultOwnerAddress = accounts[2];
+  // const secondVaultOwnerAddress = accounts[2];
 
   const firstExerciser = accounts[3];
   const secondExerciser = accounts[4];
@@ -52,10 +53,12 @@ contract('OptionsContract', accounts => {
   const vault1Collateral = '20000000';
   const vault1PutsOutstanding = '250000';
 
-  const vault2Collateral = '10000000';
-  const vault2PutsOutstanding = '100000';
+  // const vault2Collateral = '10000000';
+  // const vault2PutsOutstanding = '100000';
 
-  const windowSize = 1589932800;
+  const now = Date.now();
+  const expiry = getUnixTime(addMonths(now, 3));
+  const windowSize = expiry;
 
   before('set up contracts', async () => {
     // 1. Deploy mock contracts
@@ -91,7 +94,7 @@ contract('OptionsContract', accounts => {
       '9',
       -'15',
       'USDC',
-      '1589932800',
+      expiry,
       windowSize,
       {from: creatorAddress, gas: '4000000'}
     );
@@ -115,8 +118,7 @@ contract('OptionsContract', accounts => {
       vault1PutsOutstanding,
       firstVaultOwnerAddress,
       {
-        from: firstVaultOwnerAddress,
-        gas: '100000'
+        from: firstVaultOwnerAddress
       }
     );
 

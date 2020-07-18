@@ -9,14 +9,12 @@ import {
 const OptionsContract = artifacts.require('OptionsContract');
 const OptionsFactory = artifacts.require('OptionsFactory');
 const MockCompoundOracle = artifacts.require('MockCompoundOracle');
-const MockUniswapFactory = artifacts.require('MockUniswapFactory');
 const MintableToken = artifacts.require('ERC20Mintable');
 
 import Reverter from './utils/reverter';
-
+import {getUnixTime, addMonths} from 'date-fns';
 const {
   BN,
-  constants,
   balance,
   time,
   expectEvent,
@@ -47,7 +45,9 @@ contract('OptionsContract', accounts => {
   const vault2Collateral = '10000000';
   const vault2PutsOutstanding = '100000';
 
-  const windowSize = 1589932800;
+  const now = Date.now();
+  const expiry = getUnixTime(addMonths(now, 3));
+  const windowSize = expiry;
 
   before('set up contracts', async () => {
     // 1. Deploy mock contracts
@@ -83,7 +83,7 @@ contract('OptionsContract', accounts => {
       '9',
       -'15',
       'USDC',
-      '1589932800',
+      expiry,
       windowSize,
       {from: creatorAddress, gas: '4000000'}
     );
@@ -107,8 +107,7 @@ contract('OptionsContract', accounts => {
       vault1PutsOutstanding,
       firstVaultOwnerAddress,
       {
-        from: firstVaultOwnerAddress,
-        gas: '100000'
+        from: firstVaultOwnerAddress
       }
     );
 
@@ -138,8 +137,7 @@ contract('OptionsContract', accounts => {
       vault2PutsOutstanding,
       secondVaultOwnerAddress,
       {
-        from: secondVaultOwnerAddress,
-        gas: '100000'
+        from: secondVaultOwnerAddress
       }
     );
 
@@ -859,7 +857,7 @@ contract('OptionsContract', accounts => {
       const expectedCollateralToPay = new BN(4590);
       const initialETH = await balance.current(tokenHolder);
 
-      const vault = await optionsContracts[0].getVault(firstVaultOwnerAddress);
+      // const vault = await optionsContracts[0].getVault(firstVaultOwnerAddress);
 
       const txInfo = await optionsContracts[0].liquidate(
         firstVaultOwnerAddress,

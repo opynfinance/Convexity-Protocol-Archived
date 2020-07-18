@@ -19,23 +19,14 @@ import {getUnixTime, addMonths} from 'date-fns';
 const {time, expectEvent, expectRevert} = require('@openzeppelin/test-helpers');
 
 function checkVault(
-  vault: any,
+  vault: any, // eslint-disable-line
   {
     '0': expectedCollateral,
     '1': expectedPutsOutstanding
   }: {'0': string; '1': string}
-) {
+): void {
   expect(vault['0'].toString()).to.equal(expectedCollateral);
   expect(vault['1'].toString()).to.equal(expectedPutsOutstanding);
-}
-
-function checkVaultOwners(vaults: any, expected: string[]) {
-  expect(vaults)
-    .to.be.an('array')
-    .with.length(expected.length);
-  for (let i = 0; i < vaults.length; i++) {
-    expect(vaults[i].toString()).to.equal(expected[i]);
-  }
 }
 
 // Initialize the Options Factory, Options Exchange and other mock contracts
@@ -146,7 +137,7 @@ contract('OptionsContract', accounts => {
     });
 
     it('new person should be able to open third vault correctly', async () => {
-      const result = await optionsContracts[0].openVault({
+      await optionsContracts[0].openVault({
         from: firstOwnerAddress,
         gas: '100000'
       });

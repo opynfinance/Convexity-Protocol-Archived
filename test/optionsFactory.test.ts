@@ -1,26 +1,20 @@
 import {expect} from 'chai';
-import {
-  OptionsFactoryInstance,
-  MockCompoundOracleInstance
-} from '../build/types/truffle-types';
+import {OptionsFactoryInstance} from '../build/types/truffle-types';
 
 const Web3Utils = require('web3-utils');
 const OptionsFactory = artifacts.require('OptionsFactory');
-const MockCompoundOracle = artifacts.require('MockCompoundOracle');
-const MockUniswapFactory = artifacts.require('MockUniswapFactory');
 const OptionsContract = artifacts.require('OptionsContract');
 const truffleAssert = require('truffle-assertions');
 
 import {getUnixTime, addMonths, addSeconds, fromUnixTime} from 'date-fns';
 
-const {expectRevert, time} = require('@openzeppelin/test-helpers');
+const {expectRevert} = require('@openzeppelin/test-helpers');
 
 contract('OptionsFactory', accounts => {
   const creatorAddress = accounts[0];
   const firstOwnerAddress = accounts[1];
 
   let optionsFactory: OptionsFactoryInstance;
-  let compoundOracle: MockCompoundOracleInstance;
 
   const now = Date.now();
   const expiry = getUnixTime(addMonths(now, 3));
@@ -28,11 +22,7 @@ contract('OptionsFactory', accounts => {
 
   before(async () => {
     optionsFactory = await OptionsFactory.deployed();
-    // 1. Deploy mock contracts
-    // 1.1 Compound Oracle
-    compoundOracle = await MockCompoundOracle.deployed();
-
-    // 2. Deploy our contracts
+    // 1. Deploy our contracts
     // deploys the Options Exhange contract
 
     // Deploy the Options Factory contract and add assets to it

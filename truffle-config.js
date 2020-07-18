@@ -1,4 +1,5 @@
 // This enables us to use TypeScript in the unit tests.
+/* eslint-disable */
 require('ts-node/register');
 const mnemonic = require('./secret.js');
 
@@ -33,6 +34,11 @@ module.exports = {
       // from: <address>,        // Account to send txs from (default: accounts[0])
       // websockets: true        // Enable EventEmitter interface for web3 (default: false)
     // },
+    development: {
+      host: '127.0.0.1', // Localhost (default: none)
+      port: 8545, // Standard Ethereum port (default: none)
+      network_id: '*', // Any network (default: none)
+    },
 
     // Useful for deploying to a public network.
     // NB: It's important to wrap the provider as a function.
